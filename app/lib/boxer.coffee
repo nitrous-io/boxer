@@ -1,25 +1,34 @@
 MessageParser = require './message_parser'
+Box = require './box'
 protocol = require '../protocol'
 redis = require 'redis'
 
 module.exports = class Boxer
-  @LOCATE_CHANNEL = 'aio-locate-channel'
-  @ADVERTISE_CHANNEL = 'aio-advertise-channel'
+  @BOXER_CHANNEL = 'aio-boxer-channel'
+  @COACH_CHANNEL = 'aio-coach-channel'
 
-  constructor: ->
-    settings = require('../../config/settings').redis
+  constructor: (settings)->
+    @id = settings.id
+    @runtimes = settings.runtimes
+    @lxcRoot = settings.lxcRoot
+    @containerIdleTime = settings.containerIdleTime
 
-    @subscriber = redis.createClient(settings.port, settings.host)
-    @subscriber.auth(settings.password) if settings.password?
-    @subscriber.select(settings.database)
+    redisSettings = settings.redisMQ
 
-    @publisher = redis.createClient(settings.port, settings.host)
-    @publisher.auth(settings.password) if settings.password?
-    @publisher.select(settings.database)
+    @subscriber = redis.createClient(redisSettings.port, redisSettings.host)
+    @subscriber.auth(redisSettings.password) if redisSettings.password?
+    @subscriber.select(redisSettings.database)
+    # We need a separate client to publish events, since
+    # once a redis client is in 'subscribe' mode,
+    # it can't perform other operations
+    @publisher = redis.createClient(redisSettings.port, redisSettings.host)
+    @publisher.auth(redisSettings.password) if redisSettings.password?
+    @publisher.select(redisSettings.database)
 
   run: ->
     boxer = this
-    @subscriber.subscribe Boxer.LOCATE_CHANNEL, (err, result) ->
+
+    @subscriber.subscribe Boxer.BOXER_CHANNEL, (err, result) ->
       if !err
         boxer.subscriber.on 'message', (channel, rawMessage) ->
           boxer._handle(MessageParser.decode(rawMessage))
@@ -27,6 +36,9 @@ module.exports = class Boxer
 
   _handle:(message) ->
     if message.type == protocol.LocateMessage.type
-      @publisher.publish Boxer.ADVERTISE_CHANNEL, protocol.AdvertiseMessage.construct().encode()
-
+      @publisher.publish Boxer.COACH_CHANNEL, protocol.AdvertiseMessage.construct().encode()
+    else if message.type == protocol.StartMessage.type
+      if @id == message.id && (containerTemplate = @runtimes[message.runtime])?
+        box = new Box(message.hostName, containerTemplate, message.memory, message.diskSpace, message.publicKeys, message.snapshotURL)
+        box.create (err) ->
 
