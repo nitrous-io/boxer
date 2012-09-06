@@ -1,0 +1,28 @@
+{
+  "name": "boxer"
+, "description": "boxer API which listens to provision, run, stop and destroy boxes"
+, "author": "Action.IO"
+, "version": "0.0.1"
+, "private": true
+, "main": "./boot"
+, "dependencies": {
+    "coffee-script"  : "1.3.x"
+  , "underscore"     : "1.3.x"
+  , "hiredis"        : "0.1.x"
+  , "redis"          : "0.7.x"
+  , "nats"           : "0.2.x"
+  }
+, "devDependencies": {
+    "mocha"        : "1.3.x"
+  , "should"       : "1.1.x"
+  , "sinon"        : "1.4.x"
+  }
+, "engines": {
+    "node"         : "0.8.x"
+  , "npm"          : "1.1.x"
+  }
+, "scripts": {
+    "test": "make test"
+  }
+}
+
