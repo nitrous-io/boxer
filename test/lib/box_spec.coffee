@@ -53,7 +53,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       expect(box._execShellCommand).was.calledWith("boxer-setup-webproxy",
-                                                   ['rails-box', '192.168.254.254'],
+                                                   ['rails-box', 'rails_box', '192.168.254.254'],
                                                    sudo: true,
                                                    cbSpy)
   describe '#notifySuccess', ->

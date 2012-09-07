@@ -50,7 +50,7 @@ module.exports = class Box
 
   setUpWebProxy: (cb) ->
     this._execShellCommand "boxer-setup-webproxy",
-                           [@name, @ip],
+                           [@name, @name.replace('-', '_'), @ip],
                            sudo: true,
                            cb
 
