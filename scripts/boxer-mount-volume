@@ -1,0 +1,18 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root=${1}
+box_name=${2}
+container_template=${3}
+box_path=${lxc_root}/${box_name}
+box_delta_path=${box_path}-delta
+container_path=${lxc_root}/${container_template}
+
+mkdir -p ${box_path}
+mkdir -p ${box_delta_path}
+mount -n -t overlayfs -o rw,upperdir=${box_delta_path},lowerdir=${container_path} none ${box_path}
+

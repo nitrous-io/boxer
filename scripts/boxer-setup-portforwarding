@@ -1,0 +1,11 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+ip=${1}
+port=${2}
+
+iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to 192.168.254.${ip}:22
