@@ -14,8 +14,10 @@
   }
 , "devDependencies": {
     "mocha"        : "1.3.x"
-  , "should"       : "1.1.x"
+  , "expect.js"    : "0.1.x"
   , "sinon"        : "1.4.x"
+  , "sinon-expect" : "0.2.x"
+  , "should"       : "1.1.x"
   }
 , "engines": {
     "node"         : "0.8.x"

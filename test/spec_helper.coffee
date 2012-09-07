@@ -9,6 +9,8 @@ global.xits = global.xit
 
 global.sinon = require 'sinon'
 global.assert = require 'should'
+global.expect = require 'expect.js'
+global.expect = require('sinon-expect').enhance(expect, sinon, 'was')
 
 global.cleanDB = require './support/clean_db'
 
