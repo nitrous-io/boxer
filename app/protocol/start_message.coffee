@@ -11,4 +11,5 @@ module.exports = class StartMessage extends BaseMessage
     @memory = attributes.memory
     @diskSpace = attributes.diskSpace
     @publicKeys = attributes.publicKeys
-    @type = attributes.type
+    @type = StartMessage.type
+    @hostName = attributes.hostName

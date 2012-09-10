@@ -6,19 +6,19 @@ describe Box, ->
   box = cbSpy = null
 
   beforeEach ->
-    box = new Box('rails-box', 'ruby-container-template', '/var/lib/lxc', 256, 4096, [], null)
+    box = new Box(1, 'rails-box', 'ruby-container-template', '/var/lib/lxc', 256, 4096, [], null)
     cbSpy = sinon.spy()
 
-  describe '#mountVolume', ->
+  describe '#mountContainer', ->
     beforeEach ->
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
-      box.mountVolume(cbSpy)
+      box.mountContainer(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
-      expect(box._execShellCommand).was.calledWith("boxer-mount-volume",
-                                                   ['/var/lib/lxc', 'rails-box', 'ruby-container-template'],
-                                                   sudo: true,
-                                                   cbSpy)
+      box._execShellCommand.should.have.been.calledWith("boxer-mount-container",
+                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template'],
+                                                        sudo: true,
+                                                        cbSpy)
 
   describe '#configureBox', ->
     beforeEach ->
@@ -27,10 +27,10 @@ describe Box, ->
       box.configureBox(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
-      expect(box._execShellCommand).was.calledWith("boxer-configure-box",
-                                                   ['/var/lib/lxc', 'rails-box', '192.168.254.254'],
-                                                   sudo: true,
-                                                   cbSpy)
+      box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
+                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template', '192.168.254.254'],
+                                                        sudo: true,
+                                                        cbSpy)
 
   describe '#setUpPortForwarding', ->
     beforeEach ->
@@ -40,30 +40,9 @@ describe Box, ->
       box.setUpPortForwarding(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
-      expect(box._execShellCommand).was.calledWith("boxer-setup-portforwarding",
+      box._execShellCommand.should.have.been.calledWith("boxer-setup-portforwarding",
                                                    ['192.168.254.254', 21000],
                                                    sudo: true,
-                                                   cbSpy)
-
-  describe '#setUpWebProxy', ->
-    beforeEach ->
-      box.ip = '192.168.254.254'
-      sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
-      box.setUpWebProxy(cbSpy)
-
-    it 'should call _execShellCommand with the right options', ->
-      expect(box._execShellCommand).was.calledWith("boxer-setup-webproxy",
-                                                   ['rails-box', 'rails_box', '192.168.254.254'],
-                                                   sudo: true,
-                                                   cbSpy)
-  describe '#notifySuccess', ->
-    beforeEach ->
-      sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
-      box.notifySuccess(cbSpy)
-
-    it 'should call _execShellCommand with the right options', ->
-      expect(box._execShellCommand).was.calledWith("boxer-notify-success",
-                                                   ['rails-box'],
                                                    cbSpy)
 
   describe '#_execShellCommand', ->
@@ -82,8 +61,8 @@ describe Box, ->
                               cbSpy
 
       it 'should execute the command with the sudo prefixed', ->
-        expect(childProcess.exec).was.calledWith("sudo #{scriptPath}foo 'hello' 'world'", timeout: 2000)
-        expect(cbSpy).was.called()
+        childProcess.exec.should.have.been.calledWith("sudo #{scriptPath}foo 'hello' 'world'", timeout: 2000)
+        cbSpy.should.have.been.called
 
     context 'without sudo', ->
       beforeEach ->
@@ -93,24 +72,24 @@ describe Box, ->
                               cbSpy
 
       it 'should execute the command without the sudo prefixed', ->
-        expect(childProcess.exec).was.calledWith("#{scriptPath}foo 'hello'", timeout: 2000)
-        expect(cbSpy).was.called()
+        childProcess.exec.should.have.been.calledWith("#{scriptPath}foo 'hello'", timeout: 2000)
+        cbSpy.should.have.been.called
 
     context 'without option', ->
       beforeEach ->
         box._execShellCommand "foo", ["hello"], cbSpy
 
       it 'should execute the command without the sudo prefixed', ->
-        expect(childProcess.exec).was.calledWith("#{scriptPath}foo 'hello'", timeout: 2000)
-        expect(cbSpy).was.called()
+        childProcess.exec.should.have.been.calledWith("#{scriptPath}foo 'hello'", timeout: 2000)
+        cbSpy.should.have.been.called
 
     context 'without args', ->
       beforeEach ->
         box._execShellCommand "foo", cbSpy
 
       it 'should execute the command without the sudo prefixed', ->
-        expect(childProcess.exec).was.calledWith("#{scriptPath}foo", timeout: 2000)
-        expect(cbSpy).was.called()
+        childProcess.exec.should.have.been.calledWith("#{scriptPath}foo", timeout: 2000)
+        cbSpy.should.have.been.called
 
     context 'with a maligned prefix', ->
       beforeEach ->
@@ -121,5 +100,5 @@ describe Box, ->
                               cbSpy
 
       it 'should execute the command with the sanitized prefix', ->
-        expect(childProcess.exec).was.calledWith("/usr/bin/foo 'hello'", timeout: 2000)
-        expect(cbSpy).was.called()
+        childProcess.exec.should.have.been.calledWith("/usr/bin/foo 'hello'", timeout: 2000)
+        cbSpy.should.have.been.called

@@ -2,13 +2,15 @@ ResourcePool = require '../../app/lib/resource_pool'
 redis = require 'redis'
 
 describe 'ResourcePool', ->
-  beforeEach ->
-    @settings = require('../../config/settings')
-    redisSettings = @settings.redisStore
+  client = settings = null
 
-    @client = redis.createClient(redisSettings.port, redisSettings.host)
-    @client.auth(redisSettings.password) if redisSettings.password?
-    @client.select(redisSettings.database)
+  beforeEach ->
+    settings = require('../../config/settings')
+    redisSettings = settings.redisStore
+
+    client = redis.createClient(redisSettings.port, redisSettings.host)
+    client.auth(redisSettings.password) if redisSettings.password?
+    client.select(redisSettings.database)
 
   describe '.acquire', ->
     beforeEach (done) ->
@@ -16,7 +18,7 @@ describe 'ResourcePool', ->
 
     context 'when there are ports and ips available', ->
       beforeEach (done) ->
-        multi = @client.multi()
+        multi = client.multi()
         multi.rpush 'available_ips', 254
         multi.rpush 'available_ports', 10000
         multi.exec (err, replies) ->
@@ -30,7 +32,7 @@ describe 'ResourcePool', ->
 
     context 'when a port is available but an IP is not available', ->
       beforeEach (done) ->
-        multi = @client.multi()
+        multi = client.multi()
         multi.rpush 'available_ports', 10000
         multi.exec (err, replies) ->
           done() if !err
@@ -42,7 +44,7 @@ describe 'ResourcePool', ->
 
     context 'when an IP is available but a port is not available', ->
       beforeEach (done) ->
-        multi = @client.multi()
+        multi = client.multi()
         multi.rpush 'available_ips', 254
         multi.exec (err, replies) ->
           done() if !err
@@ -58,7 +60,7 @@ describe 'ResourcePool', ->
 
     context 'when ip and port are valid', (done) ->
       beforeEach (done) ->
-        multi = @client.multi()
+        multi = client.multi()
         multi.rpush 'used_ips', '254'
         multi.rpush 'used_ports', '10000'
         multi.exec (err, replies) ->
@@ -66,7 +68,7 @@ describe 'ResourcePool', ->
 
       it 'should release the ip and the port back to the pool', (done) ->
         ResourcePool.release {ip: '254', port: '10000'}, (err) =>
-          multi = @client.multi()
+          multi = client.multi()
           multi.llen 'available_ips'
           multi.llen 'used_ips'
           multi.llen 'available_ports'

@@ -6,66 +6,75 @@ escapeShellArg = require('./utils').escapeShellArg
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 _ = require 'underscore'
 
-module.exports = class Box
+module.exports = class Box extends AutoAdvancingStateMachine
   states: [
     { name: 'initialized',         onAdvance: 'acquireResources',    onRollback: null }
-    { name: 'resourcesAcquired',   onAdvance: 'mountVolume',         onRollback: 'releaseResources' }
-    { name: 'volumeMounted',       onAdvance: 'configureBox',        onRollback: 'unmountVolume' }
+    { name: 'resourcesAcquired',   onAdvance: 'mountContainer',      onRollback: 'releaseResources' }
+    { name: 'containerMounted',    onAdvance: 'configureBox',        onRollback: 'unmountVolume' }
     { name: 'boxConfigured',       onAdvance: 'setUpPortForwarding', onRollback: 'removeBoxConfig' }
-    { name: 'portForwardingSetUp', onAdvance: 'setUpWebProxy',       onRollback: 'releasePortForwarding' }
-    { name: 'webProxySetUp',       onAdvance: 'notifySuccess',       onRollback: 'releaseWebProxy' }
-    { name: 'provisoned',          onAdvance: null,                  onRollback: null }
+    { name: 'portForwardingSetUp', onAdvance: 'startContainer',      onRollback: 'releasePortForwarding' }
+    { name: 'containerStarted',    onAdvance: 'notifySuccess',       onRollback: 'stopContainer' }
+    { name: 'provisioned',         onAdvance: null,                  onRollback: null }
   ]
 
-  constructor: (@name, @containerTemplate, @lxcRoot, @memory, @diskSpace, @publicKeys, @snapshotURL) ->
-    @ip = @port = null
+  constructor: (@id, @name, @containerTemplate, @lxcRoot, @memory, @diskSpace, @publicKeys, @snapshotURL) ->
+    @ip = @port = @boxerCallback = null
+    super
 
-  provision: ->
-    start()
+  create: (@boxerCallback) ->
+    console.log "Going to Start"
+    this.start()
 
-  acquireResources: (cb) ->
-    ResourcePool.acquire (resources, err) =>
+  acquireResources: (done) ->
+    console.log "Acquiring Resources"
+    ResourcePool.acquire (err, resources) =>
       if !err
-        @ip = resources.ip
-        @port = resources.port
-      cb(err)
+        @ip = "192.168.254.#{resources.ip}"
+        @port = parseInt(resources.port)
 
-  mountVolume: (cb) ->
-    this._execShellCommand "boxer-mount-volume",
+        console.log "IP --> #{@ip} Port: #{@port}"
+      done()
+
+  mountContainer: (done) ->
+    console.log "Mounting Container"
+    this._execShellCommand "boxer-mount-container",
                            [@lxcRoot, @name, @containerTemplate],
                            sudo: true,
-                           cb
+                           done
 
-  configureBox: (cb) ->
+  configureBox: (done) ->
+    console.log "Configuring Box"
     this._execShellCommand "boxer-configure-box",
-                           [@lxcRoot, @name, @ip],
+                           [@lxcRoot, @name, @containerTemplate, @ip]
                            sudo: true,
-                           cb
+                           done
 
-  setUpPortForwarding: (cb) ->
+  setUpPortForwarding: (done) ->
+    console.log "Port Forwarding Set Up"
     this._execShellCommand "boxer-setup-portforwarding",
                            [@ip, @port],
                            sudo: true,
-                           cb
+                           done
 
-  setUpWebProxy: (cb) ->
-    this._execShellCommand "boxer-setup-webproxy",
-                           [@name, @name.replace('-', '_'), @ip],
+  startContainer: (done) ->
+    console.log "Start Container"
+    this._execShellCommand "boxer-start-container",
+                           [@name, @ip],
                            sudo: true,
-                           cb
+                           done
 
-  notifySuccess: (cb) ->
-    this._execShellCommand "boxer-notify-success",
-                           [@name],
-                           cb
+  notifySuccess: (done) ->
+    @boxerCallback?(null)
+    delete @boxerCallback
+    done()
 
-  _execShellCommand: (cmd, args, opts, cb) ->
+  _execShellCommand: (cmd, args, opts, done) ->
     if _.isFunction(args)
-      cb = args
+      done = args
       args = []
       opts = {}
     else if _.isFunction(opts)
-      cb = opts
+      done = opts
       opts = {}
 
     prefix = if opts.prefix then "#{opts.prefix}/".replace(/\/{2,}$/, '/') else scriptPath
@@ -78,5 +87,7 @@ module.exports = class Box
                           _.map(args, (x) -> escapeShellArg(x))
                         ]).join(' ').trim()
 
-    childProcess.exec command, timeout: timeout, (err, stdout, stderr) -> cb(err)
+    console.log "Executing command #{command}"
+    childProcess.exec command, timeout: timeout, (err, stdout, stderr) ->
+      done(err)
 

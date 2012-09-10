@@ -1,53 +1,103 @@
 Boxer = require '../../app/lib/boxer'
 MessageParser = require '../../app/lib/message_parser'
 redis = require 'redis'
+childProcess = require 'child_process'
+fs = require 'fs'
+_ = require 'underscore'
+
+scriptPath = __dirname.replace('test/lib', 'scripts/')
 
 describe 'Boxer', ->
-  subscriber = publisher = settings = null
+  subscriber = publisher = settings = redisSettings = null
 
-  beforeEach ->
+  before ->
     settings = require('../../config/settings')
+    settings.id = 'boxer-id'
     redisSettings = settings.redisMQ
 
     subscriber = redis.createClient(redisSettings.port, redisSettings.host)
-    subscriber.auth(redisSettings.password) if redisSettings.password?
     subscriber.select(redisSettings.database)
 
     publisher = redis.createClient(redisSettings.port, redisSettings.host)
-    publisher.auth(redisSettings.password) if redisSettings.password?
     publisher.select(redisSettings.database)
 
+  after (done) ->
+    command = _.flatten([
+                          "sudo"
+                          "#{scriptPath}boxer-cleanup-tests",
+                        ]).join(' ').trim()
+
+    childProcess.exec command, timeout: 5000, (err, stdout, stderr) ->
+      done(err)
 
   describe 'run', ->
-    context 'listening to aio.locate', ->
-      boxer = null
+    context 'aio.start', ->
+      before (done) ->
+        cleanDB ->
+          multi = publisher.multi()
+          multi.rpush 'available_ips', '254'
+          multi.rpush 'available_ports', '10000'
+          multi.exec (err, replies) ->
+            boxer = new Boxer(settings)
+            boxer.run(done)
 
-      beforeEach (done) ->
-        boxer = new Boxer(settings)
-        boxer.run()
-        cleanDB(done)
+      after ->
+        subscriber.punsubscribe()
 
-      it 'should return an aio.advertise message', (done) ->
-        subscriber.subscribe 'aio-coach-channel', (err, result) =>
+      it 'should return an aio.started message with the requisite properties filled', (done) ->
+        subscriber.subscribe settings.coachChannel, (err, result) ->
           if !err
             subscriber.on 'message', (channel, rawMessage) ->
               message = MessageParser.decode(rawMessage)
-              message.type.should.eql 'aio.advertise'
-              message.id.should.not.be.empty
-              done()
 
-            publisher.publish 'aio-boxer-channel', '{"type":"aio.locate"}'
-          else
-            throw err
+              root = "/var/lib/lxc/mclovins-container/rootfs"
+              networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
+              hostName = fs.readFileSync("#{root}/etc/hostname")
 
-    #context 'listening to aio.start', ->
-      #beforeEach ->
-        #@settings.id = 'boxer-id'
-        #@settings.runtimes = {'test':'test-warden-container'}
+              expect(message.type).to.eql 'aio.started'
+              expect(message.ip).to.eql '192.168.254.254'
+              expect(message.port).to.eql 10000
+              expect(message.boxId).to.eql 1
+              expect(message.id).to.eql 'boxer-id'
+              expect(networkConfig).to.match /address 192.168.254.254/
+              expect(hostName).to.match /mclovins-container/
 
-        #@boxer = new Boxer(@settings)
-        #@boxer.run()
+              childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+                expect(stdout).to.match /192\.168\.254\.254:22/
 
-      #context 'without a box which has not been archived', ->
-        #context 'when the ID does match the box\'s ID', ->
-          #@publisher.publish 'aio-start-channel', '{"type":"aio.start"}'
+                childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+                  expect(stdout).to.match /RUNNING/
+                  done(err)
+
+            publisher.publish settings.boxerChannel,
+                              '{"type":"aio.start",' +
+                              '"id":"boxer-id",' +
+                              '"boxId":1,' +
+                              '"runtime":"test",' +
+                              '"hostName":"mclovins-container",' +
+                              '"memory":"256",' +
+                              '"diskSpace":"4096",' +
+                              '"publicKeys":[],' +
+                              '"snapshotURL":null}'
+
+
+    context 'aio.locate', ->
+      before (done) ->
+        cleanDB ->
+          boxer = new Boxer(settings)
+          boxer.run(done)
+
+      after ->
+        subscriber.punsubscribe()
+
+      it 'should return an aio.advertise message with the boxer\'s capabilities', ->
+        subscriber.subscribe settings.coachChannel, (err, result) ->
+          if !err
+            subscriber.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
+              expect(message.type).to.eql 'aio.advertise'
+              expect(message.id).to.eql 'boxer-id'
+              expect(message.freeMemory).to.exist()
+
+            publisher.publish settings.boxerChannel, '{"type":"aio.locate"}'
+

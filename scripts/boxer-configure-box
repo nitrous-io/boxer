@@ -1,25 +1,25 @@
 #!/bin/bash
 
 [ -n "$DEBUG" ] && set -o xtrace
-set -o nounset
-set -o errexit
-shopt -s nullglob
+#set -o nounset
+#set -o errexit
+#shopt -s nullglob
 
 lxc_root=${1}
 box_name=${2}
 container_template=${3}
 ip=${4}
-read -d '' network_config <<"EOF"
+network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
 
 auto eth0
 iface eth0 inet static
-    address 192.168.254.${ip}
+    address ${ip}
     netmask 255.255.255.0
     gateway 192.168.254.1
 EOF
-
+)
 
 sed -i "s/${container_template}/${box_name}/g" ${lxc_root}/${box_name}/config
 echo "${box_name}" > ${lxc_root}/${box_name}/rootfs/etc/hostname

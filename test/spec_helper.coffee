@@ -8,9 +8,12 @@ global.its = global.it
 global.xits = global.xit
 
 global.sinon = require 'sinon'
-global.assert = require 'should'
-global.expect = require 'expect.js'
-global.expect = require('sinon-expect').enhance(expect, sinon, 'was')
+global.chai = require 'chai'
+global.should = global.chai.should()
+global.expect = global.chai.expect
+global.assert = global.chai.assert
+sinonChai = require 'sinon-chai'
+global.chai.use(sinonChai)
 
 global.cleanDB = require './support/clean_db'
 

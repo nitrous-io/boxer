@@ -5,6 +5,8 @@ settings =
   common:
     id: '400ed6e6-d633-42dc-b42e-8b0604bb29e1'
     lxcRoot: '/var/lib/lxc'
+    boxerChannel: 'aio-boxer-channel'
+    coachChannel: 'aio-coach-channel'
   development:
     redisMQ:
       host: '0.0.0.0'

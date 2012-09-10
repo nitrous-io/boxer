@@ -4,14 +4,14 @@ protocol = require '../protocol'
 redis = require 'redis'
 
 module.exports = class Boxer
-  @BOXER_CHANNEL = 'aio-boxer-channel'
-  @COACH_CHANNEL = 'aio-coach-channel'
-
   constructor: (settings)->
     @id = settings.id
     @runtimes = settings.runtimes
     @lxcRoot = settings.lxcRoot
     @containerIdleTime = settings.containerIdleTime
+
+    @boxerChannel = settings.boxerChannel
+    @coachChannel = settings.coachChannel
 
     redisSettings = settings.redisMQ
 
@@ -25,20 +25,40 @@ module.exports = class Boxer
     @publisher.auth(redisSettings.password) if redisSettings.password?
     @publisher.select(redisSettings.database)
 
-  run: ->
+  run: (done) ->
     boxer = this
-
-    @subscriber.subscribe Boxer.BOXER_CHANNEL, (err, result) ->
+    @subscriber.subscribe @boxerChannel, (err, result) ->
       if !err
         boxer.subscriber.on 'message', (channel, rawMessage) ->
           boxer._handle(MessageParser.decode(rawMessage))
-
+        done?()
+      else
+        throw err
 
   _handle:(message) ->
     if message.type == protocol.LocateMessage.type
-      @publisher.publish Boxer.COACH_CHANNEL, protocol.AdvertiseMessage.construct().encode()
+      @publisher.publish @coachChannel,
+                         protocol.AdvertiseMessage.construct().encode()
+
     else if message.type == protocol.StartMessage.type
       if @id == message.id && (containerTemplate = @runtimes[message.runtime])?
-        box = new Box(message.hostName, containerTemplate, message.memory, message.diskSpace, message.publicKeys, message.snapshotURL)
+        box = new Box(message.boxId,
+                      message.hostName,
+                      containerTemplate,
+                      @lxcRoot,
+                      message.memory,
+                      message.diskSpace,
+                      message.publicKeys,
+                      message.snapshotURL)
+
+        boxer = this
+
         box.create (err) ->
+          startedMessage = new protocol.StartedMessage(
+                                                       id: boxer.id
+                                                       boxId: @id
+                                                       ip: @ip
+                                                       port: @port
+                                                      )
+          boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
 

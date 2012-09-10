@@ -18,7 +18,7 @@ module.exports = klass = class AutoAdvancingStateMachine
         @_currentStateIndex = i
         return
 
-  _advanceDone: (err) ->
+  _advanceDone: (err) =>
     if err
       this._rollback()
     else
@@ -29,7 +29,7 @@ module.exports = klass = class AutoAdvancingStateMachine
     state = this._currentState()
     this[state.onAdvance]?(@_advanceDone)
 
-  _rollbackDone: ->
+  _rollbackDone: =>
     if (@_currentStateIndex -= 1) > 0
       this._rollback()
 

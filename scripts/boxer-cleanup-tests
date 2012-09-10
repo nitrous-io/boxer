@@ -1,0 +1,20 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+name='mclovins-container'
+
+echo 'Stopping the container'
+lxc-stop -n ${name}
+
+echo 'Unmounting the container'
+umount /var/lib/lxc/${name}
+
+echo 'Deleting all remnants of the container'
+rm -rf /var/lib/lxc/${name}*
+
+echo 'Flushing IPTables'
+iptables -t nat -F
