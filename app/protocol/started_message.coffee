@@ -8,5 +8,6 @@ module.exports = class StartedMessage extends BaseMessage
     @boxId = attributes.boxId
     @ip = attributes.ip
     @port = attributes.port
+    @success = attributes.success
 
     super

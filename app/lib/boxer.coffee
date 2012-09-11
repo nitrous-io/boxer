@@ -54,11 +54,12 @@ module.exports = class Boxer
         box.snapshotURL = message.snapshotURL
 
         successCallback = (err) ->
-          startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port})
+          startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port, success: true})
           boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
 
         errCallback = (err) ->
-          boxer.publisher.publish boxer.coachChannel, '{}'
+          startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: @id, success: false})
+          boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
 
         box.create successCallback, errCallback
     else if message.type == protocol.StopMessage.type && @id == message.id

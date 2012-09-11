@@ -1,4 +1,5 @@
 Boxer = require '../../app/lib/boxer'
+Box = require '../../app/lib/box'
 MessageParser = require '../../app/lib/message_parser'
 childProcess = require 'child_process'
 initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
@@ -18,7 +19,7 @@ describe 'Boxer', ->
 
   describe 'run', ->
     context 'aio.start', ->
-      before (done) ->
+      beforeEach (done) ->
         publisher = initRedisClientWith(redisMQSettings)
         coach = initRedisClientWith(redisMQSettings)
 
@@ -30,7 +31,7 @@ describe 'Boxer', ->
             boxer = new Boxer(settings)
             boxer.run(done)
 
-      after (done) ->
+      afterEach (done) ->
         boxer.cleanup()
         coach.unsubscribe()
         publisher.unsubscribe()
@@ -38,53 +39,92 @@ describe 'Boxer', ->
         boxer = coach = publisher = null
         cleanupContainer(done)
 
-      it 'should return an aio.started message with the requisite properties filled', (done) ->
-        this.timeout(0)
+      context 'successfully provisioned', ->
+        it 'should return an aio.started message with the requisite properties filled', (done) ->
+          this.timeout(0)
 
-        coach.subscribe settings.coachChannel, (err, result) ->
-          if !err
-            coach.on 'message', (channel, rawMessage) ->
-              message = MessageParser.decode(rawMessage)
+          coach.subscribe settings.coachChannel, (err, result) ->
+            if !err
+              coach.on 'message', (channel, rawMessage) ->
+                message = MessageParser.decode(rawMessage)
 
-              root = "/var/lib/lxc/mclovins-container/rootfs"
-              networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
-              hostName = fs.readFileSync("#{root}/etc/hostname")
+                root = "/var/lib/lxc/mclovins-container/rootfs"
+                networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
+                hostName = fs.readFileSync("#{root}/etc/hostname")
 
-              expect(message.type).to.eql 'aio.started'
-              expect(message.ip).to.eql '192.168.254.254'
-              expect(message.port).to.eql 10000
-              expect(message.boxId).to.eql 1
-              expect(message.id).to.eql 'boxer-id'
-              expect(networkConfig).to.match /address 192.168.254.254/
-              expect(hostName).to.match /mclovins-container/
+                expect(message.type).to.eql 'aio.started'
+                expect(message.ip).to.eql '192.168.254.254'
+                expect(message.port).to.eql 10000
+                expect(message.boxId).to.eql 1
+                expect(message.id).to.eql 'boxer-id'
+                expect(message.success).to.be.true
+                expect(networkConfig).to.match /address 192.168.254.254/
+                expect(hostName).to.match /mclovins-container/
 
-              childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-                expect(stdout).to.match /192\.168\.254\.254:22/
+                childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+                  expect(stdout).to.match /192\.168\.254\.254:22/
 
-                childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
-                  expect(stdout).to.match /RUNNING/
+                  childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+                    expect(stdout).to.match /RUNNING/
 
-                  publisher.hget 'aio.boxes', 1, (err, res) ->
-                    msg = JSON.parse(res)
-                    expect(msg.id).to.eql 1
-                    expect(msg.hostName).to.eql 'mclovins-container'
-                    expect(msg.ip).to.eql '192.168.254.254'
-                    expect(msg.port).to.eql 10000
-                    expect(msg.memory).to.eql '256'
-                    expect(msg.diskSpace).to.eql '4096'
-                    done(err)
+                    publisher.hget 'aio.boxes', 1, (err, res) ->
+                       msg = JSON.parse(res)
+                       expect(msg.id).to.eql 1
+                       expect(msg.hostName).to.eql 'mclovins-container'
+                       expect(msg.ip).to.eql '192.168.254.254'
+                       expect(msg.port).to.eql 10000
+                       expect(msg.memory).to.eql '256'
+                       expect(msg.diskSpace).to.eql '4096'
+                       done(err)
 
-            publisher.publish settings.boxerChannel,
-                              '{"type":"aio.start",' +
-                              '"id":"boxer-id",' +
-                              '"boxId":1,' +
-                              '"runtime":"test",' +
-                              '"hostName":"mclovins-container",' +
-                              '"memory":"256",' +
-                              '"diskSpace":"4096",' +
-                              '"publicKeys":[],' +
-                              '"snapshotURL":null}'
+              publisher.publish settings.boxerChannel,
+                                '{"type":"aio.start",' +
+                                '"id":"boxer-id",' +
+                                '"boxId":1,' +
+                                '"runtime":"test",' +
+                                '"hostName":"mclovins-container",' +
+                                '"memory":"256",' +
+                                '"diskSpace":"4096",' +
+                                '"publicKeys":[],' +
+                                '"snapshotURL":null}'
 
+      context 'unsuccessful provisioning', ->
+        beforeEach ->
+          Box.prototype._startContainer = sinon.stub().throws(new Error("OMG"))
+
+        it 'should return an aio.started message with the success flag set to false', (done) ->
+          this.timeout(0)
+
+          coach.subscribe settings.coachChannel, (err, result) ->
+            if !err
+              coach.on 'message', (channel, rawMessage) ->
+                message = MessageParser.decode(rawMessage)
+
+                expect(message.type).to.eql 'aio.started'
+                expect(message.boxId).to.eql 1
+                expect(message.id).to.eql 'boxer-id'
+                expect(message.success).to.eql false
+
+                childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+                  expect(stdout).to.not.match /192\.168\.254\.254:22/
+
+                  childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+                    expect(stdout).to.match /STOPPED/
+
+                    publisher.hget 'aio.boxes', 1, (err, res) ->
+                      expect(res).to.be.null
+                      done(err)
+
+              publisher.publish settings.boxerChannel,
+                                '{"type":"aio.start",' +
+                                '"id":"boxer-id",' +
+                                '"boxId":1,' +
+                                '"runtime":"test",' +
+                                '"hostName":"mclovins-container",' +
+                                '"memory":"256",' +
+                                '"diskSpace":"4096",' +
+                                '"publicKeys":[],' +
+                                '"snapshotURL":null}'
 
     context 'aio.locate', ->
       before (done) ->

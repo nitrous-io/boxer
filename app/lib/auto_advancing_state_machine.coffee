@@ -27,7 +27,10 @@ module.exports = klass = class AutoAdvancingStateMachine
 
   _advance: ->
     state = this._currentState()
-    this[state.onAdvance]?(@_advanceDone)
+    try
+      this[state.onAdvance]?(@_advanceDone)
+    catch err
+      this._advanceDone(err)
 
   _rollbackDone: (err) =>
     if err
