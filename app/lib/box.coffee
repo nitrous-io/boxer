@@ -1,71 +1,158 @@
 AutoAdvancingStateMachine = require './auto_advancing_state_machine'
 ResourcePool = require './resource_pool'
 settings = require '../../config/settings'
-childProcess = require 'child_process'
 escapeShellArg = require('./utils').escapeShellArg
+initRedisClientWith = require('./utils').initRedisClientWith
 scriptPath = __dirname.replace('app/lib', 'scripts/')
+childProcess = require 'child_process'
+redis = require 'redis'
 _ = require 'underscore'
 
 module.exports = class Box extends AutoAdvancingStateMachine
   states: [
-    { name: 'initialized',         onAdvance: 'acquireResources',    onRollback: null }
-    { name: 'resourcesAcquired',   onAdvance: 'mountContainer',      onRollback: 'releaseResources' }
-    { name: 'containerMounted',    onAdvance: 'configureBox',        onRollback: 'unmountVolume' }
-    { name: 'boxConfigured',       onAdvance: 'setUpPortForwarding', onRollback: 'removeBoxConfig' }
-    { name: 'portForwardingSetUp', onAdvance: 'startContainer',      onRollback: 'releasePortForwarding' }
-    { name: 'containerStarted',    onAdvance: 'notifySuccess',       onRollback: 'stopContainer' }
-    { name: 'provisioned',         onAdvance: null,                  onRollback: null }
+    { name: 'initialized',         onAdvance: '_acquireResources',    onRollback: '_notifyError' }
+    { name: 'resourcesAcquired',   onAdvance: '_mountContainer',      onRollback: '_releaseResources' }
+    { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
+    { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
+    { name: 'portForwardingSetUp', onAdvance: '_startContainer',      onRollback: '_releasePortForwarding' }
+    { name: 'containerStarted',    onAdvance: 'save',                 onRollback: '_stopContainer' }
+    { name: 'boxInfoSaved',        onAdvance: '_notifySuccess',       onRollback: '_deleteBoxInfo' }
+    { name: 'provisioned',         onAdvance: null,                   onRollback: null }
   ]
 
-  constructor: (@id, @name, @containerTemplate, @lxcRoot, @memory, @diskSpace, @publicKeys, @snapshotURL) ->
+  constructor: (@id, redisStoreSettings) ->
     @ip = @port = @boxerCallback = null
+    @hostName = @containerTemplate = @lxcRoot = null
+    @memory = @diskSpace = @publicKeys = @snapshotURL = null
+
+    # Setup the Redis client
+    @redisClient = initRedisClientWith(redisStoreSettings)
+
     super
 
-  create: (@boxerCallback) ->
-    console.log "Going to Start"
+  create: (@successCallback, @errorCallback) ->
     this.start()
 
-  acquireResources: (done) ->
+  save: (done) ->
+    @redisClient.hset 'aio.boxes', @id, this.encode(), (err, result) ->
+      done(err)
+
+  stop: (cb) ->
+    this._stopContainer cb
+
+  destroy: (@boxerCallback) ->
+    throw new Error("Not Implemented")
+
+  encode: ->
+    JSON.stringify({
+                    id: @id
+                    hostName: @hostName
+                    ip: @ip
+                    port: @port
+                    memory: @memory
+                    diskSpace: @diskSpace
+                    snapshotURL: @snapshotURL
+                    containerTemplate: @containerTemplate
+                  })
+
+  @find: (id, redisStoreSettings, cb) ->
+    redisClient = initRedisClientWith(redisStoreSettings)
+    redisClient.hget 'aio.boxes', id, (err, res) ->
+      if !err
+        parsedBox = JSON.parse(res)
+        box = new Box(id, redisStoreSettings)
+        box.hostName = parsedBox.hostName
+        box.ip = parsedBox.ip
+        box.port = parsedBox.port
+        box.memory = parsedBox.memory
+        box.diskSpace = parsedBox.diskSpace
+
+        cb(err, box)
+      else
+        cb(err, null)
+
+
+  # "Private" Methods
+  _acquireResources: (done) ->
     console.log "Acquiring Resources"
     ResourcePool.acquire (err, resources) =>
       if !err
         @ip = "192.168.254.#{resources.ip}"
         @port = parseInt(resources.port)
-
-        console.log "IP --> #{@ip} Port: #{@port}"
       done()
 
-  mountContainer: (done) ->
+  _releaseResources: (done) ->
+    console.log "Releasing Resources"
+    octet = _.last(@ip.split('.'))
+    resources = {
+                  ip: octet
+                  port: @port
+                }
+
+    ResourcePool.release resources, (err) ->
+      console.log "Done Releasing Resources #{err}"
+      done(err)
+
+  _mountContainer: (done) ->
     console.log "Mounting Container"
     this._execShellCommand "boxer-mount-container",
-                           [@lxcRoot, @name, @containerTemplate],
+                           [@lxcRoot, @hostName, @containerTemplate],
                            sudo: true,
                            done
 
-  configureBox: (done) ->
+  _unmountContainer: (done) ->
+    console.log "Unmounting Container"
+    this._execShellCommand "boxer-unmount-container",
+                           [@lxcRoot, @hostName],
+                           sudo: true,
+                           done
+
+  _configureBox: (done) ->
     console.log "Configuring Box"
     this._execShellCommand "boxer-configure-box",
-                           [@lxcRoot, @name, @containerTemplate, @ip]
+                           [@lxcRoot, @hostName, @containerTemplate, @ip]
                            sudo: true,
                            done
 
-  setUpPortForwarding: (done) ->
+  _removeBoxConfig: (done) ->
+    done()
+
+  _setUpPortForwarding: (done) ->
     console.log "Port Forwarding Set Up"
     this._execShellCommand "boxer-setup-portforwarding",
                            [@ip, @port],
                            sudo: true,
                            done
 
-  startContainer: (done) ->
-    console.log "Start Container"
-    this._execShellCommand "boxer-start-container",
-                           [@name, @ip],
+  _releasePortForwarding: (done) ->
+    console.log "Port Forwarding Released"
+    this._execShellCommand "boxer-release-portforwarding",
+                           [@ip, @port],
                            sudo: true,
                            done
 
-  notifySuccess: (done) ->
-    @boxerCallback?(null)
-    delete @boxerCallback
+  _startContainer: (done) ->
+    console.log "Start Container"
+    this._execShellCommand "boxer-start-container",
+                           [@hostName, @ip],
+                           sudo: true,
+                           done
+
+  _stopContainer: (done) ->
+    this._execShellCommand "boxer-stop-container",
+                           [@hostName],
+                           sudo: true,
+                           done
+
+
+  _notifySuccess: (done) ->
+    @successCallback?(null)
+    delete @successCallback
+    done()
+
+  _notifyError: (done) ->
+    @errorCallback?(null)
+    delete @errorCallback
     done()
 
   _execShellCommand: (cmd, args, opts, done) ->
@@ -78,7 +165,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
       opts = {}
 
     prefix = if opts.prefix then "#{opts.prefix}/".replace(/\/{2,}$/, '/') else scriptPath
-    timeout = opts.timeout ? 2000
     sudo = if opts.sudo then 'sudo' else ''
 
     command = _.flatten([
@@ -88,6 +174,5 @@ module.exports = class Box extends AutoAdvancingStateMachine
                         ]).join(' ').trim()
 
     console.log "Executing command #{command}"
-    childProcess.exec command, timeout: timeout, (err, stdout, stderr) ->
-      done(err)
-
+    childProcess.exec command, timeout: 0, (err, stdout, stderr) ->
+        done(err)

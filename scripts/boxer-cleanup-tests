@@ -6,15 +6,20 @@ set -o errexit
 shopt -s nullglob
 
 name='mclovins-container'
+lxc_root='/var/lib/lxc'
+box_path=${lxc_root}/${name}
 
-echo 'Stopping the container'
-lxc-stop -n ${name}
+if [ -d ${box_path} ]; then
+  echo 'Stopping the container'
+  lxc-stop -n ${name}
+  lxc-wait -n ${name} -s STOPPED
 
-echo 'Unmounting the container'
-umount /var/lib/lxc/${name}
+  echo 'Unmounting the container'
+  umount ${box_path}
 
-echo 'Deleting all remnants of the container'
-rm -rf /var/lib/lxc/${name}*
+  echo 'Deleting all remnants of the container'
+  rm -rf ${box_path}*
 
-echo 'Flushing IPTables'
-iptables -t nat -F
+  echo 'Flushing IPTables'
+  iptables -t nat -F
+fi

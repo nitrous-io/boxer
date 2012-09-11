@@ -1,0 +1,14 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root=${1}
+box_name=${2}
+box_path=${lxc_root}/${box_name}
+
+umount ${box_path}
+rm -rf ${box_path}*
+

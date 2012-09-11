@@ -1,0 +1,37 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root='/var/lib/lxc'
+box_name='mclovins-container'
+container_template='test-container-template'
+ip='192.168.254.254'
+box_path=${lxc_root}/${box_name}
+box_delta_path=${box_path}-delta
+container_path=${lxc_root}/${container_template}
+network_config=$(cat <<EOF
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address ${ip}
+    netmask 255.255.255.0
+    gateway 192.168.254.1
+EOF
+)
+
+
+mkdir -p ${box_path}
+mkdir -p ${box_delta_path}
+mount -n -t overlayfs -o rw,upperdir=${box_delta_path},lowerdir=${container_path} none ${box_path}
+
+sed -i "s/${container_template}/${box_name}/g" ${box_path}/config
+echo "${box_name}" > ${box_path}/rootfs/etc/hostname
+echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
+
+lxc-start -n ${box_name} -d
+

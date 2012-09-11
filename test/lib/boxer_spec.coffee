@@ -1,38 +1,27 @@
 Boxer = require '../../app/lib/boxer'
 MessageParser = require '../../app/lib/message_parser'
-redis = require 'redis'
 childProcess = require 'child_process'
+initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
 fs = require 'fs'
 _ = require 'underscore'
 
 scriptPath = __dirname.replace('test/lib', 'scripts/')
 
 describe 'Boxer', ->
-  subscriber = publisher = settings = redisSettings = null
+  boxer = coach = publisher = settings = redisMQSettings = redisStoreSettings = null
 
   before ->
     settings = require('../../config/settings')
     settings.id = 'boxer-id'
-    redisSettings = settings.redisMQ
-
-    subscriber = redis.createClient(redisSettings.port, redisSettings.host)
-    subscriber.select(redisSettings.database)
-
-    publisher = redis.createClient(redisSettings.port, redisSettings.host)
-    publisher.select(redisSettings.database)
-
-  after (done) ->
-    command = _.flatten([
-                          "sudo"
-                          "#{scriptPath}boxer-cleanup-tests",
-                        ]).join(' ').trim()
-
-    childProcess.exec command, timeout: 5000, (err, stdout, stderr) ->
-      done(err)
+    redisMQSettings = settings.redisMQ
+    redisStoreSettings = settings.redisStore
 
   describe 'run', ->
     context 'aio.start', ->
       before (done) ->
+        publisher = initRedisClientWith(redisMQSettings)
+        coach = initRedisClientWith(redisMQSettings)
+
         cleanDB ->
           multi = publisher.multi()
           multi.rpush 'available_ips', '254'
@@ -41,13 +30,18 @@ describe 'Boxer', ->
             boxer = new Boxer(settings)
             boxer.run(done)
 
-      after ->
-        subscriber.punsubscribe()
+      after (done) ->
+        boxer.cleanup()
+        coach.unsubscribe()
+        publisher.unsubscribe()
+
+        boxer = coach = publisher = null
+        cleanupContainer(done)
 
       it 'should return an aio.started message with the requisite properties filled', (done) ->
-        subscriber.subscribe settings.coachChannel, (err, result) ->
+        coach.subscribe settings.coachChannel, (err, result) ->
           if !err
-            subscriber.on 'message', (channel, rawMessage) ->
+            coach.on 'message', (channel, rawMessage) ->
               message = MessageParser.decode(rawMessage)
 
               root = "/var/lib/lxc/mclovins-container/rootfs"
@@ -67,7 +61,16 @@ describe 'Boxer', ->
 
                 childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                   expect(stdout).to.match /RUNNING/
-                  done(err)
+
+                  publisher.hget 'aio.boxes', 1, (err, res) ->
+                    msg = JSON.parse(res)
+                    expect(msg.id).to.eql 1
+                    expect(msg.hostName).to.eql 'mclovins-container'
+                    expect(msg.ip).to.eql '192.168.254.254'
+                    expect(msg.port).to.eql 10000
+                    expect(msg.memory).to.eql '256'
+                    expect(msg.diskSpace).to.eql '4096'
+                    done(err)
 
             publisher.publish settings.boxerChannel,
                               '{"type":"aio.start",' +
@@ -83,21 +86,65 @@ describe 'Boxer', ->
 
     context 'aio.locate', ->
       before (done) ->
+        publisher = initRedisClientWith(redisMQSettings)
+        coach = initRedisClientWith(redisMQSettings)
+
         cleanDB ->
           boxer = new Boxer(settings)
           boxer.run(done)
 
       after ->
-        subscriber.punsubscribe()
+        coach.unsubscribe()
+        publisher.unsubscribe()
+        boxer.cleanup()
 
-      it 'should return an aio.advertise message with the boxer\'s capabilities', ->
-        subscriber.subscribe settings.coachChannel, (err, result) ->
+        boxer = coach = publisher = null
+
+      it 'should return an aio.advertise message with the boxer\'s capabilities', (done) ->
+        coach.subscribe settings.coachChannel, (err, result) ->
           if !err
-            subscriber.on 'message', (channel, rawMessage) ->
+            coach.on 'message', (channel, rawMessage) ->
               message = MessageParser.decode(rawMessage)
               expect(message.type).to.eql 'aio.advertise'
               expect(message.id).to.eql 'boxer-id'
-              expect(message.freeMemory).to.exist()
+              expect(message.freeMemory).to.exist
+              done()
 
             publisher.publish settings.boxerChannel, '{"type":"aio.locate"}'
+
+    context 'aio.stop', ->
+      before (done) ->
+        coach = initRedisClientWith(redisMQSettings)
+        publisher = initRedisClientWith(redisMQSettings)
+
+        settings.id = 'boxer-id'
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
+          if !err
+            cleanDB ->
+              publisher.hset 'aio.boxes', 1, '{"id":1,"hostName":"mclovins-container"}'
+              boxer = new Boxer(settings)
+              boxer.run(done)
+
+      after (done) ->
+        publisher.unsubscribe()
+        coach.unsubscribe()
+        boxer.cleanup()
+
+        coach = publisher = boxer = null
+        cleanupContainer(done)
+
+      it 'should return an aio.stopped message with the box\'s id present', (done) ->
+        coach.subscribe settings.coachChannel, (err, result) ->
+          if !err
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
+              expect(message.type).to.eql 'aio.stopped'
+              expect(message.id).to.eql 'boxer-id'
+              expect(message.boxId).to.eql 1
+
+              childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+                expect(stdout).to.match /STOPPED/
+                done(err)
+
+            publisher.publish settings.boxerChannel, '{"type":"aio.stop","id":"boxer-id","boxId":1}'
 
