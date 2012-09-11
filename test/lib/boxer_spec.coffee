@@ -39,6 +39,8 @@ describe 'Boxer', ->
         cleanupContainer(done)
 
       it 'should return an aio.started message with the requisite properties filled', (done) ->
+        this.timeout(0)
+
         coach.subscribe settings.coachChannel, (err, result) ->
           if !err
             coach.on 'message', (channel, rawMessage) ->
@@ -134,6 +136,8 @@ describe 'Boxer', ->
         cleanupContainer(done)
 
       it 'should return an aio.stopped message with the box\'s id present', (done) ->
+        this.timeout(0)
+
         coach.subscribe settings.coachChannel, (err, result) ->
           if !err
             coach.on 'message', (channel, rawMessage) ->
@@ -148,3 +152,50 @@ describe 'Boxer', ->
 
             publisher.publish settings.boxerChannel, '{"type":"aio.stop","id":"boxer-id","boxId":1}'
 
+    context 'aio.destroy', ->
+      before (done) ->
+        publisher = initRedisClientWith(redisMQSettings)
+        coach = initRedisClientWith(redisMQSettings)
+
+        settings.id = 'boxer-id'
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
+          if !err
+            cleanDB ->
+              publisher.hset 'aio.boxes', 1, '{"id":1,"hostName":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              boxer = new Boxer(settings)
+              boxer.run(done)
+
+      after (done) ->
+        boxer.cleanup()
+        coach.unsubscribe()
+        publisher.unsubscribe()
+
+        boxer = coach = publisher = null
+        cleanupContainer(done)
+
+      it 'should destroy the container and remove all remnants', (done) ->
+        # This test might take a while
+        this.timeout(0)
+
+        coach.subscribe settings.coachChannel, (err, result) ->
+          if !err
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
+              expect(message.type).to.eql 'aio.destroyed'
+              expect(message.id).to.eql 'boxer-id'
+              expect(message.boxId).to.eql 1
+
+              expect(fs.existsSync("/var/lib/lxc/mclovins-container")).to.be.false
+              expect(fs.existsSync("/var/lib/lxc/mclovins-container-delta")).to.be.false
+
+              childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+                expect(stdout).to.not.match /192\.168\.254\.254:22/
+
+                childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+                  expect(stdout).to.match /STOPPED/
+
+                  publisher.hget 'aio.boxes', 1, (err, res) ->
+                    expect(res).to.be.null
+                    done()
+
+            publisher.publish settings.boxerChannel, '{"type":"aio.destroy","id":"boxer-id","boxId":1}'

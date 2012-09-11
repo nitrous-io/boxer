@@ -4,4 +4,4 @@ module.exports = class LocateMessage extends BaseMessage
   @type = 'aio.locate'
 
   constructor: (attributes) ->
-    @type = attributes.type
+    super

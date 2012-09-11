@@ -1,16 +1,12 @@
 ResourcePool = require '../../app/lib/resource_pool'
-redis = require 'redis'
+initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
 
 describe 'ResourcePool', ->
   client = settings = null
 
   beforeEach ->
     settings = require('../../config/settings')
-    redisSettings = settings.redisStore
-
-    client = redis.createClient(redisSettings.port, redisSettings.host)
-    client.auth(redisSettings.password) if redisSettings.password?
-    client.select(redisSettings.database)
+    client = initRedisClientWith(settings.redisStore)
 
   describe '.acquire', ->
     beforeEach (done) ->

@@ -22,16 +22,19 @@ module.exports = klass = class AutoAdvancingStateMachine
     if err
       this._rollback()
     else
-      if (@_currentStateIndex += 1) < (@states.length - 1)
+      if (@_currentStateIndex += 1) <= (@states.length - 1)
         this._advance()
 
   _advance: ->
     state = this._currentState()
     this[state.onAdvance]?(@_advanceDone)
 
-  _rollbackDone: =>
-    if (@_currentStateIndex -= 1) > 0
-      this._rollback()
+  _rollbackDone: (err) =>
+    if err
+      this._advance()
+    else
+      if (@_currentStateIndex -= 1) >= 0
+        this._rollback()
 
   _rollback: ->
     state = this._currentState()
@@ -39,6 +42,10 @@ module.exports = klass = class AutoAdvancingStateMachine
 
   start: ->
     this._advance()
+
+  rollback: ->
+    @_currentStateIndex = @states.length - 1
+    this._rollback()
 
 klass::__defineGetter__ 'state', ->
   this._currentStateName()

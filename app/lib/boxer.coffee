@@ -1,7 +1,7 @@
 MessageParser = require './message_parser'
 Box = require './box'
 protocol = require '../protocol'
-redis = require 'redis'
+initRedisClientWith = require('./utils').initRedisClientWith
 
 module.exports = class Boxer
   constructor: (settings)->
@@ -13,18 +13,13 @@ module.exports = class Boxer
     @boxerChannel = settings.boxerChannel
     @coachChannel = settings.coachChannel
 
-    @redisMQSettings = settings.redisMQ
     @redisStoreSettings = settings.redisStore
 
-    @subscriber = redis.createClient(@redisMQSettings.port, @redisMQSettings.host)
-    @subscriber.auth(@redisMQSettings.password) if @redisMQSettings.password?
-    @subscriber.select(@redisMQSettings.database)
+    @subscriber = initRedisClientWith(settings.redisMQ)
     # We need a separate client to publish events, since
     # once a redis client is in 'subscribe' mode,
     # it can't perform other operations
-    @publisher = redis.createClient(@redisMQSettings.port, @redisMQSettings.host)
-    @publisher.auth(@redisMQSettings.password) if @redisMQSettings.password?
-    @publisher.select(@redisMQSettings.database)
+    @publisher = initRedisClientWith(@redisStoreSettings)
 
   cleanup: ->
     @subscriber.unsubscribe()
@@ -59,17 +54,11 @@ module.exports = class Boxer
         box.snapshotURL = message.snapshotURL
 
         successCallback = (err) ->
-          startedMessage = new protocol.StartedMessage(
-                                                       id: boxer.id
-                                                       boxId: @id
-                                                       ip: @ip
-                                                       port: @port
-                                                      )
+          startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port})
           boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
 
-        # TODO: Implement the errCallback
         errCallback = (err) ->
-          console.log "OMG ERROR"
+          boxer.publisher.publish boxer.coachChannel, '{}'
 
         box.create successCallback, errCallback
     else if message.type == protocol.StopMessage.type && @id == message.id
@@ -78,3 +67,11 @@ module.exports = class Boxer
           if !err
             stoppedMessage = new protocol.StoppedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, stoppedMessage.encode()
+    else if message.type == protocol.DestroyMessage.type && @id == message.id
+      Box.find message.boxId, @redisStoreSettings, (err, box) ->
+        box.lxcRoot = boxer.lxcRoot
+
+        box.destroy (err) ->
+          if !err
+            destroyedMessage = new protocol.DestroyedMessage({id: boxer.id, boxId: box.id})
+            boxer.publisher.publish boxer.coachChannel, destroyedMessage.encode()

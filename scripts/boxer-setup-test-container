@@ -9,6 +9,7 @@ lxc_root='/var/lib/lxc'
 box_name='mclovins-container'
 container_template='test-container-template'
 ip='192.168.254.254'
+port='10000'
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}-delta
 container_path=${lxc_root}/${container_template}
@@ -32,6 +33,8 @@ mount -n -t overlayfs -o rw,upperdir=${box_delta_path},lowerdir=${container_path
 sed -i "s/${container_template}/${box_name}/g" ${box_path}/config
 echo "${box_name}" > ${box_path}/rootfs/etc/hostname
 echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
+
+iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
 
 lxc-start -n ${box_name} -d
 

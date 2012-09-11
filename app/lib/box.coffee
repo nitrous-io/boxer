@@ -5,43 +5,44 @@ escapeShellArg = require('./utils').escapeShellArg
 initRedisClientWith = require('./utils').initRedisClientWith
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
-redis = require 'redis'
 _ = require 'underscore'
 
 module.exports = class Box extends AutoAdvancingStateMachine
   states: [
-    { name: 'initialized',         onAdvance: '_acquireResources',    onRollback: '_notifyError' }
+    { name: 'initialized',         onAdvance: '_acquireResources',    onRollback: '_notifyRollback' }
     { name: 'resourcesAcquired',   onAdvance: '_mountContainer',      onRollback: '_releaseResources' }
     { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
     { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
     { name: 'portForwardingSetUp', onAdvance: '_startContainer',      onRollback: '_releasePortForwarding' }
     { name: 'containerStarted',    onAdvance: 'save',                 onRollback: '_stopContainer' }
-    { name: 'boxInfoSaved',        onAdvance: '_notifySuccess',       onRollback: '_deleteBoxInfo' }
-    { name: 'provisioned',         onAdvance: null,                   onRollback: null }
+    { name: 'boxSaved',            onAdvance: '_notifySuccess',       onRollback: 'delete' }
   ]
 
   constructor: (@id, redisStoreSettings) ->
     @ip = @port = @boxerCallback = null
     @hostName = @containerTemplate = @lxcRoot = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
-
     # Setup the Redis client
     @redisClient = initRedisClientWith(redisStoreSettings)
 
     super
 
-  create: (@successCallback, @errorCallback) ->
+  create: (@successCallback, @rollbackCallback) ->
     this.start()
 
   save: (done) ->
     @redisClient.hset 'aio.boxes', @id, this.encode(), (err, result) ->
       done(err)
 
+  delete: (done) ->
+    @redisClient.hdel 'aio.boxes', @id, (err, res) ->
+      done(err)
+
   stop: (cb) ->
     this._stopContainer cb
 
-  destroy: (@boxerCallback) ->
-    throw new Error("Not Implemented")
+  destroy: (@rollbackCallback) ->
+    this.rollback()
 
   encode: ->
     JSON.stringify({
@@ -70,7 +71,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
         cb(err, box)
       else
         cb(err, null)
-
 
   # "Private" Methods
   _acquireResources: (done) ->
@@ -139,20 +139,20 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            done
 
   _stopContainer: (done) ->
+    console.log "Stop Container"
     this._execShellCommand "boxer-stop-container",
                            [@hostName],
                            sudo: true,
                            done
-
 
   _notifySuccess: (done) ->
     @successCallback?(null)
     delete @successCallback
     done()
 
-  _notifyError: (done) ->
-    @errorCallback?(null)
-    delete @errorCallback
+  _notifyRollback: (done) ->
+    @rollbackCallback?(null)
+    delete @rollbackCallback
     done()
 
   _execShellCommand: (cmd, args, opts, done) ->
@@ -175,4 +175,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
     console.log "Executing command #{command}"
     childProcess.exec command, timeout: 0, (err, stdout, stderr) ->
-        done(err)
+      if err
+        console.log "stderr --> #{stderr}"
+      done(err)

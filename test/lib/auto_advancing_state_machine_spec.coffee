@@ -4,7 +4,7 @@ class TestStateMachine extends AutoAdvancingStateMachine
   states: [
     { name: 'A', onAdvance: 'goToB', onRollback: null }
     { name: 'B', onAdvance: 'goToC', onRollback: 'goBackToA' }
-    { name: 'C', onAdvance: null,    onRollback: null }
+    { name: 'C', onAdvance: null,    onRollback: 'goBackToB' }
   ]
 
 describe 'StateMachine', ->
@@ -15,6 +15,7 @@ describe 'StateMachine', ->
     sm.goToB     = sinon.stub()
     sm.goToC     = sinon.stub()
     sm.goBackToA = sinon.stub()
+    sm.goBackToB = sinon.stub()
 
   it 'sets initial state', ->
     sm.state.should.eql 'A'
@@ -68,3 +69,36 @@ describe 'StateMachine', ->
         sm.goBackToA.called.should.be.true
         sm.state.should.eql 'A'
 
+  describe '#rollback', ->
+    context 'when nothing fails', ->
+      beforeEach ->
+        sm.goBackToA.callsArgOn(0, sm)
+        sm.goBackToB.callsArgOn(0, sm)
+        sm.rollback()
+
+      it 'advances all the way to A', ->
+        sm.goBackToB.called.should.be.true
+        sm.goBackToA.called.should.be.true
+        sm.state.should.eql 'A'
+
+    context 'when goBackToB fails', ->
+      beforeEach ->
+        sm.goBackToB.callsArgOnWith(0, sm, new Error('error'))
+        sm.rollback()
+
+      it 'stays at C', ->
+        sm.goBackToB.called.should.be.true
+        sm.state.should.eql 'C'
+
+    context 'when goBackToA fails', ->
+      beforeEach ->
+        sm.goBackToB.callsArgOn(0, sm)
+        sm.goBackToA.callsArgOnWith(0, sm, new Error('error'))
+        sm.goToC.callsArgOn(0, sm)
+        sm.rollback()
+
+      it 'goes all the way back to C', ->
+        sm.goBackToB.called.should.be.true
+        sm.goBackToA.called.should.be.true
+        sm.goToC.called.should.be.true
+        sm.state.should.eql 'C'

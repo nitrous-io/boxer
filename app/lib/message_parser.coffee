@@ -8,6 +8,8 @@ module.exports = class MessageParser
     'aio.started': m.StartedMessage
     'aio.stop': m.StopMessage
     'aio.stopped': m.StoppedMessage
+    'aio.destroy': m.DestroyMessage
+    'aio.destroyed': m.DestroyedMessage
 
   @decode: (messageJSON) ->
     parsedMessage = JSON.parse(messageJSON)

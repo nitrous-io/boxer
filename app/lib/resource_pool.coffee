@@ -21,6 +21,7 @@ module.exports = class ResourcePool
   @release: (resources, cb) ->
     ip = resources.ip
     port = resources.port
+    this.initRedisClient()
 
     if ip && port
       multi = @client.multi()

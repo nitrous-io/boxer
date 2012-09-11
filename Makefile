@@ -1,5 +1,5 @@
 test:
-	node_modules/.bin/mocha -t 6000 test/**/*_spec.*
+	node_modules/.bin/mocha test/**/*_spec.*
 
 .PHONY: test
 

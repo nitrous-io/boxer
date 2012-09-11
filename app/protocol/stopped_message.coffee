@@ -6,4 +6,4 @@ module.exports = class StoppedMessage extends BaseMessage
   constructor: (attributes) ->
     @id = attributes.id
     @boxId = attributes.boxId
-    @type = StoppedMessage.type
+    super

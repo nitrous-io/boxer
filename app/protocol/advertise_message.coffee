@@ -8,11 +8,10 @@ module.exports = class AdvertiseMessage extends BaseMessage
     settings = require '../../config/settings'
     runtimes = Object.keys(settings.runtimes)
 
-    return new AdvertiseMessage(id: settings.id, type: AdvertiseMessage.type, runtimes: runtimes, freeMemory: os.freemem())
+    return new AdvertiseMessage(id: settings.id, runtimes: runtimes, freeMemory: os.freemem())
 
   constructor: (attributes) ->
-    @type = attributes.type
     @freeMemory = attributes.freeMemory
     @runtimes = attributes.runtimes
     @id = attributes.id
-
+    super
