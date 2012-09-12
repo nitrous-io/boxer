@@ -10,11 +10,11 @@ etc.) to setup a working dev environment
 There will be a task which does this automatically, but in the meantime
 perform these steps (on an Ubuntu 12.04 machine)
 
-1. Install lxc and bridge-utils
+- Install lxc and bridge-utils
 
 ```sudo apt-get install lxc bridge-utils```
 
-2. Add a bridge network to your network config
+- Add a bridge network to your network config
 
 ```
 auto br-lxc
@@ -31,19 +31,19 @@ iface br-lxc inet static
     bridge_stp off 
 ```
 
-3. Bring up your bridge network interface
+- Bring up your bridge network interface
 
 ```
 sudo ifup br-lxc
 ```
 
-4. Check if it is indeed up
+- Check if it is indeed up
 
 ```
 sudo ifconfig br-lxc
 ```
 
-5. Install an LXC container called ```test-container-template```
+- Install an LXC container called ```test-container-template```
 
 ```
 lxc-create -n test-container-template -t ubuntu -f
@@ -52,19 +52,21 @@ lxc-create -n test-container-template -t ubuntu -f
 
 This will take a while.
 
-6. Once this is complete, you should see a container in
+- Once this is complete, you should see a container in
    ```/var/lib/lxc/test-container-template``` (this will be used as the
 template for all the test containers created in the test suite)
 
-7. Install redis-server
+- Install redis-server
 
 ```sudo apt-get install redis-server```
 
-8. Run redis-server with the default configuration (if you change the
-   port, make sure you change it in the config file in boxer as well)
+Run redis-server with the default configuration (if you change the port, make sure you change it in the config file in boxer as well)
 
 9. Run tests
 
-```make```
+
+```
+make
+```
 
 
