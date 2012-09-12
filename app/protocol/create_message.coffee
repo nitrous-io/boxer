@@ -1,7 +1,7 @@
 BaseMessage = require './base_message'
 
-module.exports = class StartMessage extends BaseMessage
-  @type = 'aio.start'
+module.exports = class CreateMessage extends BaseMessage
+  @type = 'aio.create'
 
   constructor: (attributes) ->
     @id = attributes.id

@@ -1,7 +1,7 @@
 MessageParser = require '../../app/lib/message_parser'
 LocateMessage = require '../../app/protocol/locate_message'
 AdvertiseMessage = require '../../app/protocol/advertise_message'
-StartMessage = require '../../app/protocol/start_message'
+CreateMessage = require '../../app/protocol/create_message'
 
 describe 'MessageParser', ->
   describe '.decode', ->
@@ -23,7 +23,7 @@ describe 'MessageParser', ->
         msg = MessageParser.decode('{"type":"aio.advertise"}')
         msg.should.be.an.instanceOf(AdvertiseMessage)
 
-    context 'type is aio.start', ->
-      it 'should return a StartMessage object', ->
-        msg = MessageParser.decode('{"type":"aio.start"}')
-        msg.should.be.an.instanceOf(StartMessage)
+    context 'type is aio.create', ->
+      it 'should return a CreateMessage object', ->
+        msg = MessageParser.decode('{"type":"aio.create"}')
+        msg.should.be.an.instanceOf(CreateMessage)

@@ -4,8 +4,8 @@ module.exports = class MessageParser
   @types:
     'aio.locate' : m.LocateMessage
     'aio.advertise': m.AdvertiseMessage
-    'aio.start': m.StartMessage
-    'aio.started': m.StartedMessage
+    'aio.create': m.CreateMessage
+    'aio.created': m.CreatedMessage
     'aio.stop': m.StopMessage
     'aio.stopped': m.StoppedMessage
     'aio.destroy': m.DestroyMessage

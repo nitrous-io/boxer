@@ -18,7 +18,7 @@ describe 'Boxer', ->
     redisStoreSettings = settings.redisStore
 
   describe 'run', ->
-    context 'aio.start', ->
+    context 'aio.create', ->
       beforeEach (done) ->
         publisher = initRedisClientWith(redisMQSettings)
         coach = initRedisClientWith(redisMQSettings)
@@ -40,7 +40,7 @@ describe 'Boxer', ->
         cleanupContainer(done)
 
       context 'successfully provisioned', ->
-        it 'should return an aio.started message with the requisite properties filled', (done) ->
+        it 'should return an aio.created message with the requisite properties filled', (done) ->
           this.timeout(0)
 
           coach.subscribe settings.coachChannel, (err, result) ->
@@ -52,7 +52,7 @@ describe 'Boxer', ->
                 networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
                 hostName = fs.readFileSync("#{root}/etc/hostname")
 
-                expect(message.type).to.eql 'aio.started'
+                expect(message.type).to.eql 'aio.created'
                 expect(message.ip).to.eql '192.168.254.254'
                 expect(message.port).to.eql 10000
                 expect(message.boxId).to.eql 1
@@ -78,7 +78,7 @@ describe 'Boxer', ->
                        done(err)
 
               publisher.publish settings.boxerChannel,
-                                '{"type":"aio.start",' +
+                                '{"type":"aio.create",' +
                                 '"id":"boxer-id",' +
                                 '"boxId":1,' +
                                 '"runtime":"test",' +
@@ -92,7 +92,7 @@ describe 'Boxer', ->
         beforeEach ->
           Box.prototype._startContainer = sinon.stub().throws(new Error("OMG"))
 
-        it 'should return an aio.started message with the success flag set to false', (done) ->
+        it 'should return an aio.created message with the success flag set to false', (done) ->
           this.timeout(0)
 
           coach.subscribe settings.coachChannel, (err, result) ->
@@ -100,7 +100,7 @@ describe 'Boxer', ->
               coach.on 'message', (channel, rawMessage) ->
                 message = MessageParser.decode(rawMessage)
 
-                expect(message.type).to.eql 'aio.started'
+                expect(message.type).to.eql 'aio.created'
                 expect(message.boxId).to.eql 1
                 expect(message.id).to.eql 'boxer-id'
                 expect(message.success).to.eql false
@@ -116,7 +116,7 @@ describe 'Boxer', ->
                       done(err)
 
               publisher.publish settings.boxerChannel,
-                                '{"type":"aio.start",' +
+                                '{"type":"aio.create",' +
                                 '"id":"boxer-id",' +
                                 '"boxId":1,' +
                                 '"runtime":"test",' +

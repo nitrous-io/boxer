@@ -42,7 +42,7 @@ module.exports = class Boxer
       @publisher.publish @coachChannel,
                          protocol.AdvertiseMessage.construct().encode()
 
-    else if message.type == protocol.StartMessage.type
+    else if message.type == protocol.CreateMessage.type
       if @id == message.id && (containerTemplate = @runtimes[message.runtime])?
         box = new Box(message.boxId, @redisStoreSettings)
         box.hostName = message.hostName
@@ -54,11 +54,11 @@ module.exports = class Boxer
         box.snapshotURL = message.snapshotURL
 
         successCallback = (err) ->
-          startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port, success: true})
+          startedMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port, success: true})
           boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
 
         errCallback = (err) ->
-          startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: @id, success: false})
+          startedMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, success: false})
           boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
 
         box.create successCallback, errCallback
