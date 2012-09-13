@@ -63,19 +63,19 @@ module.exports = class Boxer
 
         box.create successCallback, errCallback
     else if message.type == protocol.StartMessage.type && @id == message.id
-      Box.find message.boxId, @redisStoreSettings, (err, box) ->
+      Box.find message.hostName, @redisStoreSettings, (err, box) ->
         box.start (err) ->
           if !err
             startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
     else if message.type == protocol.StopMessage.type && @id == message.id
-      Box.find message.boxId, @redisStoreSettings, (err, box) ->
+      Box.find message.hostName, @redisStoreSettings, (err, box) ->
         box.stop (err) ->
           if !err
             stoppedMessage = new protocol.StoppedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, stoppedMessage.encode()
     else if message.type == protocol.DestroyMessage.type && @id == message.id
-      Box.find message.boxId, @redisStoreSettings, (err, box) ->
+      Box.find message.hostName, @redisStoreSettings, (err, box) ->
         box.lxcRoot = boxer.lxcRoot
 
         box.destroy (err) ->

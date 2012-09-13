@@ -34,11 +34,11 @@ module.exports = class Box extends AutoAdvancingStateMachine
     this._startContainer cb
 
   save: (done) ->
-    @redisClient.hset 'aio.boxes', @id, this.encode(), (err, result) ->
+    @redisClient.hset 'aio.boxes', @hostName, this.encode(), (err, result) ->
       done(err)
 
   delete: (done) ->
-    @redisClient.hdel 'aio.boxes', @id, (err, res) ->
+    @redisClient.hdel 'aio.boxes', @hostName, (err, res) ->
       done(err)
 
   stop: (cb) ->
@@ -59,12 +59,12 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     containerTemplate: @containerTemplate
                   })
 
-  @find: (id, redisStoreSettings, cb) ->
+  @find: (hostName, redisStoreSettings, cb) ->
     redisClient = initRedisClientWith(redisStoreSettings)
-    redisClient.hget 'aio.boxes', id, (err, res) ->
+    redisClient.hget 'aio.boxes', hostName, (err, res) ->
       if !err
         parsedBox = JSON.parse(res)
-        box = new Box(id, redisStoreSettings)
+        box = new Box(parsedBox.id, redisStoreSettings)
         box.hostName = parsedBox.hostName
         box.ip = parsedBox.ip
         box.port = parsedBox.port

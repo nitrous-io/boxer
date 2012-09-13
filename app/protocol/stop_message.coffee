@@ -6,4 +6,5 @@ module.exports = class StopMessage extends BaseMessage
   constructor: (attributes) ->
     @id = attributes.id
     @boxId = attributes.boxId
+    @hostName = attributes.hostName
     super

@@ -67,7 +67,7 @@ describe 'Boxer', ->
                   childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                     expect(stdout).to.match /RUNNING/
 
-                    publisher.hget 'aio.boxes', 1, (err, res) ->
+                    publisher.hget 'aio.boxes', 'mclovins-container', (err, res) ->
                        msg = JSON.parse(res)
                        expect(msg.id).to.eql 1
                        expect(msg.hostName).to.eql 'mclovins-container'
@@ -115,7 +115,7 @@ describe 'Boxer', ->
                   childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                     expect(stdout).to.match /STOPPED/
 
-                    publisher.hget 'aio.boxes', 1, (err, res) ->
+                    publisher.hget 'aio.boxes', 'mclovins-container', (err, res) ->
                       expect(res).to.be.null
                       done(err)
 
@@ -167,9 +167,11 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           if !err
             cleanDB ->
-              publisher.hset 'aio.boxes', 1, '{"id":1,"hostName":"mclovins-container"}'
+              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"hostName":"mclovins-container"}'
               boxer = new Boxer(settings)
               boxer.run(done)
+          else
+            console.log "Err -> #{stderr}"
 
       after (done) ->
         publisher.unsubscribe()
@@ -194,7 +196,7 @@ describe 'Boxer', ->
                 expect(stdout).to.match /STOPPED/
                 done(err)
 
-            publisher.publish settings.boxerChannel, '{"type":"aio.stop","id":"boxer-id","boxId":1}'
+            publisher.publish settings.boxerChannel, '{"type":"aio.stop","id":"boxer-id","hostName":"mclovins-container"}'
 
     context 'aio.start' , ->
       before (done) ->
@@ -205,7 +207,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container dont-start", timeout:5000, (err, stdout, stderr) ->
           if !err
             cleanDB ->
-              publisher.hset 'aio.boxes', 1, '{"id":1,"hostName":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"hostName":"mclovins-container","ip":"192.168.254.254","port":10000}'
               boxer = new Boxer(settings)
               boxer.run(done)
 
@@ -233,7 +235,7 @@ describe 'Boxer', ->
                 expect(stdout).to.match /RUNNING/
                 done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio.start","id":"boxer-id","boxId":1}'
+            publisher.publish settings.boxerChannel, '{"type":"aio.start","id":"boxer-id","hostName":"mclovins-container"}'
 
     context 'aio.destroy', ->
       before (done) ->
@@ -244,7 +246,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           if !err
             cleanDB ->
-              publisher.hset 'aio.boxes', 1, '{"id":1,"hostName":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"hostName":"mclovins-container","ip":"192.168.254.254","port":10000}'
               boxer = new Boxer(settings)
               boxer.run(done)
 
@@ -277,8 +279,8 @@ describe 'Boxer', ->
                 childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                   expect(stdout).to.match /STOPPED/
 
-                  publisher.hget 'aio.boxes', 1, (err, res) ->
+                  publisher.hget 'aio.boxes', 'mclovins-container', (err, res) ->
                     expect(res).to.be.null
                     done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio.destroy","id":"boxer-id","boxId":1}'
+            publisher.publish settings.boxerChannel, '{"type":"aio.destroy","id":"boxer-id","hostName":"mclovins-container"}'
