@@ -28,7 +28,10 @@ module.exports = class Box extends AutoAdvancingStateMachine
     super
 
   create: (@successCallback, @rollbackCallback) ->
-    this.start()
+    this.startStateMachine()
+
+  start: (cb) ->
+    this._startContainer cb
 
   save: (done) ->
     @redisClient.hset 'aio.boxes', @id, this.encode(), (err, result) ->
@@ -42,7 +45,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     this._stopContainer cb
 
   destroy: (@rollbackCallback) ->
-    this.rollback()
+    this.rollbackStateMachine()
 
   encode: ->
     JSON.stringify({

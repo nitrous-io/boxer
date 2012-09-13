@@ -90,7 +90,11 @@ describe 'Boxer', ->
 
       context 'unsuccessful provisioning', ->
         beforeEach ->
-          Box.prototype._startContainer = sinon.stub().throws(new Error("OMG"))
+          sinon.stub Box.prototype, '_startContainer', ->
+            throw new Error("OMG")
+
+        afterEach ->
+          Box.prototype._startContainer.restore()
 
         it 'should return an aio.created message with the success flag set to false', (done) ->
           this.timeout(0)
@@ -191,6 +195,45 @@ describe 'Boxer', ->
                 done(err)
 
             publisher.publish settings.boxerChannel, '{"type":"aio.stop","id":"boxer-id","boxId":1}'
+
+    context 'aio.start' , ->
+      before (done) ->
+        publisher = initRedisClientWith(redisMQSettings)
+        coach = initRedisClientWith(redisMQSettings)
+
+        settings.id = 'boxer-id'
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container dont-start", timeout:5000, (err, stdout, stderr) ->
+          if !err
+            cleanDB ->
+              publisher.hset 'aio.boxes', 1, '{"id":1,"hostName":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              boxer = new Boxer(settings)
+              boxer.run(done)
+
+      after (done) ->
+        boxer.cleanup()
+        coach.unsubscribe()
+        publisher.unsubscribe()
+
+        boxer = coach = publisher = null
+        cleanupContainer(done)
+
+      it 'should start an already created container', (done) ->
+        # This test might take a while
+        this.timeout(0)
+
+        coach.subscribe settings.coachChannel, (err, result) ->
+          if !err
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
+              expect(message.type).to.eql 'aio.started'
+              expect(message.id).to.eql 'boxer-id'
+              expect(message.boxId).to.eql 1
+
+              childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+                expect(stdout).to.match /RUNNING/
+                done()
+
+            publisher.publish settings.boxerChannel, '{"type":"aio.start","id":"boxer-id","boxId":1}'
 
     context 'aio.destroy', ->
       before (done) ->

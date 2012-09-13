@@ -43,10 +43,10 @@ module.exports = klass = class AutoAdvancingStateMachine
     state = this._currentState()
     this[state.onRollback]?(@_rollbackDone)
 
-  start: ->
+  startStateMachine: ->
     this._advance()
 
-  rollback: ->
+  rollbackStateMachine: ->
     @_currentStateIndex = @states.length - 1
     this._rollback()
 

@@ -1,0 +1,10 @@
+BaseMessage = require './base_message'
+
+module.exports = class StartedMessage extends BaseMessage
+  @type = 'aio.started'
+
+  constructor: (attributes) ->
+    @id = attributes.id
+    @boxId = attributes.boxId
+    @hostName = attributes.hostName
+    super

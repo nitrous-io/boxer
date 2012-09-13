@@ -35,12 +35,12 @@ describe 'StateMachine', ->
         sm.state = 'C'
         sm._currentStateIndex.should.eql 2
 
-  describe '#start', ->
+  describe '#startStateMachine', ->
     context 'when nothing fails', ->
       beforeEach ->
         sm.goToB.callsArgOn(0, sm)
         sm.goToC.callsArgOn(0, sm)
-        sm.start()
+        sm.startStateMachine()
 
       it 'advances all the way to C', ->
         sm.goToB.called.should.be.true
@@ -50,7 +50,7 @@ describe 'StateMachine', ->
     context 'when goToB fails', ->
       beforeEach ->
         sm.goToB.callsArgOnWith(0, sm, new Error('error'))
-        sm.start()
+        sm.startStateMachine()
 
       it 'stays at A', ->
         sm.goToB.called.should.be.true
@@ -61,7 +61,7 @@ describe 'StateMachine', ->
         sm.goToB.callsArgOn(0, sm)
         sm.goToC.callsArgOnWith(0, sm, new Error('error'))
         sm.goBackToA.callsArgOn(0, sm)
-        sm.start()
+        sm.startStateMachine()
 
       it 'goes all the way back to A', ->
         sm.goToB.called.should.be.true
@@ -69,12 +69,12 @@ describe 'StateMachine', ->
         sm.goBackToA.called.should.be.true
         sm.state.should.eql 'A'
 
-  describe '#rollback', ->
+  describe '#rollbackStateMachine', ->
     context 'when nothing fails', ->
       beforeEach ->
         sm.goBackToA.callsArgOn(0, sm)
         sm.goBackToB.callsArgOn(0, sm)
-        sm.rollback()
+        sm.rollbackStateMachine()
 
       it 'advances all the way to A', ->
         sm.goBackToB.called.should.be.true
@@ -84,7 +84,7 @@ describe 'StateMachine', ->
     context 'when goBackToB fails', ->
       beforeEach ->
         sm.goBackToB.callsArgOnWith(0, sm, new Error('error'))
-        sm.rollback()
+        sm.rollbackStateMachine()
 
       it 'stays at C', ->
         sm.goBackToB.called.should.be.true
@@ -95,7 +95,7 @@ describe 'StateMachine', ->
         sm.goBackToB.callsArgOn(0, sm)
         sm.goBackToA.callsArgOnWith(0, sm, new Error('error'))
         sm.goToC.callsArgOn(0, sm)
-        sm.rollback()
+        sm.rollbackStateMachine()
 
       it 'goes all the way back to C', ->
         sm.goBackToB.called.should.be.true

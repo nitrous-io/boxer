@@ -1,7 +1,6 @@
 #!/bin/bash
 
 [ -n "$DEBUG" ] && set -o xtrace
-set -o nounset
 set -o errexit
 shopt -s nullglob
 
@@ -25,7 +24,7 @@ iface eth0 inet static
 EOF
 )
 
-
+iptables -t nat -F
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
 mount -n -t overlayfs -o rw,upperdir=${box_delta_path},lowerdir=${container_path} none ${box_path}
@@ -36,5 +35,8 @@ echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
 
 iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
 
-lxc-start -n ${box_name} -d
+if [[ $1 != 'dont-start' ]]; then
+  echo "start" > /var/lib/lxc/started.txt
+  lxc-start -n ${box_name} -d
+fi
 
