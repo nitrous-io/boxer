@@ -20,8 +20,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   constructor: (@id, redisStoreSettings) ->
     @ip = @port = @boxerCallback = null
-    @hostName = @containerTemplate = @lxcRoot = null
+    @name = @containerTemplate = @lxcRoot = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
+    @boxerId = @hostUrl = null
     # Setup the Redis client
     @redisClient = initRedisClientWith(redisStoreSettings)
 
@@ -34,11 +35,11 @@ module.exports = class Box extends AutoAdvancingStateMachine
     this._startContainer cb
 
   save: (done) ->
-    @redisClient.hset 'aio.boxes', @hostName, this.encode(), (err, result) ->
+    @redisClient.hset 'aio.boxes', @name, this.encode(), (err, result) ->
       done(err)
 
   delete: (done) ->
-    @redisClient.hdel 'aio.boxes', @hostName, (err, res) ->
+    @redisClient.hdel 'aio.boxes', @name, (err, res) ->
       done(err)
 
   stop: (cb) ->
@@ -50,22 +51,24 @@ module.exports = class Box extends AutoAdvancingStateMachine
   encode: ->
     JSON.stringify({
                     id: @id
-                    hostName: @hostName
+                    name: @name
                     ip: @ip
                     port: @port
                     memory: @memory
                     diskSpace: @diskSpace
                     snapshotURL: @snapshotURL
                     containerTemplate: @containerTemplate
+                    boxerId: @boxerId
+                    hostUrl: @hostUrl
                   })
 
-  @find: (hostName, redisStoreSettings, cb) ->
+  @find: (name, redisStoreSettings, cb) ->
     redisClient = initRedisClientWith(redisStoreSettings)
-    redisClient.hget 'aio.boxes', hostName, (err, res) ->
+    redisClient.hget 'aio.boxes', name, (err, res) ->
       if !err
         parsedBox = JSON.parse(res)
         box = new Box(parsedBox.id, redisStoreSettings)
-        box.hostName = parsedBox.hostName
+        box.name = parsedBox.name
         box.ip = parsedBox.ip
         box.port = parsedBox.port
         box.memory = parsedBox.memory
@@ -99,21 +102,21 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _mountContainer: (done) ->
     console.log "Mounting Container"
     this._execShellCommand "boxer-mount-container",
-                           [@lxcRoot, @hostName, @containerTemplate],
+                           [@lxcRoot, @name, @containerTemplate],
                            sudo: true,
                            done
 
   _unmountContainer: (done) ->
     console.log "Unmounting Container"
     this._execShellCommand "boxer-unmount-container",
-                           [@lxcRoot, @hostName],
+                           [@lxcRoot, @name],
                            sudo: true,
                            done
 
   _configureBox: (done) ->
     console.log "Configuring Box"
     this._execShellCommand "boxer-configure-box",
-                           [@lxcRoot, @hostName, @containerTemplate, @ip]
+                           [@lxcRoot, @name, @containerTemplate, @ip]
                            sudo: true,
                            done
 
@@ -137,14 +140,14 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _startContainer: (done) ->
     console.log "Start Container"
     this._execShellCommand "boxer-start-container",
-                           [@hostName, @ip],
+                           [@name, @ip],
                            sudo: true,
                            done
 
   _stopContainer: (done) ->
     console.log "Stop Container"
     this._execShellCommand "boxer-stop-container",
-                           [@hostName],
+                           [@name],
                            sudo: true,
                            done
 

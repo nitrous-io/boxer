@@ -50,7 +50,7 @@ describe 'Boxer', ->
 
                 root = "/var/lib/lxc/mclovins-container/rootfs"
                 networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
-                hostName = fs.readFileSync("#{root}/etc/hostname")
+                name = fs.readFileSync("#{root}/etc/hostname")
 
                 expect(message.type).to.eql 'aio.created'
                 expect(message.ip).to.eql '192.168.254.254'
@@ -58,8 +58,9 @@ describe 'Boxer', ->
                 expect(message.boxId).to.eql 1
                 expect(message.id).to.eql 'boxer-id'
                 expect(message.success).to.be.true
+                expect(message.hostUrl).to.eql 'test.action.io'
                 expect(networkConfig).to.match /address 192.168.254.254/
-                expect(hostName).to.match /mclovins-container/
+                expect(name).to.match /mclovins-container/
 
                 childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
                   expect(stdout).to.match /192\.168\.254\.254:22/
@@ -70,11 +71,13 @@ describe 'Boxer', ->
                     publisher.hget 'aio.boxes', 'mclovins-container', (err, res) ->
                        msg = JSON.parse(res)
                        expect(msg.id).to.eql 1
-                       expect(msg.hostName).to.eql 'mclovins-container'
+                       expect(msg.name).to.eql 'mclovins-container'
                        expect(msg.ip).to.eql '192.168.254.254'
                        expect(msg.port).to.eql 10000
                        expect(msg.memory).to.eql '256'
                        expect(msg.diskSpace).to.eql '4096'
+                       expect(msg.boxerId).to.eql 'boxer-id'
+                       expect(msg.hostUrl).to.eql 'test.action.io'
                        done(err)
 
               publisher.publish settings.boxerChannel,
@@ -82,7 +85,7 @@ describe 'Boxer', ->
                                 '"id":"boxer-id",' +
                                 '"boxId":1,' +
                                 '"runtime":"test",' +
-                                '"hostName":"mclovins-container",' +
+                                '"name":"mclovins-container",' +
                                 '"memory":"256",' +
                                 '"diskSpace":"4096",' +
                                 '"publicKeys":[],' +
@@ -124,7 +127,7 @@ describe 'Boxer', ->
                                 '"id":"boxer-id",' +
                                 '"boxId":1,' +
                                 '"runtime":"test",' +
-                                '"hostName":"mclovins-container",' +
+                                '"name":"mclovins-container",' +
                                 '"memory":"256",' +
                                 '"diskSpace":"4096",' +
                                 '"publicKeys":[],' +
@@ -167,7 +170,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           if !err
             cleanDB ->
-              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"hostName":"mclovins-container"}'
+              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"name":"mclovins-container"}'
               boxer = new Boxer(settings)
               boxer.run(done)
           else
@@ -196,7 +199,7 @@ describe 'Boxer', ->
                 expect(stdout).to.match /STOPPED/
                 done(err)
 
-            publisher.publish settings.boxerChannel, '{"type":"aio.stop","id":"boxer-id","hostName":"mclovins-container"}'
+            publisher.publish settings.boxerChannel, '{"type":"aio.stop","id":"boxer-id","name":"mclovins-container"}'
 
     context 'aio.start' , ->
       before (done) ->
@@ -207,7 +210,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container dont-start", timeout:5000, (err, stdout, stderr) ->
           if !err
             cleanDB ->
-              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"hostName":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
               boxer = new Boxer(settings)
               boxer.run(done)
 
@@ -235,7 +238,7 @@ describe 'Boxer', ->
                 expect(stdout).to.match /RUNNING/
                 done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio.start","id":"boxer-id","hostName":"mclovins-container"}'
+            publisher.publish settings.boxerChannel, '{"type":"aio.start","id":"boxer-id","name":"mclovins-container"}'
 
     context 'aio.destroy', ->
       before (done) ->
@@ -246,7 +249,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           if !err
             cleanDB ->
-              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"hostName":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
               boxer = new Boxer(settings)
               boxer.run(done)
 
@@ -283,4 +286,4 @@ describe 'Boxer', ->
                     expect(res).to.be.null
                     done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio.destroy","id":"boxer-id","hostName":"mclovins-container"}'
+            publisher.publish settings.boxerChannel, '{"type":"aio.destroy","id":"boxer-id","name":"mclovins-container"}'

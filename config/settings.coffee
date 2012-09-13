@@ -20,6 +20,7 @@ settings =
       database: 0
     runtimes: {}
     containerIdleTime: 5 * 60
+    hostUrl: 'dev.action.io'
   test:
     redisMQ:
       host: '0.0.0.0'
@@ -34,6 +35,7 @@ settings =
     runtimes:
       test: 'test-container-template'
     containerIdleTime: 5 * 60
+    hostUrl: 'test.action.io'
   production:
     redisMQ:
       host: '0.0.0.0'
@@ -47,6 +49,7 @@ settings =
       database: 0
     runtimes: {}
     containerIdleTime: 5 * 60
+    hostUrl: 'test.action.io'
 
 module.exports = _.extend settings.common, settings[env]
 

@@ -6,5 +6,5 @@ module.exports = class StartMessage extends BaseMessage
   constructor: (attributes) ->
     @id = attributes.id
     @boxId = attributes.boxId
-    @hostName = attributes.hostName
+    @name = attributes.name
     super

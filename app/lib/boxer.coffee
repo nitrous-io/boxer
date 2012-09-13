@@ -9,6 +9,7 @@ module.exports = class Boxer
     @runtimes = settings.runtimes
     @lxcRoot = settings.lxcRoot
     @containerIdleTime = settings.containerIdleTime
+    @hostUrl = settings.hostUrl
 
     @boxerChannel = settings.boxerChannel
     @coachChannel = settings.coachChannel
@@ -45,37 +46,39 @@ module.exports = class Boxer
     else if message.type == protocol.CreateMessage.type
       if @id == message.id && (containerTemplate = @runtimes[message.runtime])?
         box = new Box(message.boxId, @redisStoreSettings)
-        box.hostName = message.hostName
+        box.name = message.name
         box.containerTemplate = containerTemplate
         box.lxcRoot = @lxcRoot
         box.memory = message.memory
         box.diskSpace = message.diskSpace
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
+        box.boxerId = @id
+        box.hostUrl = @hostUrl
 
         successCallback = (err) ->
-          startedMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port, success: true})
+          startedMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port, success: true, hostUrl: @hostUrl})
           boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
 
         errCallback = (err) ->
-          startedMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, success: false})
+          startedMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, success: false, hostUrl: @hostUrl})
           boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
 
         box.create successCallback, errCallback
     else if message.type == protocol.StartMessage.type && @id == message.id
-      Box.find message.hostName, @redisStoreSettings, (err, box) ->
+      Box.find message.name, @redisStoreSettings, (err, box) ->
         box.start (err) ->
           if !err
             startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
     else if message.type == protocol.StopMessage.type && @id == message.id
-      Box.find message.hostName, @redisStoreSettings, (err, box) ->
+      Box.find message.name, @redisStoreSettings, (err, box) ->
         box.stop (err) ->
           if !err
             stoppedMessage = new protocol.StoppedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, stoppedMessage.encode()
     else if message.type == protocol.DestroyMessage.type && @id == message.id
-      Box.find message.hostName, @redisStoreSettings, (err, box) ->
+      Box.find message.name, @redisStoreSettings, (err, box) ->
         box.lxcRoot = boxer.lxcRoot
 
         box.destroy (err) ->

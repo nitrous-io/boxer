@@ -7,7 +7,7 @@ describe Box, ->
 
   beforeEach ->
     box = new Box(1)
-    box.hostName = 'rails-box'
+    box.name = 'rails-box'
     box.containerTemplate = 'ruby-container-template'
     box.lxcRoot = '/var/lib/lxc'
     box.memory = 256

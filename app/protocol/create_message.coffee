@@ -11,6 +11,6 @@ module.exports = class CreateMessage extends BaseMessage
     @memory = attributes.memory
     @diskSpace = attributes.diskSpace
     @publicKeys = attributes.publicKeys
-    @hostName = attributes.hostName
+    @name = attributes.name
 
     super

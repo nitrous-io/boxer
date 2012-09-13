@@ -9,5 +9,6 @@ module.exports = class CreatedMessage extends BaseMessage
     @ip = attributes.ip
     @port = attributes.port
     @success = attributes.success
+    @hostUrl = attributes.hostUrl
 
     super
