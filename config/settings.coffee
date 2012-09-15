@@ -1,4 +1,5 @@
 _ = require 'underscore'
+runtimes = require './runtimes'
 env = process.env.NODE_ENV
 
 settings =
@@ -18,7 +19,6 @@ settings =
       port: process.env.REDIS_STORE_PORT
       password: null
       database: 0
-    runtimes: {}
     hostUrl: process.env.HOST_URL
   test:
     redisMQ:
@@ -31,8 +31,6 @@ settings =
       port: 6379
       password: null
       database: 0
-    runtimes:
-      test: 'test-container-template'
     hostUrl: 'test.action.io'
   production:
     redisMQ:
@@ -45,8 +43,9 @@ settings =
       port: process.env.REDIS_STORE_PORT
       password: null
       database: 0
-    runtimes: {}
     hostUrl: process.env.HOST_URL
 
-module.exports = _.extend settings.common, settings[env]
+exportedSettings = _.extend(runtimes, _.extend(settings.common, settings[env]))
+
+module.exports = exportedSettings
 
