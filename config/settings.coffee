@@ -7,7 +7,6 @@ settings =
     lxcRoot: '/var/lib/lxc'
     boxerChannel: 'aio-boxer-channel'
     coachChannel: 'aio-coach-channel'
-    containerIdleTime: 5 * 60
   development:
     redisMQ:
       host: process.env.REDIS_MQ_HOST

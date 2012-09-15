@@ -4,25 +4,30 @@ protocol = require '../protocol'
 initRedisClientWith = require('./utils').initRedisClientWith
 
 module.exports = class Boxer
+  @ADVERTISE_INTERVAL = 5 # seconds
+  @CONTAINER_IDLE_TIME = 5 * 60 # seconds
+
   constructor: (settings)->
     @id = settings.id
     @runtimes = settings.runtimes
     @lxcRoot = settings.lxcRoot
-    @containerIdleTime = settings.containerIdleTime
     @hostUrl = settings.hostUrl
 
     @boxerChannel = settings.boxerChannel
     @coachChannel = settings.coachChannel
 
     @redisStoreSettings = settings.redisStore
+    @redisMQSettings = settings.redisMQ
 
-    @subscriber = initRedisClientWith(settings.redisMQ)
+    @subscriber = initRedisClientWith(@redisMQSettings)
     # We need a separate client to publish events, since
     # once a redis client is in 'subscribe' mode,
     # it can't perform other operations
     @publisher = initRedisClientWith(@redisStoreSettings)
 
   cleanup: ->
+    clearInterval(@advertiseTimer) if @advertiseTimer?
+
     @subscriber.unsubscribe()
     @subscriber = @publisher = null
 
@@ -32,9 +37,17 @@ module.exports = class Boxer
       if !err
         boxer.subscriber.on 'message', (channel, rawMessage) ->
           boxer._handle(MessageParser.decode(rawMessage))
+
+        boxer.advertiseTimer = setInterval boxer.sendAdvertiseMessage,
+                                           Boxer.ADVERTISE_INTERVAL * 1000
         done?()
       else
         throw err
+
+
+  sendAdvertiseMessage: =>
+    @publisher.publish @coachChannel,
+                       protocol.AdvertiseMessage.construct().encode()
 
   _handle:(message) ->
     boxer = this
