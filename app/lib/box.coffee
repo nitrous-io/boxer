@@ -42,6 +42,25 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @redisClient.hdel 'aio.boxes', @name, (err, res) ->
       done(err)
 
+  configure: (dataType, data, done) ->
+    self = this
+    if dataType == 'aio.configure.add_public_key'
+      username = data.username
+      publicKey = data.publicKey.replace("/", "\\/")
+
+      self._execShellCommand "boxer-add-public-key",
+                             [@lxcRoot, @name, username, publicKey],
+                             sudo: true,
+                             done
+    else if dataType == 'aio.configure.remove_public_key'
+      username = data.username
+      publicKey = data.publicKey.replace("/", "\\/")
+
+      self._execShellCommand "boxer-remove-public-key",
+                             [@lxcRoot, @name, username, publicKey],
+                             sudo: true,
+                             done
+
   stop: (cb) ->
     this._stopContainer cb
 

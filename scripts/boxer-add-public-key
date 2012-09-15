@@ -1,0 +1,21 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root=${1}
+box_name=${2}
+username=${3}
+public_key=${4}
+
+box_path=${1}/${2}/rootfs
+ssh_path='/etc/ssh/univ_public_keys'
+
+if [ ! -f ${box_path}${ssh_path} ]; then
+  touch ${box_path}${ssh_path}
+fi
+
+echo "${public_key}" >> ${box_path}${ssh_path}
+chroot ${box_path} chown -R ${username}:${username} ${ssh_path}

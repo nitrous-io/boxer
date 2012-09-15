@@ -1,0 +1,19 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root=${1}
+box_name=${2}
+username=${3}
+public_key=${4}
+
+box_path=${1}/${2}/rootfs
+ssh_path='/etc/ssh/univ_public_keys'
+
+if [ -f ${box_path}${ssh_path} ]; then
+  sed -i "s/${public_key}//g" ${box_path}/etc/ssh/univ_public_keys
+  chroot ${box_path} chown -R ${username}:${username} ${ssh_path}
+fi

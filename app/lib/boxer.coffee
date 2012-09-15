@@ -98,3 +98,11 @@ module.exports = class Boxer
           if !err
             destroyedMessage = new protocol.DestroyedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, destroyedMessage.encode()
+    else if message.type == protocol.ConfigureMessage.type && @id == message.id
+      Box.find message.name, @redisStoreSettings, (err, box) ->
+        box.lxcRoot = boxer.lxcRoot
+
+        box.configure message.dataType, message.data, (err) ->
+          if !err
+            configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id})
+            boxer.publisher.publish boxer.coachChannel, configuredMessage.encode()

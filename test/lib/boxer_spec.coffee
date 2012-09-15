@@ -173,8 +173,6 @@ describe 'Boxer', ->
               publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"name":"mclovins-container"}'
               boxer = new Boxer(settings)
               boxer.run(done)
-          else
-            console.log "Err -> #{stderr}"
 
       after (done) ->
         publisher.unsubscribe()
@@ -223,9 +221,6 @@ describe 'Boxer', ->
         cleanupContainer(done)
 
       it 'should start an already created container', (done) ->
-        # This test might take a while
-        this.timeout(0)
-
         coach.subscribe settings.coachChannel, (err, result) ->
           if !err
             coach.on 'message', (channel, rawMessage) ->
@@ -239,6 +234,71 @@ describe 'Boxer', ->
                 done()
 
             publisher.publish settings.boxerChannel, '{"type":"aio.start","id":"boxer-id","name":"mclovins-container"}'
+
+    context 'aio.configure', ->
+      publicKeysFile = "/var/lib/lxc/mclovins-container/rootfs/etc/ssh/univ_public_keys"
+
+      beforeEach (done) ->
+        publisher = initRedisClientWith(redisMQSettings)
+        coach = initRedisClientWith(redisMQSettings)
+
+        settings.id = 'boxer-id'
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
+          if !err
+            cleanDB ->
+              publisher.hset 'aio.boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              boxer = new Boxer(settings)
+              boxer.run(done)
+
+      afterEach (done) ->
+        boxer.cleanup()
+        coach.unsubscribe()
+        publisher.unsubscribe()
+
+        boxer = coach = publisher = null
+        cleanupContainer(done)
+
+      context 'adding public keys', ->
+        it 'should add a public key to the box', (done) ->
+          coach.subscribe settings.coachChannel, (err, result) ->
+            if !err
+              coach.on 'message', (channel, rawMessage) ->
+                message = MessageParser.decode(rawMessage)
+                expect(message.type).to.eql 'aio.configured'
+                expect(message.id).to.eql 'boxer-id'
+                expect(message.boxId).to.eql 1
+
+                output = fs.readFileSync(publicKeysFile).toString().trim()
+
+                expect(fs.existsSync(publicKeysFile)).to.be.true
+                expect(output).to.eql 'public-key'
+                done()
+
+              publisher.publish settings.boxerChannel, '{"type":"aio.configure","id":"boxer-id","name":"mclovins-container","dataType":"aio.configure.add_public_key","data":{"username":"ubuntu","publicKey":"public-key"}}'
+
+      context 'removing public keys', ->
+        beforeEach (done) ->
+          childProcess.exec "sudo scripts/boxer-add-public-key '/var/lib/lxc' 'mclovins-container' 'ubuntu' 'public-key'", timeout: 5000, (err, stdout, stderr) ->
+            done() if !err
+
+        it 'should remove the public key from the box', (done) ->
+          coach.subscribe settings.coachChannel, (err, result) ->
+            if !err
+              coach.on 'message', (channel, rawMessage) ->
+                message = MessageParser.decode(rawMessage)
+                expect(message.type).to.eql 'aio.configured'
+                expect(message.id).to.eql 'boxer-id'
+                expect(message.boxId).to.eql 1
+
+                publicKeysFile = "/var/lib/lxc/mclovins-container/rootfs/etc/ssh/univ_public_keys"
+                output = fs.readFileSync(publicKeysFile).toString().trim()
+
+                expect(fs.existsSync(publicKeysFile)).to.be.true
+                expect(output).to.eql ''
+                done()
+
+              publisher.publish settings.boxerChannel, '{"type":"aio.configure","id":"boxer-id","name":"mclovins-container","dataType":"aio.configure.remove_public_key","data":{"username":"ubuntu","publicKey":"public-key"}}'
+
 
     context 'aio.destroy', ->
       before (done) ->
