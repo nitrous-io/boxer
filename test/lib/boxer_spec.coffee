@@ -41,8 +41,6 @@ describe 'Boxer', ->
 
       context 'successfully provisioned', ->
         it 'should return an aio.created message with the requisite properties filled', (done) ->
-          this.timeout(0)
-
           coach.subscribe settings.coachChannel, (err, result) ->
             if !err
               coach.on 'message', (channel, rawMessage) ->
@@ -100,8 +98,6 @@ describe 'Boxer', ->
           Box.prototype._startContainer.restore()
 
         it 'should return an aio.created message with the success flag set to false', (done) ->
-          this.timeout(0)
-
           coach.subscribe settings.coachChannel, (err, result) ->
             if !err
               coach.on 'message', (channel, rawMessage) ->
@@ -183,8 +179,6 @@ describe 'Boxer', ->
         cleanupContainer(done)
 
       it 'should return an aio.stopped message with the box\'s id present', (done) ->
-        this.timeout(0)
-
         coach.subscribe settings.coachChannel, (err, result) ->
           if !err
             coach.on 'message', (channel, rawMessage) ->
@@ -322,9 +316,6 @@ describe 'Boxer', ->
         cleanupContainer(done)
 
       it 'should destroy the container and remove all remnants', (done) ->
-        # This test might take a while
-        this.timeout(0)
-
         coach.subscribe settings.coachChannel, (err, result) ->
           if !err
             coach.on 'message', (channel, rawMessage) ->
