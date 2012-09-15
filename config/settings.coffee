@@ -3,24 +3,24 @@ env = process.env.NODE_ENV
 
 settings =
   common:
-    id: '400ed6e6-d633-42dc-b42e-8b0604bb29e1'
+    id: process.env.BOXER_ID
     lxcRoot: '/var/lib/lxc'
     boxerChannel: 'aio-boxer-channel'
     coachChannel: 'aio-coach-channel'
+    containerIdleTime: 5 * 60
   development:
     redisMQ:
-      host: '0.0.0.0'
-      port: 6379
+      host: process.env.REDIS_MQ_HOST
+      port: process.env.REDIS_MQ_PORT
       password: null
       database: 0
     redisStore:
-      host: '0.0.0.0'
-      port: 6379
+      host: process.env.REDIS_STORE_HOST
+      port: process.env.REDIS_STORE_PORT
       password: null
       database: 0
     runtimes: {}
-    containerIdleTime: 5 * 60
-    hostUrl: 'dev.action.io'
+    hostUrl: process.env.HOST_URL
   test:
     redisMQ:
       host: '0.0.0.0'
@@ -34,22 +34,20 @@ settings =
       database: 0
     runtimes:
       test: 'test-container-template'
-    containerIdleTime: 5 * 60
     hostUrl: 'test.action.io'
   production:
     redisMQ:
-      host: '0.0.0.0'
-      port: 6379
+      host: process.env.REDIS_MQ_HOST
+      port: process.env.REDIS_MQ_PORT
       password: null
       database: 0
     redisStore:
-      host: '0.0.0.0'
-      port: 6379
+      host: process.env.REDIS_STORE_HOST
+      port: process.env.REDIS_STORE_PORT
       password: null
       database: 0
     runtimes: {}
-    containerIdleTime: 5 * 60
-    hostUrl: 'test.action.io'
+    hostUrl: process.env.HOST_URL
 
 module.exports = _.extend settings.common, settings[env]
 
