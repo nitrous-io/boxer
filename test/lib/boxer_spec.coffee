@@ -25,7 +25,7 @@ describe 'Boxer', ->
 
         cleanDB ->
           multi = publisher.multi()
-          multi.rpush 'available_ips', '254'
+          multi.rpush 'available_ips', '192.168.254.254'
           multi.rpush 'available_ports', '10000'
           multi.exec (err, replies) ->
             boxer = new Boxer(settings)

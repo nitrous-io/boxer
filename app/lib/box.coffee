@@ -102,7 +102,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     logger.debug "Acquiring Resources"
     ResourcePool.acquire (err, resources) =>
       if !err
-        @ip = "192.168.254.#{resources.ip}"
+        @ip = resources.ip
         @port = parseInt(resources.port)
       done()
 
