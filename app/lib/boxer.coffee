@@ -2,6 +2,7 @@ MessageParser = require './message_parser'
 Box = require './box'
 protocol = require '../protocol'
 initRedisClientWith = require('./utils').initRedisClientWith
+logger = require './logger'
 
 module.exports = class Boxer
   @ADVERTISE_INTERVAL = 5 # seconds
@@ -46,11 +47,13 @@ module.exports = class Boxer
 
 
   sendAdvertiseMessage: =>
+    advertiseMessage = protocol.AdvertiseMessage.construct()
     @publisher.publish @coachChannel,
                        protocol.AdvertiseMessage.construct().encode()
 
   _handle:(message) ->
     boxer = this
+    logger.info "Received Message: #{message.type} | id: #{message.id}"
 
     if message.type == protocol.LocateMessage.type
       @publisher.publish @coachChannel,
@@ -69,13 +72,15 @@ module.exports = class Boxer
         box.boxerId = @id
         box.hostUrl = @hostUrl
 
+        # These callbacks are called in the context of the Box instance, so @id, @ip, @port, etc. refer to instance variables
+        # of the box instance
         successCallback = (err) ->
-          startedMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port, success: true, hostUrl: @hostUrl})
-          boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
+          createdMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port, success: true, hostUrl: @hostUrl})
+          boxer.publisher.publish boxer.coachChannel, createdMessage.encode()
 
         errCallback = (err) ->
-          startedMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, success: false, hostUrl: @hostUrl})
-          boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
+          createdMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, success: false, hostUrl: @hostUrl})
+          boxer.publisher.publish boxer.coachChannel, createdMessage.encode()
 
         box.create successCallback, errCallback
     else if message.type == protocol.StartMessage.type && @id == message.id

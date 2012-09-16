@@ -26,7 +26,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @boxerId = @hostUrl = null
     # Setup the Redis client
     @redisClient = initRedisClientWith(redisStoreSettings)
-
     super
 
   create: (@successCallback, @rollbackCallback) ->
