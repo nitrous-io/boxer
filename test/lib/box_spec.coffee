@@ -143,14 +143,3 @@ describe Box, ->
         childProcess.exec.should.have.been.calledWith("#{scriptPath}foo", timeout: 0)
         cbSpy.should.have.been.called
 
-    context 'with a maligned prefix', ->
-      beforeEach ->
-        box._execShellCommand "foo",
-                              ["hello"],
-                              sudo: false,
-                              prefix: "/usr/bin/",
-                              cbSpy
-
-      it 'should execute the command with the sanitized prefix', ->
-        childProcess.exec.should.have.been.calledWith("/usr/bin/foo 'hello'", timeout: 0)
-        cbSpy.should.have.been.called

@@ -189,7 +189,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       done = opts
       opts = {}
 
-    prefix = if opts.prefix then "#{opts.prefix}/".replace(/\/{2,}$/, '/') else scriptPath
+    prefix = if process.env.NODE_ENV == 'production' then "/var/apps/boxer/current/scripts/" else scriptPath
     sudo = if opts.sudo then 'sudo' else ''
 
     command = _.flatten([
