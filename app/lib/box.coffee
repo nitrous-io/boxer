@@ -99,7 +99,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   # "Private" Methods
   _acquireResources: (done) ->
-    logger.debug "Acquiring Resources"
+    logger.info "Acquiring Resources"
     ResourcePool.acquire (err, resources) =>
       if !err
         @ip = resources.ip
@@ -107,7 +107,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       done()
 
   _releaseResources: (done) ->
-    logger.debug "Releasing Resources"
+    logger.info "Releasing Resources"
     octet = _.last(@ip.split('.'))
     resources = {
                   ip: octet
@@ -115,25 +115,25 @@ module.exports = class Box extends AutoAdvancingStateMachine
                 }
 
     ResourcePool.release resources, (err) ->
-      logger.debug "Done Releasing Resources #{err}"
+      logger.info "Done Releasing Resources #{err}"
       done(err)
 
   _mountContainer: (done) ->
-    logger.debug "Mounting Container"
+    logger.info "Mounting Container"
     this._execShellCommand "boxer-mount-container",
                            [@lxcRoot, @name, @containerTemplate],
                            sudo: true,
                            done
 
   _unmountContainer: (done) ->
-    logger.debug "Unmounting Container"
+    logger.info "Unmounting Container"
     this._execShellCommand "boxer-unmount-container",
                            [@lxcRoot, @name],
                            sudo: true,
                            done
 
   _configureBox: (done) ->
-    logger.debug "Configuring Box"
+    logger.info "Configuring Box"
     this._execShellCommand "boxer-configure-box",
                            [@lxcRoot, @name, @containerTemplate, @ip]
                            sudo: true,
@@ -143,28 +143,28 @@ module.exports = class Box extends AutoAdvancingStateMachine
     done()
 
   _setUpPortForwarding: (done) ->
-    logger.debug "Port Forwarding Set Up"
+    logger.info "Port Forwarding Set Up"
     this._execShellCommand "boxer-setup-portforwarding",
                            [@ip, @port],
                            sudo: true,
                            done
 
   _releasePortForwarding: (done) ->
-    logger.debug "Port Forwarding Released"
+    logger.info "Port Forwarding Released"
     this._execShellCommand "boxer-release-portforwarding",
                            [@ip, @port],
                            sudo: true,
                            done
 
   _startContainer: (done) ->
-    logger.debug "Start Container"
+    logger.info "Start Container"
     this._execShellCommand "boxer-start-container",
                            [@name, @ip],
                            sudo: true,
                            done
 
   _stopContainer: (done) ->
-    logger.debug "Stop Container"
+    logger.info "Stop Container"
     this._execShellCommand "boxer-stop-container",
                            [@name],
                            sudo: true,
@@ -198,8 +198,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
                           _.map(args, (x) -> escapeShellArg(x))
                         ]).join(' ').trim()
 
-    logger.debug "Executing command #{command}"
+    logger.info "Executing command #{command}"
     childProcess.exec command, timeout: 0, (err, stdout, stderr) ->
       if err
-        logger.debug "stderr --> #{stderr}"
+        logger.info "stderr --> #{stderr}"
       done(err)
