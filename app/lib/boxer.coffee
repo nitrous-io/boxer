@@ -48,7 +48,6 @@ module.exports = class Boxer
 
   sendAdvertiseMessage: =>
     advertiseMessage = protocol.AdvertiseMessage.construct()
-    logger.info "Sending Advertise Message #{advertiseMessage.encode()}"
     @publisher.publish @coachChannel,
                        protocol.AdvertiseMessage.construct().encode()
 
