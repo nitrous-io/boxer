@@ -8,6 +8,10 @@ set :user, 'boxer'
 set :deploy_to, "/var/apps/#{application}"
 set :use_sudo, false
 
+set :default_environment, {
+  'PATH' =>  "$HOME/.nvm/v0.8.1/bin:$PATH"
+}
+
 default_run_options[:pty] = true
 default_run_options[:shell] = '/bin/bash --login'
 
@@ -32,15 +36,15 @@ namespace :deploy do
   end
 
   task :start, :roles => :app do
-    run "sudo start #{application}"
+    run "cd #{latest_release} && forever start boot.js"
   end
 
   task :stop, :roles => :app do
-    run "sudo stop #{application}"
+    run "cd #{latest_release} && forever stop boot.js"
   end
 
   task :restart, :roles => :app do
-    start
+    run "cd #{latest_release} && forever restart boot.js"
   end
 
   task :npm, :roles => :app do
@@ -55,8 +59,7 @@ namespace :deploy do
   end
 
   task :restart, :roles => :app, :except => { :no_release => true } do
-    run "if [ -f /var/run/boxer.pid ]; then sudo stop #{application}; fi"
-    run "sudo start #{application}"
+    run "cd #{latest_release} && forever restart boot.js"
   end
 end
 
