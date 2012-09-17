@@ -24,7 +24,7 @@ module.exports = class Boxer
     # We need a separate client to publish events, since
     # once a redis client is in 'subscribe' mode,
     # it can't perform other operations
-    @publisher = initRedisClientWith(@redisStoreSettings)
+    @publisher = initRedisClientWith(@redisMQSettings)
 
   cleanup: ->
     clearInterval(@advertiseTimer) if @advertiseTimer?
