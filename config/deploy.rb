@@ -55,7 +55,7 @@ namespace :deploy do
       npm install ws --ws:native &&
       npm prune &&
       cp #{shared_path}/config/.env #{latest_release}/ &&
-      cp #{shared_path}/config/runtimes.coffee #{latest_release}/config
+      cp #{shared_path}/config/runtimes.coffee #{latest_release}/config/
     CMD
   end
 
