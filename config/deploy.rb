@@ -36,15 +36,15 @@ namespace :deploy do
   end
 
   task :start, :roles => :app do
-    run "cd #{latest_release} && forever start boot.js"
+    run "cd #{latest_release} && export $(cat .env) && forever start boot.js"
   end
 
   task :stop, :roles => :app do
-    run "cd #{latest_release} && forever stop boot.js"
+    run "cd #{latest_release} && export $(cat .env) && forever stop boot.js"
   end
 
   task :restart, :roles => :app do
-    run "cd #{latest_release} && forever restart boot.js"
+    run "cd #{latest_release} && export $(cat .env) && forever restart boot.js"
   end
 
   task :npm, :roles => :app do
@@ -55,12 +55,12 @@ namespace :deploy do
       npm install ws --ws:native &&
       npm prune &&
       cp #{shared_path}/config/.env #{latest_release}/ &&
-      cp #{shared_path}/config/runtimes.coffee #{latest_release}/config/
+      cp #{shared_path}/config/runtimes.coffee #{latest_release}/config
     CMD
   end
 
   task :restart, :roles => :app, :except => { :no_release => true } do
-    run "cd #{latest_release} && forever restart boot.js"
+    run "cd #{latest_release} && export $(cat .env) && forever restart boot.js"
   end
 end
 
