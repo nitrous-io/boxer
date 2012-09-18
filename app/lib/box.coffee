@@ -25,14 +25,33 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
     @boxerId = @hostUrl = null
     # Setup the Redis client
-    @redisClient = initRedisClientWith(redisStoreSettings)
+    @redisClient = initRedisClientWith(redisStoreSettings) if redisStoreSettings?
     super
 
+  valid: (opts) ->
+    attributesToValidate = []
+    self = this
+
+    if opts?.onCreate?
+      attributesToValidate = ['id', 'name', 'containerTemplate', 'memory', 'diskSpace', 'lxcRoot']
+    else
+      attributesToValidate = ['id', 'name']
+
+    _.reduce attributesToValidate, (memo, attribute) ->
+      memo && self[attribute]?
+    , true
+
   create: (@successCallback, @rollbackCallback) ->
-    this.startStateMachine()
+    if this.valid()
+      this.startStateMachine()
+    else
+      @rollbackCallback(new Error("Invalid Params"))
 
   start: (cb) ->
-    this._startContainer cb
+    if this.valid()
+      this._startContainer cb
+    else
+      cb(new Error("Invalid Params"))
 
   save: (done) ->
     @redisClient.hset 'aio.boxes', @name, this.encode(), (err, result) ->
@@ -62,10 +81,16 @@ module.exports = class Box extends AutoAdvancingStateMachine
                              done
 
   stop: (cb) ->
-    this._stopContainer cb
+    if this.valid()
+      this._stopContainer cb
+    else
+      cb(new Error("Invalid Params"))
 
   destroy: (@rollbackCallback) ->
-    this.rollbackStateMachine()
+    if this.valid()
+      this.rollbackStateMachine()
+    else
+      cb(new Error("Invalid Params"))
 
   encode: ->
     JSON.stringify({

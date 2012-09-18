@@ -89,12 +89,18 @@ module.exports = class Boxer
           if !err
             startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
+          else
+            boxer.publisher.publish boxer.coachChannel,
+                             new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.StopMessage.type && @id == message.id
       Box.find message.name, @redisStoreSettings, (err, box) ->
         box.stop (err) ->
           if !err
             stoppedMessage = new protocol.StoppedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, stoppedMessage.encode()
+          else
+            boxer.publisher.publish boxer.coachChannel,
+                             new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.DestroyMessage.type && @id == message.id
       Box.find message.name, @redisStoreSettings, (err, box) ->
         box.lxcRoot = boxer.lxcRoot
@@ -103,6 +109,9 @@ module.exports = class Boxer
           if !err
             destroyedMessage = new protocol.DestroyedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, destroyedMessage.encode()
+          else
+            boxer.publisher.publish boxer.coachChannel,
+                             new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.ConfigureMessage.type && @id == message.id
       Box.find message.name, @redisStoreSettings, (err, box) ->
         box.lxcRoot = boxer.lxcRoot
@@ -111,3 +120,6 @@ module.exports = class Boxer
           if !err
             configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, configuredMessage.encode()
+          else
+            boxer.publisher.publish boxer.coachChannel,
+                             new protocol.InvalidParamsMessage(id: boxer.id).encode()

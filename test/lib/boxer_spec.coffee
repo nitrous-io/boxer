@@ -129,6 +129,38 @@ describe 'Boxer', ->
                                 '"publicKeys":[],' +
                                 '"snapshotURL":null}'
 
+      context 'invalid params', ->
+        it 'should return an aio.created message (with the success flag set to false) and not create the container', (done) ->
+          coach.subscribe settings.coachChannel, (err, result) ->
+            if !err
+              coach.on 'message', (channel, rawMessage) ->
+                message = MessageParser.decode(rawMessage)
+
+                expect(message.type).to.eql 'aio.created'
+                expect(message.id).to.eql 'boxer-id'
+                expect(message.success).to.eql false
+
+                childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+                  expect(stdout).to.not.match /192\.168\.254\.254:22/
+
+                  childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+                    expect(stdout).to.match /STOPPED/
+
+                    publisher.hget 'aio.boxes', 'mclovins-container', (err, res) ->
+                      expect(res).to.be.null
+                      done(err)
+
+              publisher.publish settings.boxerChannel,
+                                '{"type":"aio.create",' +
+                                '"id":"boxer-id",' +
+                                '"runtime":"test",' +
+                                '"name":"mclovins-container",' +
+                                '"memory":"256",' +
+                                '"diskSpace":"4096",' +
+                                '"publicKeys":[],' +
+                                '"snapshotURL":null}'
+
+
     context 'aio.locate', ->
       before (done) ->
         publisher = initRedisClientWith(redisMQSettings)

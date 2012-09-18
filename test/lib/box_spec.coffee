@@ -15,6 +15,47 @@ describe Box, ->
 
     cbSpy = sinon.spy()
 
+
+  describe '#valid', ->
+    box = null
+
+    context 'onCreate is true', ->
+      context 'valid box', ->
+        beforeEach ->
+          box = new Box(1)
+          box.name = 'mclovin'
+          box.containerTemplate = 'ruby'
+          box.memory = 256
+          box.diskSpace = 4096
+          box.lxcRoot = '/var/lib/lxc'
+
+        it 'should be true', ->
+          expect(box.valid(onCreate: true)).to.be.true
+
+      context 'invalid box', ->
+        beforeEach ->
+          box = new Box(1)
+          box.name = 'mclovin'
+
+        it 'should be false', ->
+          expect(box.valid(onCreate: true)).to.be.false
+
+    context 'onCreate is false', ->
+      context 'valid box', ->
+        beforeEach ->
+          box = new Box(1)
+          box.name = 'mclovin'
+
+        it 'should be true', ->
+          expect(box.valid()).to.be.true
+
+      context 'invalid box', ->
+        beforeEach ->
+          box = new Box()
+
+        it 'should be false', ->
+          expect(box.valid()).to.be.false
+
   describe '#mountContainer', ->
     beforeEach ->
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
