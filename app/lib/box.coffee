@@ -54,16 +54,16 @@ module.exports = class Box extends AutoAdvancingStateMachine
       cb(new Error("Invalid Params"))
 
   save: (done) ->
-    @redisClient.hset 'aio.boxes', @name, this.encode(), (err, result) ->
+    @redisClient.hset 'aio:boxes', @name, this.encode(), (err, result) ->
       done(err)
 
   delete: (done) ->
-    @redisClient.hdel 'aio.boxes', @name, (err, res) ->
+    @redisClient.hdel 'aio:boxes', @name, (err, res) ->
       done(err)
 
   configure: (dataType, data, done) ->
     self = this
-    if dataType == 'aio.configure.add_public_key'
+    if dataType == 'aio:configure:add_public_key'
       username = data.username
       publicKey = data.publicKey.replace("/", "\\/")
 
@@ -71,7 +71,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                              [@lxcRoot, @name, username, publicKey],
                              sudo: true,
                              done
-    else if dataType == 'aio.configure.remove_public_key'
+    else if dataType == 'aio:configure:remove_public_key'
       username = data.username
       publicKey = data.publicKey.replace("/", "\\/")
 
@@ -108,7 +108,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   @find: (name, redisStoreSettings, cb) ->
     redisClient = initRedisClientWith(redisStoreSettings)
-    redisClient.hget 'aio.boxes', name, (err, res) ->
+    redisClient.hget 'aio:boxes', name, (err, res) ->
       if !err
         parsedBox = JSON.parse(res)
         box = new Box(parsedBox.id, redisStoreSettings)

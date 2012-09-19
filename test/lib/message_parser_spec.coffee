@@ -13,17 +13,17 @@ describe 'MessageParser', ->
       it "should throw an error", ->
         expect(MessageParser.decode('{"type":"junk_type"}')).to.be.null
 
-    context 'type is aio.locate', ->
+    context 'type is aio:locate', ->
       it 'should return a LocateMessage object', ->
-        msg = MessageParser.decode('{"type":"aio.locate"}')
+        msg = MessageParser.decode('{"type":"aio:locate"}')
         msg.should.be.an.instanceOf(LocateMessage)
 
-    context 'type is aio.advertise', ->
+    context 'type is aio:advertise', ->
       it 'should return an AdvertiseMessage object', ->
-        msg = MessageParser.decode('{"type":"aio.advertise"}')
+        msg = MessageParser.decode('{"type":"aio:advertise"}')
         msg.should.be.an.instanceOf(AdvertiseMessage)
 
-    context 'type is aio.create', ->
+    context 'type is aio:create', ->
       it 'should return a CreateMessage object', ->
-        msg = MessageParser.decode('{"type":"aio.create"}')
+        msg = MessageParser.decode('{"type":"aio:create"}')
         msg.should.be.an.instanceOf(CreateMessage)

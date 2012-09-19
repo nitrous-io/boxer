@@ -2,7 +2,7 @@ BaseMessage = require('./base_message')
 os = require 'os'
 
 module.exports = class AdvertiseMessage extends BaseMessage
-  @type: 'aio.advertise'
+  @type: 'aio:advertise'
 
   @construct: ->
     settings = require '../../config/settings'
