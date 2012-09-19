@@ -59,24 +59,20 @@ describe 'Boxer', ->
                 expect(message.hostUrl).to.eql 'test.action.io'
                 expect(networkConfig).to.match /address 192.168.254.254/
                 expect(name).to.match /mclovins-container/
-
                 childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
                   expect(stdout).to.match /192\.168\.254\.254:22/
 
-                  childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
-                    expect(stdout).to.match /RUNNING/
-
-                    publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
-                       msg = JSON.parse(res)
-                       expect(msg.id).to.eql 1
-                       expect(msg.name).to.eql 'mclovins-container'
-                       expect(msg.ip).to.eql '192.168.254.254'
-                       expect(msg.port).to.eql 10000
-                       expect(msg.memory).to.eql '256'
-                       expect(msg.diskSpace).to.eql '4096'
-                       expect(msg.boxerId).to.eql 'boxer-id'
-                       expect(msg.hostUrl).to.eql 'test.action.io'
-                       done(err)
+                  publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
+                     msg = JSON.parse(res)
+                     expect(msg.id).to.eql 1
+                     expect(msg.name).to.eql 'mclovins-container'
+                     expect(msg.ip).to.eql '192.168.254.254'
+                     expect(msg.port).to.eql 10000
+                     expect(msg.memory).to.eql '256'
+                     expect(msg.diskSpace).to.eql '4096'
+                     expect(msg.boxerId).to.eql 'boxer-id'
+                     expect(msg.hostUrl).to.eql 'test.action.io'
+                     done(err)
 
               publisher.publish settings.boxerChannel,
                                 '{"type":"aio:create",' +
@@ -91,11 +87,11 @@ describe 'Boxer', ->
 
       context 'unsuccessful provisioning', ->
         beforeEach ->
-          sinon.stub Box.prototype, '_startContainer', ->
+          sinon.stub Box.prototype, 'save', ->
             throw new Error("OMG")
 
         afterEach ->
-          Box.prototype._startContainer.restore()
+          Box.prototype.save.restore()
 
         it 'should return an aio:created message with the success flag set to false', (done) ->
           coach.subscribe settings.coachChannel, (err, result) ->
@@ -334,10 +330,11 @@ describe 'Boxer', ->
         settings.id = 'boxer-id'
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           if !err
-            cleanDB ->
-              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
-              boxer = new Boxer(settings)
-              boxer.run(done)
+            childProcess.exec "sudo lxc-stop -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+              cleanDB ->
+                publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
+                boxer = new Boxer(settings)
+                boxer.run(done)
 
       after (done) ->
         boxer.cleanup()

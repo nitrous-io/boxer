@@ -14,8 +14,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     { name: 'resourcesAcquired',   onAdvance: '_mountContainer',      onRollback: '_releaseResources' }
     { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
     { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
-    { name: 'portForwardingSetUp', onAdvance: '_startContainer',      onRollback: '_releasePortForwarding' }
-    { name: 'containerStarted',    onAdvance: 'save',                 onRollback: '_stopContainer' }
+    { name: 'portForwardingSetUp', onAdvance: 'save',                 onRollback: '_releasePortForwarding' }
     { name: 'boxSaved',            onAdvance: '_notifySuccess',       onRollback: 'delete' }
   ]
 
