@@ -300,7 +300,7 @@ describe 'Boxer', ->
 
       context 'removing public keys', ->
         beforeEach (done) ->
-          childProcess.exec "sudo scripts/boxer-add-public-key '/var/lib/lxc' 'mclovins-container' 'ubuntu' 'public-key'", timeout: 5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo scripts/boxer-add-public-keys '/var/lib/lxc' 'mclovins-container' 'ubuntu' 'public-key'", timeout: 5000, (err, stdout, stderr) ->
             done() if !err
 
         it 'should remove the public key from the box', (done) ->
@@ -319,6 +319,7 @@ describe 'Boxer', ->
                 expect(output).to.eql ''
                 done()
 
+              console.log "Going to Publish Message"
               publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"boxer-id","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":{"username":"ubuntu","publicKey":"public-key"}}'
 
 

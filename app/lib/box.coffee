@@ -66,7 +66,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       username = data.username
       publicKey = data.publicKey.replace("/", "\\/")
 
-      self._execShellCommand "boxer-add-public-key",
+      self._execShellCommand "boxer-add-public-keys",
                              [@lxcRoot, @name, username, publicKey],
                              sudo: true,
                              done
