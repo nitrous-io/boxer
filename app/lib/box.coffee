@@ -22,7 +22,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @ip = @port = @boxerCallback = null
     @name = @containerTemplate = @lxcRoot = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
-    @boxerId = @hostUrl = null
+    @boxerId = null
     # Setup the Redis client
     @redisClient = initRedisClientWith(redisStoreSettings) if redisStoreSettings?
     super
@@ -101,7 +101,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     snapshotURL: @snapshotURL
                     containerTemplate: @containerTemplate
                     boxerId: @boxerId
-                    hostUrl: @hostUrl
                   })
 
   @find: (name, redisStoreSettings, cb) ->

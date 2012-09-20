@@ -12,7 +12,6 @@ module.exports = class Boxer
     @id = settings.id
     @runtimes = settings.runtimes
     @lxcRoot = settings.lxcRoot
-    @hostUrl = settings.hostUrl
 
     @boxerChannel = settings.boxerChannel
     @coachChannel = settings.coachChannel
@@ -70,16 +69,15 @@ module.exports = class Boxer
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
         box.boxerId = @id
-        box.hostUrl = @hostUrl
 
         # These callbacks are called in the context of the Box instance, so @id, @ip, @port, etc. refer to instance variables
         # of the box instance
         successCallback = (err) ->
-          createdMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, ip: @ip, port: @port, success: true, hostUrl: @hostUrl})
+          createdMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, port: @port, success: true})
           boxer.publisher.publish boxer.coachChannel, createdMessage.encode()
 
         errCallback = (err) ->
-          createdMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, success: false, hostUrl: @hostUrl})
+          createdMessage = new protocol.CreatedMessage({id: boxer.id, boxId: @id, success: false})
           boxer.publisher.publish boxer.coachChannel, createdMessage.encode()
 
         box.create successCallback, errCallback

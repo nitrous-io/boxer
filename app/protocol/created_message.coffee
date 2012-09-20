@@ -6,9 +6,7 @@ module.exports = class CreatedMessage extends BaseMessage
   constructor: (attributes) ->
     @id = attributes.id
     @boxId = attributes.boxId
-    @ip = attributes.ip
     @port = attributes.port
     @success = attributes.success
-    @hostUrl = attributes.hostUrl
 
     super
