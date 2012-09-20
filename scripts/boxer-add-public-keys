@@ -7,7 +7,7 @@ shopt -s nullglob
 
 lxc_root=${1}
 box_name=${2}
-username=${3}
+username='root'
 
 box_path=${1}/${2}/rootfs
 ssh_path='/etc/ssh/univ_public_keys'
@@ -16,7 +16,8 @@ if [ ! -f ${box_path}${ssh_path} ]; then
   touch ${box_path}${ssh_path}
 fi
 
-for public_key in ${@:4}; do
+for public_key in ${@:3}; do
   echo "${public_key}" >> ${box_path}${ssh_path}
-  chroot ${box_path} chown -R ${username}:${username} ${ssh_path}
 done
+
+chroot ${box_path} chown -R ${username}:${username} ${ssh_path}

@@ -7,8 +7,8 @@ shopt -s nullglob
 
 lxc_root=${1}
 box_name=${2}
-username=${3}
-public_key=${4}
+public_key=${3}
+username='root'
 
 box_path=${1}/${2}/rootfs
 ssh_path='/etc/ssh/univ_public_keys'

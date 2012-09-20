@@ -63,11 +63,10 @@ module.exports = class Box extends AutoAdvancingStateMachine
   configure: (dataType, data, done) ->
     self = this
     if dataType == 'aio:configure:add_public_key'
-      username = data.username
       publicKey = data.publicKey.replace("/", "\\/")
 
       self._execShellCommand "boxer-add-public-keys",
-                             [@lxcRoot, @name, username, publicKey],
+                             [@lxcRoot, @name, publicKey],
                              sudo: true,
                              done
     else if dataType == 'aio:configure:remove_public_key'
@@ -195,9 +194,18 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            done
 
   _notifySuccess: (done) ->
-    @successCallback?(null)
-    delete @successCallback
-    done()
+    if @publicKeys?
+      self = this
+      this._execShellCommand "boxer-add-public-keys",
+                             [@lxcRoot, @name].concat(@publicKeys),
+                             sudo: true, ->
+                               self.successCallback?(null)
+                               delete self.successCallback
+                               done()
+    else
+      @successCallback?(null)
+      delete @successCallback
+      done()
 
   _notifyRollback: (done) ->
     @rollbackCallback?(null)

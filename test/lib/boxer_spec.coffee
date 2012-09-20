@@ -49,6 +49,7 @@ describe 'Boxer', ->
                 root = "/var/lib/lxc/mclovins-container/rootfs"
                 networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
                 name = fs.readFileSync("#{root}/etc/hostname")
+                publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
 
                 expect(message.type).to.eql 'aio:created'
                 expect(message.ip).to.eql '192.168.254.254'
@@ -59,6 +60,8 @@ describe 'Boxer', ->
                 expect(message.hostUrl).to.eql 'test.action.io'
                 expect(networkConfig).to.match /address 192.168.254.254/
                 expect(name).to.match /mclovins-container/
+                expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
+
                 childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
                   expect(stdout).to.match /192\.168\.254\.254:22/
 
@@ -82,7 +85,7 @@ describe 'Boxer', ->
                                 '"name":"mclovins-container",' +
                                 '"memory":"256",' +
                                 '"diskSpace":"4096",' +
-                                '"publicKeys":[],' +
+                                '"publicKeys":["public-key-1","public-key-2"],' +
                                 '"snapshotURL":null}'
 
       context 'unsuccessful provisioning', ->
@@ -296,11 +299,11 @@ describe 'Boxer', ->
                 expect(output).to.eql 'public-key'
                 done()
 
-              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"boxer-id","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":{"username":"ubuntu","publicKey":"public-key"}}'
+              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"boxer-id","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":{"publicKey":"public-key"}}'
 
       context 'removing public keys', ->
         beforeEach (done) ->
-          childProcess.exec "sudo scripts/boxer-add-public-keys '/var/lib/lxc' 'mclovins-container' 'ubuntu' 'public-key'", timeout: 5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo scripts/boxer-add-public-keys '/var/lib/lxc' 'mclovins-container' 'public-key'", timeout: 5000, (err, stdout, stderr) ->
             done() if !err
 
         it 'should remove the public key from the box', (done) ->
@@ -320,7 +323,7 @@ describe 'Boxer', ->
                 done()
 
               console.log "Going to Publish Message"
-              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"boxer-id","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":{"username":"ubuntu","publicKey":"public-key"}}'
+              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"boxer-id","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":{"publicKey":"public-key"}}'
 
 
     context 'aio:destroy', ->
