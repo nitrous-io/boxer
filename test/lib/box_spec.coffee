@@ -1,4 +1,5 @@
 Box = require '../../app/lib/box'
+ResourcePool = require '../../app/lib/resource_pool'
 childProcess = require 'child_process'
 scriptPath = __dirname.replace('test/lib', 'scripts/')
 
@@ -114,6 +115,26 @@ describe Box, ->
                                                    ['192.168.254.254', 21000],
                                                    sudo: true,
                                                    cbSpy)
+
+  describe '#_releaseResources', ->
+    error = null
+
+    beforeEach ->
+      box.ip = '192.168.254.254'
+      box.port = 21000
+      error = new Error 'some error'
+      sinon.stub ResourcePool, 'release', (resources, cb) -> cb(error)
+      box._releaseResources(cbSpy)
+
+    afterEach ->
+      ResourcePool.release.restore()
+
+    it "calls ResourcePool.release with the box's ip and port", ->
+      resources = ResourcePool.release.args[0][0]
+      expect(resources).to.deep.equal
+        port: box.port
+        ip: box.ip
+      expect(cbSpy).to.have.been.calledWith error
 
   describe '#startContainer', ->
     beforeEach ->
