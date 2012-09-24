@@ -16,7 +16,7 @@ if [ ! -f ${box_path}${ssh_path} ]; then
   touch ${box_path}${ssh_path}
 fi
 
-for public_key in ${@:3}; do
+for public_key in "${@:3}"; do
   echo "${public_key}" >> ${box_path}${ssh_path}
 done
 
