@@ -130,9 +130,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   _releaseResources: (done) ->
     logger.info "Releasing Resources"
-    octet = _.last(@ip.split('.'))
     resources = {
-                  ip: octet
+                  ip: @ip
                   port: @port
                 }
 
