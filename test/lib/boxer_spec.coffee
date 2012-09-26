@@ -277,6 +277,11 @@ describe 'Boxer', ->
         cleanupContainer(done)
 
       context 'adding public keys', ->
+        publicKey = null
+
+        beforeEach ->
+          publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
+
         it 'should add a public key to the box', (done) ->
           coach.subscribe settings.coachChannel, (err, result) ->
             if !err
@@ -289,14 +294,17 @@ describe 'Boxer', ->
                 output = fs.readFileSync(publicKeysFile).toString().trim()
 
                 expect(fs.existsSync(publicKeysFile)).to.be.true
-                expect(output).to.eql 'public-key'
+                expect(output).to.eql publicKey
                 done()
 
-              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":"public-key"}'
+              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":"' + publicKey + '"}'
 
       context 'removing public keys', ->
+        publicKey = null
+
         beforeEach (done) ->
-          childProcess.exec "sudo scripts/boxer-add-public-keys '/var/lib/lxc' 'mclovins-container' 'public-key'", timeout: 5000, (err, stdout, stderr) ->
+          publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
+          childProcess.exec "sudo scripts/boxer-add-public-keys '/var/lib/lxc' 'mclovins-container' '#{publicKey}'", timeout: 5000, (err, stdout, stderr) ->
             done() if !err
 
         it 'should remove the public key from the box', (done) ->
@@ -316,7 +324,7 @@ describe 'Boxer', ->
                 done()
 
               console.log "Going to Publish Message"
-              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":"public-key"}'
+              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":"' + publicKey + '"}'
 
 
     context 'aio:destroy', ->

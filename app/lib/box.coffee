@@ -63,14 +63,14 @@ module.exports = class Box extends AutoAdvancingStateMachine
   configure: (dataType, data, done) ->
     self = this
     if dataType == 'aio:configure:add_public_key'
-      publicKey = data.replace("/", "\\/")
+      publicKey = data
 
       self._execShellCommand "boxer-add-public-keys",
                              [@lxcRoot, @name, publicKey],
                              sudo: true,
                              done
     else if dataType == 'aio:configure:remove_public_key'
-      publicKey = data.replace("/", "\\/")
+      publicKey = data.replace(/\//g, "\\/")
 
       self._execShellCommand "boxer-remove-public-key",
                              [@lxcRoot, @name, publicKey],
