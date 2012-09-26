@@ -292,7 +292,7 @@ describe 'Boxer', ->
                 expect(output).to.eql 'public-key'
                 done()
 
-              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":{"publicKey":"public-key"}}'
+              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":"public-key"}'
 
       context 'removing public keys', ->
         beforeEach (done) ->
@@ -316,7 +316,7 @@ describe 'Boxer', ->
                 done()
 
               console.log "Going to Publish Message"
-              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":{"publicKey":"public-key"}}'
+              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":"public-key"}'
 
 
     context 'aio:destroy', ->
