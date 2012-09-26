@@ -125,7 +125,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
       if !err
         @ip = resources.ip
         @port = parseInt(resources.port)
-      done()
+
+      done(err)
 
   _releaseResources: (done) ->
     logger.info "Releasing Resources"
