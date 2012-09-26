@@ -37,5 +37,6 @@ iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
 
 if [[ $1 != 'dont-start' ]]; then
   lxc-start -n ${box_name} -d
+  lxc-wait -n ${box_name} -s RUNNING
 fi
 

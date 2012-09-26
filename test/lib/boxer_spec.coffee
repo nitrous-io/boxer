@@ -334,7 +334,7 @@ describe 'Boxer', ->
 
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           if !err
-            childProcess.exec "sudo lxc-stop -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+            childProcess.exec "sudo lxc-stop -n mclovins-container && sudo lxc-wait -n mclovins-container STOPPED", timeout: 5000, (err, stdout, stderr) ->
               cleanDB ->
                 publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
                 boxer = new Boxer(settings)
