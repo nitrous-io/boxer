@@ -394,7 +394,7 @@ describe 'Boxer', ->
               expect(message.boxId).to.eql 1
 
               expect(fs.existsSync("/var/lib/lxc/mclovins-container")).to.be.false
-              expect(fs.existsSync("/var/lib/lxc/mclovins-container-delta")).to.be.false
+              expect(fs.existsSync("/var/lib/lxc/mclovins-container_delta")).to.be.false
 
               childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
                 expect(stdout).to.not.match /192\.168\.254\.254:22/

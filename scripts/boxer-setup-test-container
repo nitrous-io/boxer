@@ -10,7 +10,7 @@ container_template='test-container-template'
 ip='192.168.254.254'
 port='10000'
 box_path=${lxc_root}/${box_name}
-box_delta_path=${box_path}-delta
+box_delta_path=${box_path}_delta
 container_path=${lxc_root}/${container_template}
 network_config=$(cat <<EOF
 auto lo
