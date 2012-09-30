@@ -11,8 +11,15 @@ container_template=${3}
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}_delta
 container_path=${lxc_root}/${container_template}
+mount_options=rw,upperdir=${box_delta_path},lowerdir=${container_path}
+fstab_config=$(cat <<EOF
+none ${box_path} overlayfs ${mount_options} 0 0
+EOF
+)
 
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
-mount -n -t overlayfs -o rw,upperdir=${box_delta_path},lowerdir=${container_path} none ${box_path}
+mount -n -t overlayfs -o ${mount_options} none ${box_path}
+echo "${fstab_config}" >> /etc/fstab
+
 

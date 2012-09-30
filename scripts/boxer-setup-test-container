@@ -24,14 +24,21 @@ iface eth0 inet static
 EOF
 )
 
+mount_options=rw,upperdir=${box_delta_path},lowerdir=${container_path}
+fstab_config=$(cat <<EOF
+none ${box_path} overlayfs ${mount_options} 0 0
+EOF
+)
+
 iptables -F -t nat
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
-mount -n -t overlayfs -o rw,upperdir=${box_delta_path},lowerdir=${container_path} none ${box_path}
+mount -n -t overlayfs -o ${mount_options} none ${box_path}
 
 sed -i "s/${container_template}/${box_name}/g" ${box_path}/config
 echo "${box_name}" > ${box_path}/rootfs/etc/hostname
 echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
+echo "${fstab_config}" >> /etc/fstab
 
 iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
 

@@ -10,5 +10,6 @@ box_name=${2}
 box_path=${lxc_root}/${box_name}
 
 umount ${box_path}
+sed -i "/${box_name}/d" /etc/fstab
 rm -rf ${box_path}*
 
