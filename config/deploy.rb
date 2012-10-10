@@ -4,9 +4,10 @@ set :repository,  "git@github.com:action-io/#{application}.git"
 set :scm, :git
 set :deploy_via, :remote_cache
 set :branch, :master
-set :user, 'boxer'
+set :user, 'action'
 set :deploy_to, "/var/apps/#{application}"
 set :use_sudo, false
+set :port, 65100
 
 set :default_environment, {
   'PATH' =>  "$HOME/.nvm/v0.8.1/bin:$PATH"
@@ -15,16 +16,17 @@ set :default_environment, {
 default_run_options[:pty] = true
 default_run_options[:shell] = '/bin/bash --login'
 
-task :staging do
-  set :host, "apse1-1.actionbox.io"
-end
-
 task :production do
-  set :host, "apse1-staging.actionbox.io"
+  set :host, "apse1-1.actionbox.io"
+  role :web, host
+  role :app, host
 end
 
-role :web, host
-role :app, host
+task :staging do
+  set :host, "apse1-staging.actionbox.io"
+  role :web, host
+  role :app, host
+end
 
 # if you want to clean up old releases on each deploy uncomment this:
 after "deploy:restart", "deploy:cleanup"
