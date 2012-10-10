@@ -15,7 +15,14 @@ set :default_environment, {
 default_run_options[:pty] = true
 default_run_options[:shell] = '/bin/bash --login'
 
-set :host, "apse1-1.actionbox.io"
+task :staging do
+  set :host, "apse1-1.actionbox.io"
+end
+
+task :production do
+  set :host, "apse1-staging.actionbox.io"
+end
+
 role :web, host
 role :app, host
 
