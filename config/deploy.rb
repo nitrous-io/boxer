@@ -45,15 +45,16 @@ namespace :deploy do
   end
 
   task :start, :roles => :app do
-    run "cd #{latest_release} && export $(cat .env) && forever start boot.js"
+    run "sudo /usr/sbin/service #{application} start"
   end
 
   task :stop, :roles => :app do
-    run "cd #{latest_release} && export $(cat .env) && forever stop boot.js"
+    run "sudo /usr/sbin/service #{application} stop"
   end
 
   task :restart, :roles => :app do
-    run "cd #{latest_release} && forever stop boot.js && export $(cat .env) && forever start boot.js"
+    stop
+    start
   end
 
   task :npm, :roles => :app do
@@ -69,7 +70,8 @@ namespace :deploy do
   end
 
   task :restart, :roles => :app, :except => { :no_release => true } do
-    run "cd #{latest_release} && forever stop boot.js && export $(cat .env) && forever start boot.js"
+    run "if [ -f /var/run/#{application}.pid ]; then sudo /usr/sbin/service #{application} stop; fi"
+    run "sudo /usr/sbin/service #{application} start"
   end
 end
 
