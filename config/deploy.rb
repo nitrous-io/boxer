@@ -37,6 +37,8 @@ after "deploy:restart", "deploy:cleanup"
 namespace :deploy do
   task :finalize_update, :except => { :no_release => true } do
     run "chmod -R g+w #{latest_release}" if fetch(:group_writable, true)
+    run "chmod -R 0700 #{latest_release}/scripts/"
+
     run <<-CMD
       rm -rf #{latest_release}/log #{latest_release}/node_modules &&
       ln -s #{shared_path}/log #{latest_release}/log &&
