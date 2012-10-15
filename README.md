@@ -46,8 +46,7 @@ sudo ifconfig br-lxc
 - Install an LXC container called ```test-container-template```
 
 ```
-lxc-create -n test-container-template -t ubuntu -f
-/root/lxc/default.conf -- -r precise
+lxc-create -n test-container-template -t ubuntu -f /root/lxc/default.conf -- -r precise
 ```
 
 This will take a while.
