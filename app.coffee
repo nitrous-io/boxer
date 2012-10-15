@@ -6,9 +6,9 @@ Boxer = require './app/lib/boxer'
 logger = require './app/lib/logger'
 
 # uncaught exception handler
-if process.env.NODE_ENV == 'production'
-  process.on 'uncaughtException', (err) ->
-    logger.error err
+if process.env.NODE_ENV == 'production' || process.env.NODE_ENV == 'staging'
+  airbrake = require('airbrake').createClient(settings.airbrakeKey)
+  airbrake.handleExceptions()
 
 boxer = new Boxer(settings)
 boxer.run()
