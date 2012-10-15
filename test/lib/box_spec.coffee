@@ -80,39 +80,39 @@ describe Box, ->
                                                         cbSpy)
   describe '#configureBox', ->
     beforeEach ->
-      box.ip = '192.168.254.254'
+      box.ip = '192.168.254.2'
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
       box._configureBox(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
-                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template', '192.168.254.254'],
+                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template', '192.168.254.2'],
                                                         sudo: true,
                                                         cbSpy)
 
   describe '#setUpPortForwarding', ->
     beforeEach ->
-      box.ip = '192.168.254.254'
+      box.ip = '192.168.254.2'
       box.port = 21000
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
       box._setUpPortForwarding(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-setup-portforwarding",
-                                                   ['192.168.254.254', 21000],
+                                                   ['192.168.254.2', 21000],
                                                    sudo: true,
                                                    cbSpy)
 
   describe '#releasePortForwarding', ->
     beforeEach ->
-      box.ip = '192.168.254.254'
+      box.ip = '192.168.254.2'
       box.port = 21000
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
       box._releasePortForwarding(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-release-portforwarding",
-                                                   ['192.168.254.254', 21000],
+                                                   ['192.168.254.2', 21000],
                                                    sudo: true,
                                                    cbSpy)
 
@@ -120,7 +120,7 @@ describe Box, ->
     error = null
 
     beforeEach ->
-      box.ip = '192.168.254.254'
+      box.ip = '192.168.254.2'
       box.port = 21000
       error = new Error 'some error'
       sinon.stub ResourcePool, 'release', (resources, cb) -> cb(error)
@@ -138,13 +138,13 @@ describe Box, ->
 
   describe '#startContainer', ->
     beforeEach ->
-      box.ip = '192.168.254.254'
+      box.ip = '192.168.254.2'
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
       box._startContainer(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-start-container",
-                                                        ['rails-box', '192.168.254.254'],
+                                                        ['rails-box', '192.168.254.2'],
                                                         sudo: true,
                                                         cbSpy)
 

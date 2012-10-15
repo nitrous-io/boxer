@@ -10,3 +10,5 @@ ip=${2}
 
 lxc-start -n ${name} -d
 while ! nc -z ${ip} 22 ; do echo ''; done
+
+ln -s /var/lib/lxc/${name}/config /etc/lxc/auto/${name}.conf

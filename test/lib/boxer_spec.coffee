@@ -24,7 +24,7 @@ describe 'Boxer', ->
 
         cleanDB ->
           multi = publisher.multi()
-          multi.rpush 'available_ips', '192.168.254.254'
+          multi.rpush 'available_ips', '192.168.254.2'
           multi.rpush 'available_ports', '10000'
           multi.exec (err, replies) ->
             boxer = new Boxer(settings)
@@ -56,19 +56,19 @@ describe 'Boxer', ->
                 expect(message.boxId).to.eql 1
                 expect(message.id).to.eql 'test.action.io'
                 expect(message.success).to.be.true
-                expect(networkConfig).to.match /address 192.168.254.254/
+                expect(networkConfig).to.match /address 192.168.254.2/
                 expect(name).to.match /mclovins-container/
                 expect(fstab).to.match /mclovins-container/
                 expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
 
                 childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-                  expect(stdout).to.match /192\.168\.254\.254:22/
+                  expect(stdout).to.match /192\.168\.254\.2:22/
 
                   publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
                      msg = JSON.parse(res)
                      expect(msg.id).to.eql 1
                      expect(msg.name).to.eql 'mclovins-container'
-                     expect(msg.ip).to.eql '192.168.254.254'
+                     expect(msg.ip).to.eql '192.168.254.2'
                      expect(msg.port).to.eql 10000
                      expect(msg.memory).to.eql '256'
                      expect(msg.diskSpace).to.eql '4096'
@@ -106,7 +106,7 @@ describe 'Boxer', ->
                 expect(message.success).to.eql false
 
                 childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-                  expect(stdout).to.not.match /192\.168\.254\.254:22/
+                  expect(stdout).to.not.match /192\.168\.254\.2:22/
 
                   childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                     expect(stdout).to.match /STOPPED/
@@ -142,7 +142,7 @@ describe 'Boxer', ->
                 expect(message.success).to.eql false
 
                 childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-                  expect(stdout).to.not.match /192\.168\.254\.254:22/
+                  expect(stdout).to.not.match /192\.168\.254\.2:22/
 
                   childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                     expect(stdout).to.match /STOPPED/
@@ -174,7 +174,7 @@ describe 'Boxer', ->
                 expect(message.success).to.eql false
 
                 childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-                  expect(stdout).to.not.match /192\.168\.254\.254:22/
+                  expect(stdout).to.not.match /192\.168\.254\.2:22/
 
                   childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                     expect(stdout).to.match /STOPPED/
@@ -244,12 +244,15 @@ describe 'Boxer', ->
 
       it 'should return an aio:stopped message with the box\'s id present', (done) ->
         coach.subscribe settings.coachChannel, (err, result) ->
+          console.log "subscribe"
+
           if !err
             coach.on 'message', (channel, rawMessage) ->
               message = MessageParser.decode(rawMessage)
               expect(message.type).to.eql 'aio:stopped'
               expect(message.id).to.eql 'test.action.io'
               expect(message.boxId).to.eql 1
+              expect(fs.existsSync("/etc/lxc/auto/mclovins-container.conf")).to.be.false
 
               childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                 expect(stdout).to.match /STOPPED/
@@ -265,7 +268,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container dont-start", timeout:5000, (err, stdout, stderr) ->
           if !err
             cleanDB ->
-              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
               boxer = new Boxer(settings)
               boxer.run(done)
 
@@ -285,6 +288,10 @@ describe 'Boxer', ->
               expect(message.type).to.eql 'aio:started'
               expect(message.id).to.eql 'test.action.io'
               expect(message.boxId).to.eql 1
+              symlink = fs.readFileSync("/etc/lxc/auto/mclovins-container.conf").toString()
+              originalFile = fs.readFileSync("/var/lib/lxc/mclovins-container/config").toString()
+
+              expect(symlink).to.eql(originalFile)
 
               childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
                 expect(stdout).to.match /RUNNING/
@@ -302,7 +309,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           if !err
             cleanDB ->
-              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
+              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
               boxer = new Boxer(settings)
               boxer.run(done)
 
@@ -372,9 +379,9 @@ describe 'Boxer', ->
 
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           if !err
-            childProcess.exec "sudo lxc-stop -n mclovins-container && sudo lxc-wait -n mclovins-container STOPPED", timeout: 5000, (err, stdout, stderr) ->
+            childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container", timeout: 5000, (err, stdout, stderr) ->
               cleanDB ->
-                publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.254","port":10000}'
+                publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
                 boxer = new Boxer(settings)
                 boxer.run(done)
 
