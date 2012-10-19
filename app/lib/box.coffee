@@ -142,7 +142,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _mountContainer: (done) ->
     logger.info "Mounting Container"
     this._execShellCommand "boxer-mount-container",
-                           [@lxcRoot, @name, @containerTemplate],
+                           [@id, @lxcRoot, @name, @containerTemplate, @diskSpace],
                            sudo: true,
                            done
 

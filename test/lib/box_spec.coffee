@@ -64,7 +64,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-mount-container",
-                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template'],
+                                                        [1, "/var/lib/lxc", "rails-box", "ruby-container-template", 4096],
                                                         sudo: true,
                                                         cbSpy)
 

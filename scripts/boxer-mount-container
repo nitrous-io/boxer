@@ -5,9 +5,12 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
-lxc_root=${1}
-box_name=${2}
-container_template=${3}
+box_id=${1}
+lxc_root=${2}
+box_name=${3}
+container_template=${4}
+disk_limit=${5}
+
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}_delta
 container_path=${lxc_root}/${container_template}
@@ -17,9 +20,22 @@ none ${box_path} overlayfs ${mount_options} 0 0
 EOF
 )
 
+action_uid=`chroot ${container_path}/rootfs /usr/bin/id -u action`
+action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
+
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
+mkdir -p ${box_delta_path}/rootfs/home/action
+chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
 mount -n -t overlayfs -o ${mount_options} none ${box_path}
 echo "${fstab_config}" >> /etc/fstab
+
+if [[ `df -T | grep "xfs.*${lxc_root}$"` ]]; then
+  echo "${box_id}:${box_delta_path}/rootfs/home/action" >> /etc/projects
+  echo "${box_name}:${box_id}" >> /etc/projid
+
+  xfs_quota -x -c "project -s ${box_name}" ${lxc_root}
+  xfs_quota -x -c "limit -p bhard=${disk_limit} ${box_name}" ${lxc_root}
+fi
 
 
