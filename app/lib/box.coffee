@@ -14,14 +14,17 @@ module.exports = class Box extends AutoAdvancingStateMachine
     { name: 'resourcesAcquired',   onAdvance: '_mountContainer',      onRollback: '_releaseResources' }
     { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
     { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
-    { name: 'portForwardingSetUp', onAdvance: 'save',                 onRollback: '_releasePortForwarding' }
+    { name: 'portForwardingSetUp', onAdvance: '_setDefaultKeyPair',   onRollback: '_releasePortForwarding' }
+    { name: 'setupDefaultKeyPair', onAdvance: 'save',                 onRollback: '_removeDefaultKeyPair' }
     { name: 'boxSaved',            onAdvance: '_notifySuccess',       onRollback: 'delete' }
   ]
 
+  # sshKeyPair: an object that holds public_key and private_key
   constructor: (@id, redisStoreSettings) ->
     @ip = @port = @boxerCallback = null
     @name = @containerTemplate = @lxcRoot = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
+    @sshKeyPair = null
     @boxerId = null
     # Setup the Redis client
     @redisClient = initRedisClientWith(redisStoreSettings) if redisStoreSettings?
@@ -175,6 +178,23 @@ module.exports = class Box extends AutoAdvancingStateMachine
     this._execShellCommand "boxer-release-portforwarding",
                            [@ip, @port],
                            sudo: true,
+                           done
+
+  _setDefaultKeyPair: (done) ->
+    if @sshKeyPair? && @sshKeyPair.public_key? && @sshKeyPair.private_key?
+      logger.info "Setting default ssh key pair with public: #{@sshKeyPair.public_key} and private: #{@sshKeyPair.private_key}"
+      this._execShellCommand "boxer-set-default-key-pair",
+                             [@lxcRoot, @name, @sshKeyPair.public_key, @sshKeyPair.private_key],
+                             sudo: true
+                             done
+    else
+      done()
+
+  _removeDefaultKeyPair: (done) ->
+    logger.info "Remove default ssh key pair"
+    this._execShellCommand "boxer-remove-default-key-pair",
+                           [@lxcRoot, @name],
+                           sudo: true
                            done
 
   _startContainer: (done) ->
