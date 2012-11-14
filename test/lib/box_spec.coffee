@@ -16,7 +16,6 @@ describe Box, ->
 
     cbSpy = sinon.spy()
 
-
   describe '#valid', ->
     box = null
 
@@ -136,6 +135,46 @@ describe Box, ->
         ip: box.ip
       expect(cbSpy).to.have.been.calledWith error
 
+  describe "#_setDefaultKeyPair", ->
+    beforeEach ->
+      sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
+
+    context 'when the box has publicKey and privateKey specified', ->
+      beforeEach ->
+        box.sshKeyPair = { public_key: 'public-key', private_key: 'private-key' }
+
+      it 'setup public and private key for the box', ->
+        box._setDefaultKeyPair(cbSpy)
+        box._execShellCommand.should.have.been.calledWith(
+          "boxer-set-default-key-pair",
+          ['/var/lib/lxc', 'rails-box', 'public-key', 'private-key'],
+          sudo: true,
+          cbSpy
+        )
+
+    context 'when the box does not have publicKey and privateKey', ->
+      it 'does not tries to setup the key pair', ->
+        box._setDefaultKeyPair(cbSpy)
+        box._execShellCommand.should.not.have.been.calledWith(
+          "boxer-set-default-key-pair",
+          ['/var/lib/lxc', 'rails-box', 'public-key', 'private-key'],
+          sudo: true,
+          cbSpy
+        )
+
+  describe "#removeDefaultKeyPair", ->
+    beforeEach ->
+      sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
+
+    it 'removes defauly public and private key for the box', ->
+      box._removeDefaultKeyPair(cbSpy)
+      box._execShellCommand.should.have.been.calledWith(
+        "boxer-remove-default-key-pair",
+        ['/var/lib/lxc', 'rails-box'],
+        sudo: true,
+        cbSpy
+      )
+
   describe '#startContainer', ->
     beforeEach ->
       box.ip = '192.168.254.2'
@@ -204,4 +243,3 @@ describe Box, ->
       it 'should execute the command without the sudo prefixed', ->
         childProcess.exec.should.have.been.calledWith("#{scriptPath}foo", timeout: 0)
         cbSpy.should.have.been.called
-
