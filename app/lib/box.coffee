@@ -181,6 +181,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            done
 
   _setDefaultKeyPair: (done) ->
+    logger.info "Setting default ssh key-pair"
     if @sshKeyPair? && @sshKeyPair.public_key? && @sshKeyPair.private_key?
       logger.info "Setting default ssh key pair with public: #{@sshKeyPair.public_key} and private: #{@sshKeyPair.private_key}"
       this._execShellCommand "boxer-set-default-key-pair",
