@@ -12,5 +12,6 @@ module.exports = class CreateMessage extends BaseMessage
     @diskSpace = attributes.diskSpace
     @publicKeys = attributes.publicKeys
     @name = attributes.name
+    @sshKeyPair = attributes.sshKeyPair
 
     super
