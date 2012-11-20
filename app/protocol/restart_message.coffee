@@ -1,0 +1,10 @@
+BaseMessage = require './base_message'
+
+module.exports = class RestartMessage extends BaseMessage
+  @type = 'aio:restart'
+
+  constructor: (attributes) ->
+    @id = attributes.id
+    @boxId = attributes.boxId
+    @name = attributes.name
+    super
