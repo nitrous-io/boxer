@@ -6,8 +6,7 @@ shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
 box_name='mclovins-container'
-boxid='1000000'
-container_template='ruby_container_template'
+container_template='test-container-template'
 ip='192.168.254.2'
 port='10000'
 box_path=${lxc_root}/${box_name}
@@ -30,14 +29,10 @@ fstab_config=$(cat <<EOF
 none ${box_path} overlayfs ${mount_options} 0 0
 EOF
 )
-action_uid=`chroot ${container_path}/rootfs /usr/bin/id -u action`
-action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
 
 iptables -F -t nat
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
-mkdir -p ${box_delta_path}/rootfs/home/action
-chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
 mount -n -t overlayfs -o ${mount_options} none ${box_path}
 
 sed -i "s/${container_template}/${box_name}/g" ${box_path}/config

@@ -11,6 +11,22 @@ scriptPath = __dirname.replace('test/lib', 'scripts/')
 describe 'Boxer', ->
   boxer = coach = publisher = settings = redisMQSettings = redisStoreSettings = null
 
+  publishSettings = (attributes) ->
+    attributes.id ?= 'test.action.io'
+    attributes.name ?= 'mclovins-container'
+    publisher.publish settings.boxerChannel, JSON.stringify(attributes)
+
+  # Helper to create a new box
+  createBox = (attributes={}) ->
+    attributes.type ?= 'aio:create'
+    attributes.boxId ?= 1
+    attributes.runtime ?= "test"
+    attributes.memory ?= "256"
+    attributes.diskSpace ?= '4096'
+    attributes.publicKeys ?= []
+    attributes.snapshotURL ?= null
+    publishSettings attributes
+
   before ->
     settings = require('../../config/settings')
     redisMQSettings = settings.redisMQ
@@ -35,7 +51,6 @@ describe 'Boxer', ->
         boxer.cleanup()
         coach.unsubscribe()
         publisher.unsubscribe()
-
         boxer = coach = publisher = null
         cleanupContainer(done)
 
@@ -77,16 +92,7 @@ describe 'Boxer', ->
                     done(err)
 
             # start to create a container
-            publisher.publish settings.boxerChannel,
-                              '{"type":"aio:create",' +
-                              '"id":"test.action.io",' +
-                              '"boxId":1,' +
-                              '"runtime":"rails",' +
-                              '"name":"mclovins-container",' +
-                              '"memory":"256",' +
-                              '"diskSpace":"4096",' +
-                              '"publicKeys":["public-key-1","public-key-2"],' +
-                              '"snapshotURL":null}'
+            createBox publicKeys: ["public-key-1", "public-key-2"]
 
       context 'unsuccessful provisioning', ->
         beforeEach ->
@@ -117,16 +123,7 @@ describe 'Boxer', ->
                       expect(res).to.be.null
                       done(err)
 
-            publisher.publish settings.boxerChannel,
-                              '{"type":"aio:create",' +
-                              '"id":"test.action.io",' +
-                              '"boxId":1,' +
-                              '"runtime":"rails",' +
-                              '"name":"mclovins-container",' +
-                              '"memory":"256",' +
-                              '"diskSpace":"4096",' +
-                              '"publicKeys":[],' +
-                              '"snapshotURL":null}'
+            createBox()
 
       context 'no resources available on redis', ->
         beforeEach (done) ->
@@ -152,16 +149,7 @@ describe 'Boxer', ->
                       expect(res).to.be.null
                       done(err)
 
-            publisher.publish settings.boxerChannel,
-                              '{"type":"aio:create",' +
-                              '"id":"test.action.io",' +
-                              '"boxId":1,' +
-                              '"runtime":"rails",' +
-                              '"name":"mclovins-container",' +
-                              '"memory":"256",' +
-                              '"diskSpace":"4096",' +
-                              '"publicKeys":["public-key-1","public-key-2"],' +
-                              '"snapshotURL":null}'
+            createBox()
 
       context 'invalid params', ->
         it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
@@ -184,15 +172,7 @@ describe 'Boxer', ->
                       expect(res).to.be.null
                       done(err)
 
-            publisher.publish settings.boxerChannel,
-                              '{"type":"aio:create",' +
-                              '"id":"test.action.io",' +
-                              '"runtime":"rails",' +
-                              '"name":"mclovins-container",' +
-                              '"memory":"256",' +
-                              '"diskSpace":"4096",' +
-                              '"publicKeys":[],' +
-                              '"snapshotURL":null}'
+            publishSettings type: "aio:create", runtime: 'test'
 
     context 'aio:locate', ->
       before (done) ->
@@ -220,7 +200,7 @@ describe 'Boxer', ->
               expect(message.freeMemory).to.exist
               done()
 
-          publisher.publish settings.boxerChannel, '{"type":"aio:locate"}'
+          publishSettings type: "aio:locate"
 
     context 'aio:stop', ->
       beforeEach (done) ->
@@ -256,7 +236,7 @@ describe 'Boxer', ->
                 expect(stdout).to.match /STOPPED/
                 done(err)
 
-          publisher.publish settings.boxerChannel, '{"type":"aio:stop","id":"test.action.io","name":"mclovins-container"}'
+          publishSettings type: "aio:stop"
 
     context 'aio:start' , ->
       before (done) ->
@@ -295,7 +275,7 @@ describe 'Boxer', ->
                 expect(stdout).to.match /RUNNING/
                 done()
 
-          publisher.publish settings.boxerChannel, '{"type":"aio:start","id":"test.action.io","name":"mclovins-container"}'
+          publishSettings type: "aio:start"
 
     context 'aio:configure', ->
       publicKeysFile = "/var/lib/lxc/mclovins-container/rootfs/etc/ssh/univ_public_keys"
@@ -340,7 +320,7 @@ describe 'Boxer', ->
                 expect(output).to.eql publicKey
                 done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":"' + publicKey + '"}'
+            publishSettings type: "aio:configure", dataType: "aio:configure:add_public_key", data: publicKey
 
       context 'removing public keys', ->
         publicKey = null
@@ -367,7 +347,7 @@ describe 'Boxer', ->
                 expect(output).to.eql ''
                 done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":"' + publicKey + '"}'
+            publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey
 
     context 'aio:destroy', ->
       beforeEach (done) ->
@@ -413,4 +393,4 @@ describe 'Boxer', ->
                     expect(res).to.be.null
                     done()
 
-          publisher.publish settings.boxerChannel, '{"type":"aio:destroy","id":"test.action.io","name":"mclovins-container"}'
+          publishSettings type: "aio:destroy"

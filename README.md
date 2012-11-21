@@ -49,11 +49,22 @@ sudo ifconfig br-lxc
 lxc-create -n test-container-template -t ubuntu -f /root/lxc/default.conf -- -r precise
 ```
 
+If you can't find /root/lxc/defaultc.conf, probably running the script in
+bombay will work
+```
+sudo lxc-create -n test-container-template -t action -f ~/workspace/bombay/ansible/global/templates/host/lxc_default.conf -- -r precise
+```
+
 This will take a while.
 
 - Once this is complete, you should see a container in
    ```/var/lib/lxc/test-container-template``` (this will be used as the
 template for all the test containers created in the test suite)
+
+- Add `action` user to `test-container-template`
+```
+sudo chroot /var/lib/lxc/test-container-template/rootfs adduser action
+```
 
 - Install redis-server
 
