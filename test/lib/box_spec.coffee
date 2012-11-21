@@ -77,6 +77,29 @@ describe Box, ->
                                                         ['/var/lib/lxc', 'rails-box'],
                                                         sudo: true,
                                                         cbSpy)
+
+  describe '#setupDeltaContainer', ->
+    beforeEach ->
+      sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
+      box._setupDeltaContainer(cbSpy)
+
+    it 'should call _execShellCommand with the right options', ->
+      box._execShellCommand.should.have.been.calledWith("boxer-setup-delta-container",
+                                                        [1, "/var/lib/lxc", "rails-box", "ruby-container-template"],
+                                                        sudo: true,
+                                                        cbSpy)
+
+  describe '#cleanupDeltaContainer', ->
+    beforeEach ->
+      sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
+      box._cleanupDeltaContainer(cbSpy)
+
+    it 'should call _execShellCommand with the right options', ->
+      box._execShellCommand.should.have.been.calledWith("boxer-cleanup-delta-container",
+                                                        ['/var/lib/lxc', 'rails-box'],
+                                                        sudo: true,
+                                                        cbSpy)
+
   describe '#configureBox', ->
     beforeEach ->
       box.ip = '192.168.254.2'
