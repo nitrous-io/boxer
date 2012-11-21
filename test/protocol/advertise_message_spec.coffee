@@ -19,5 +19,4 @@ describe 'AdvertiseMessage', ->
     it 'should construct an AdvertiseMessage object, with all the attributes filled in', ->
       @msg.id.should.not.be.empty
       @msg.freeMemory.should.be.above 0
-      @msg.runtimes.should.eql ['test']
       @msg.type.should.eql 'aio:advertise'

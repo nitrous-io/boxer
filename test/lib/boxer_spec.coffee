@@ -27,6 +27,7 @@ describe 'Boxer', ->
           multi.rpush 'available_ips', '192.168.254.2'
           multi.rpush 'available_ports', '10000'
           multi.exec (err, replies) ->
+            return done(err) if err
             boxer = new Boxer(settings)
             boxer.run(done)
 
@@ -41,17 +42,17 @@ describe 'Boxer', ->
       context 'successfully provisioned', ->
         it 'should return an aio:created message with the requisite properties filled', (done) ->
           coach.subscribe settings.coachChannel, (err, result) ->
-            if !err
-              coach.on 'message', (channel, rawMessage) ->
-                message = MessageParser.decode(rawMessage)
-
+            return done(err) if err
+            # register a listener to assert results
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
+              if message.type == 'aio:created'
                 root = "/var/lib/lxc/mclovins-container/rootfs"
                 networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
                 name = fs.readFileSync("#{root}/etc/hostname")
                 publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
                 fstab = fs.readFileSync("/etc/fstab").toString()
 
-                expect(message.type).to.eql 'aio:created'
                 expect(message.port).to.eql 10000
                 expect(message.boxId).to.eql 1
                 expect(message.id).to.eql 'test.action.io'
@@ -65,26 +66,27 @@ describe 'Boxer', ->
                   expect(stdout).to.match /192\.168\.254\.2:22/
 
                   publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
-                     msg = JSON.parse(res)
-                     expect(msg.id).to.eql 1
-                     expect(msg.name).to.eql 'mclovins-container'
-                     expect(msg.ip).to.eql '192.168.254.2'
-                     expect(msg.port).to.eql 10000
-                     expect(msg.memory).to.eql '256'
-                     expect(msg.diskSpace).to.eql '4096'
-                     expect(msg.boxerId).to.eql 'test.action.io'
-                     done(err)
+                    msg = JSON.parse(res)
+                    expect(msg.id).to.eql 1
+                    expect(msg.name).to.eql 'mclovins-container'
+                    expect(msg.ip).to.eql '192.168.254.2'
+                    expect(msg.port).to.eql 10000
+                    expect(msg.memory).to.eql '256'
+                    expect(msg.diskSpace).to.eql '4096'
+                    expect(msg.boxerId).to.eql 'test.action.io'
+                    done(err)
 
-              publisher.publish settings.boxerChannel,
-                                '{"type":"aio:create",' +
-                                '"id":"test.action.io",' +
-                                '"boxId":1,' +
-                                '"runtime":"test",' +
-                                '"name":"mclovins-container",' +
-                                '"memory":"256",' +
-                                '"diskSpace":"4096",' +
-                                '"publicKeys":["public-key-1","public-key-2"],' +
-                                '"snapshotURL":null}'
+            # start to create a container
+            publisher.publish settings.boxerChannel,
+                              '{"type":"aio:create",' +
+                              '"id":"test.action.io",' +
+                              '"boxId":1,' +
+                              '"runtime":"rails",' +
+                              '"name":"mclovins-container",' +
+                              '"memory":"256",' +
+                              '"diskSpace":"4096",' +
+                              '"publicKeys":["public-key-1","public-key-2"],' +
+                              '"snapshotURL":null}'
 
       context 'unsuccessful provisioning', ->
         beforeEach ->
@@ -96,11 +98,11 @@ describe 'Boxer', ->
 
         it 'should return an aio:created message with the success flag set to false', (done) ->
           coach.subscribe settings.coachChannel, (err, result) ->
-            if !err
-              coach.on 'message', (channel, rawMessage) ->
-                message = MessageParser.decode(rawMessage)
+            return done(err) if err
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
 
-                expect(message.type).to.eql 'aio:created'
+              if message.type == 'aio:created'
                 expect(message.boxId).to.eql 1
                 expect(message.id).to.eql 'test.action.io'
                 expect(message.success).to.eql false
@@ -115,29 +117,28 @@ describe 'Boxer', ->
                       expect(res).to.be.null
                       done(err)
 
-              publisher.publish settings.boxerChannel,
-                                '{"type":"aio:create",' +
-                                '"id":"test.action.io",' +
-                                '"boxId":1,' +
-                                '"runtime":"test",' +
-                                '"name":"mclovins-container",' +
-                                '"memory":"256",' +
-                                '"diskSpace":"4096",' +
-                                '"publicKeys":[],' +
-                                '"snapshotURL":null}'
+            publisher.publish settings.boxerChannel,
+                              '{"type":"aio:create",' +
+                              '"id":"test.action.io",' +
+                              '"boxId":1,' +
+                              '"runtime":"rails",' +
+                              '"name":"mclovins-container",' +
+                              '"memory":"256",' +
+                              '"diskSpace":"4096",' +
+                              '"publicKeys":[],' +
+                              '"snapshotURL":null}'
 
       context 'no resources available on redis', ->
         beforeEach (done) ->
-          cleanDB ->
-            done()
+          cleanDB done
 
         it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
           coach.subscribe settings.coachChannel, (err, result) ->
-            if !err
-              coach.on 'message', (channel, rawMessage) ->
-                message = MessageParser.decode(rawMessage)
+            return done(err) if err
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
 
-                expect(message.type).to.eql 'aio:created'
+              if message.type == 'aio:created'
                 expect(message.id).to.eql 'test.action.io'
                 expect(message.success).to.eql false
 
@@ -151,25 +152,25 @@ describe 'Boxer', ->
                       expect(res).to.be.null
                       done(err)
 
-              publisher.publish settings.boxerChannel,
-                                '{"type":"aio:create",' +
-                                '"id":"test.action.io",' +
-                                '"boxId":1,' +
-                                '"runtime":"test",' +
-                                '"name":"mclovins-container",' +
-                                '"memory":"256",' +
-                                '"diskSpace":"4096",' +
-                                '"publicKeys":["public-key-1","public-key-2"],' +
-                                '"snapshotURL":null}'
+            publisher.publish settings.boxerChannel,
+                              '{"type":"aio:create",' +
+                              '"id":"test.action.io",' +
+                              '"boxId":1,' +
+                              '"runtime":"rails",' +
+                              '"name":"mclovins-container",' +
+                              '"memory":"256",' +
+                              '"diskSpace":"4096",' +
+                              '"publicKeys":["public-key-1","public-key-2"],' +
+                              '"snapshotURL":null}'
 
       context 'invalid params', ->
         it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
           coach.subscribe settings.coachChannel, (err, result) ->
-            if !err
-              coach.on 'message', (channel, rawMessage) ->
-                message = MessageParser.decode(rawMessage)
+            return done(err) if err
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
 
-                expect(message.type).to.eql 'aio:created'
+              if message.type == "aio:created"
                 expect(message.id).to.eql 'test.action.io'
                 expect(message.success).to.eql false
 
@@ -183,16 +184,15 @@ describe 'Boxer', ->
                       expect(res).to.be.null
                       done(err)
 
-              publisher.publish settings.boxerChannel,
-                                '{"type":"aio:create",' +
-                                '"id":"test.action.io",' +
-                                '"runtime":"test",' +
-                                '"name":"mclovins-container",' +
-                                '"memory":"256",' +
-                                '"diskSpace":"4096",' +
-                                '"publicKeys":[],' +
-                                '"snapshotURL":null}'
-
+            publisher.publish settings.boxerChannel,
+                              '{"type":"aio:create",' +
+                              '"id":"test.action.io",' +
+                              '"runtime":"rails",' +
+                              '"name":"mclovins-container",' +
+                              '"memory":"256",' +
+                              '"diskSpace":"4096",' +
+                              '"publicKeys":[],' +
+                              '"snapshotURL":null}'
 
     context 'aio:locate', ->
       before (done) ->
@@ -207,49 +207,47 @@ describe 'Boxer', ->
         coach.unsubscribe()
         publisher.unsubscribe()
         boxer.cleanup()
-
         boxer = coach = publisher = null
 
       it 'should return an aio:advertise message with the boxer\'s capabilities', (done) ->
         coach.subscribe settings.coachChannel, (err, result) ->
-          if !err
-            coach.on 'message', (channel, rawMessage) ->
-              message = MessageParser.decode(rawMessage)
-              expect(message.type).to.eql 'aio:advertise'
+          return done(err) if err
+          coach.on 'message', (channel, rawMessage) ->
+            message = MessageParser.decode(rawMessage)
+
+            if message.type == 'aio:advertise'
               expect(message.id).to.eql 'test.action.io'
               expect(message.freeMemory).to.exist
               done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio:locate"}'
+          publisher.publish settings.boxerChannel, '{"type":"aio:locate"}'
 
     context 'aio:stop', ->
-      before (done) ->
+      beforeEach (done) ->
         coach = initRedisClientWith(redisMQSettings)
         publisher = initRedisClientWith(redisMQSettings)
 
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
-          if !err
-            cleanDB ->
-              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container"}'
-              boxer = new Boxer(settings)
-              boxer.run(done)
+          return done(err) if err
+          cleanDB ->
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container"}'
+            boxer = new Boxer(settings)
+            boxer.run(done)
 
-      after (done) ->
+      afterEach (done) ->
         publisher.unsubscribe()
         coach.unsubscribe()
         boxer.cleanup()
-
         coach = publisher = boxer = null
         cleanupContainer(done)
 
       it 'should return an aio:stopped message with the box\'s id present', (done) ->
         coach.subscribe settings.coachChannel, (err, result) ->
-          console.log "subscribe"
+          return done(err) if err
+          coach.on 'message', (channel, rawMessage) ->
+            message = MessageParser.decode(rawMessage)
 
-          if !err
-            coach.on 'message', (channel, rawMessage) ->
-              message = MessageParser.decode(rawMessage)
-              expect(message.type).to.eql 'aio:stopped'
+            if message.type == 'aio:stopped'
               expect(message.id).to.eql 'test.action.io'
               expect(message.boxId).to.eql 1
               expect(fs.existsSync("/etc/lxc/auto/mclovins-container.conf")).to.be.false
@@ -258,7 +256,7 @@ describe 'Boxer', ->
                 expect(stdout).to.match /STOPPED/
                 done(err)
 
-            publisher.publish settings.boxerChannel, '{"type":"aio:stop","id":"test.action.io","name":"mclovins-container"}'
+          publisher.publish settings.boxerChannel, '{"type":"aio:stop","id":"test.action.io","name":"mclovins-container"}'
 
     context 'aio:start' , ->
       before (done) ->
@@ -266,26 +264,26 @@ describe 'Boxer', ->
         coach = initRedisClientWith(redisMQSettings)
 
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container dont-start", timeout:5000, (err, stdout, stderr) ->
-          if !err
-            cleanDB ->
-              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
-              boxer = new Boxer(settings)
-              boxer.run(done)
+          return done(err) if err
+          cleanDB ->
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
+            boxer = new Boxer(settings)
+            boxer.run(done)
 
       after (done) ->
         boxer.cleanup()
         coach.unsubscribe()
         publisher.unsubscribe()
-
         boxer = coach = publisher = null
         cleanupContainer(done)
 
       it 'should start an already created container', (done) ->
         coach.subscribe settings.coachChannel, (err, result) ->
-          if !err
-            coach.on 'message', (channel, rawMessage) ->
-              message = MessageParser.decode(rawMessage)
-              expect(message.type).to.eql 'aio:started'
+          return done(err) if err
+          coach.on 'message', (channel, rawMessage) ->
+            message = MessageParser.decode(rawMessage)
+
+            if message.type == 'aio:started'
               expect(message.id).to.eql 'test.action.io'
               expect(message.boxId).to.eql 1
               symlink = fs.readFileSync("/etc/lxc/auto/mclovins-container.conf").toString()
@@ -297,7 +295,7 @@ describe 'Boxer', ->
                 expect(stdout).to.match /RUNNING/
                 done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio:start","id":"test.action.io","name":"mclovins-container"}'
+          publisher.publish settings.boxerChannel, '{"type":"aio:start","id":"test.action.io","name":"mclovins-container"}'
 
     context 'aio:configure', ->
       publicKeysFile = "/var/lib/lxc/mclovins-container/rootfs/etc/ssh/univ_public_keys"
@@ -307,17 +305,16 @@ describe 'Boxer', ->
         coach = initRedisClientWith(redisMQSettings)
 
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
-          if !err
-            cleanDB ->
-              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
-              boxer = new Boxer(settings)
-              boxer.run(done)
+          return done(err) if err
+          cleanDB ->
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
+            boxer = new Boxer(settings)
+            boxer.run(done)
 
       afterEach (done) ->
         boxer.cleanup()
         coach.unsubscribe()
         publisher.unsubscribe()
-
         boxer = coach = publisher = null
         cleanupContainer(done)
 
@@ -329,10 +326,11 @@ describe 'Boxer', ->
 
         it 'should add a public key to the box', (done) ->
           coach.subscribe settings.coachChannel, (err, result) ->
-            if !err
-              coach.on 'message', (channel, rawMessage) ->
-                message = MessageParser.decode(rawMessage)
-                expect(message.type).to.eql 'aio:configured'
+            return done(err) if err
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
+
+              if message.type == 'aio:configured'
                 expect(message.id).to.eql 'test.action.io'
                 expect(message.boxId).to.eql 1
 
@@ -342,7 +340,7 @@ describe 'Boxer', ->
                 expect(output).to.eql publicKey
                 done()
 
-              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":"' + publicKey + '"}'
+            publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:add_public_key","data":"' + publicKey + '"}'
 
       context 'removing public keys', ->
         publicKey = null
@@ -350,14 +348,15 @@ describe 'Boxer', ->
         beforeEach (done) ->
           publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
           childProcess.exec "sudo scripts/boxer-add-public-keys '/var/lib/lxc' 'mclovins-container' '#{publicKey}'", timeout: 5000, (err, stdout, stderr) ->
-            done() if !err
+            if err then throw err else done()
 
         it 'should remove the public key from the box', (done) ->
           coach.subscribe settings.coachChannel, (err, result) ->
-            if !err
-              coach.on 'message', (channel, rawMessage) ->
-                message = MessageParser.decode(rawMessage)
-                expect(message.type).to.eql 'aio:configured'
+            return done(err) if err
+            coach.on 'message', (channel, rawMessage) ->
+              message = MessageParser.decode(rawMessage)
+
+              if message.type == 'aio:configured'
                 expect(message.id).to.eql 'test.action.io'
                 expect(message.boxId).to.eql 1
 
@@ -368,37 +367,35 @@ describe 'Boxer', ->
                 expect(output).to.eql ''
                 done()
 
-              console.log "Going to Publish Message"
-              publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":"' + publicKey + '"}'
-
+            publisher.publish settings.boxerChannel, '{"type":"aio:configure","id":"test.action.io","name":"mclovins-container","dataType":"aio:configure:remove_public_key","data":"' + publicKey + '"}'
 
     context 'aio:destroy', ->
-      before (done) ->
+      beforeEach (done) ->
         publisher = initRedisClientWith(redisMQSettings)
         coach = initRedisClientWith(redisMQSettings)
 
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
-          if !err
-            childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container", timeout: 5000, (err, stdout, stderr) ->
-              cleanDB ->
-                publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
-                boxer = new Boxer(settings)
-                boxer.run(done)
+          return done(err) if err
+          childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+            cleanDB ->
+              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
+              boxer = new Boxer(settings)
+              boxer.run(done)
 
-      after (done) ->
+      afterEach (done) ->
         boxer.cleanup()
         coach.unsubscribe()
         publisher.unsubscribe()
-
         boxer = coach = publisher = null
         cleanupContainer(done)
 
       it 'should destroy the container and remove all remnants', (done) ->
         coach.subscribe settings.coachChannel, (err, result) ->
-          if !err
-            coach.on 'message', (channel, rawMessage) ->
-              message = MessageParser.decode(rawMessage)
-              expect(message.type).to.eql 'aio:destroyed'
+          return done(err) if err
+          coach.on 'message', (channel, rawMessage) ->
+            message = MessageParser.decode(rawMessage)
+
+            if message.type == 'aio:destroyed'
               expect(message.id).to.eql 'test.action.io'
               expect(message.boxId).to.eql 1
 
@@ -416,4 +413,4 @@ describe 'Boxer', ->
                     expect(res).to.be.null
                     done()
 
-            publisher.publish settings.boxerChannel, '{"type":"aio:destroy","id":"test.action.io","name":"mclovins-container"}'
+          publisher.publish settings.boxerChannel, '{"type":"aio:destroy","id":"test.action.io","name":"mclovins-container"}'

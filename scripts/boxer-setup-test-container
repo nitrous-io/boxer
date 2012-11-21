@@ -6,7 +6,8 @@ shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
 box_name='mclovins-container'
-container_template='test-container-template'
+boxid='1000000'
+container_template='ruby_container_template'
 ip='192.168.254.2'
 port='10000'
 box_path=${lxc_root}/${box_name}
@@ -29,16 +30,28 @@ fstab_config=$(cat <<EOF
 none ${box_path} overlayfs ${mount_options} 0 0
 EOF
 )
+action_uid=`chroot ${container_path}/rootfs /usr/bin/id -u action`
+action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
 
 iptables -F -t nat
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
+mkdir -p ${box_delta_path}/rootfs/home/action
+chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
 mount -n -t overlayfs -o ${mount_options} none ${box_path}
 
 sed -i "s/${container_template}/${box_name}/g" ${box_path}/config
 echo "${box_name}" > ${box_path}/rootfs/etc/hostname
 echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
 echo "${fstab_config}" >> /etc/fstab
+
+if [[ `df -T | grep "xfs.*${lxc_root}$"` ]]; then
+  echo "${box_id}:${box_delta_path}/rootfs/home/action" >> /etc/projects
+  echo "${box_name}:${box_id}" >> /etc/projid
+
+  xfs_quota -x -c "project -s ${box_name}" ${lxc_root}
+  xfs_quota -x -c "limit -p bhard=${disk_limit} ${box_name}" ${lxc_root}
+fi
 
 iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
 
