@@ -278,6 +278,7 @@ describe 'Boxer', ->
           waitForMessage 'aio:started', assertMessage
           publishSettings type: "aio:start"
 
+
     describe 'aio:configure', ->
       publicKeysFile = "/var/lib/lxc/mclovins-container/rootfs/etc/ssh/univ_public_keys"
       publicKey = null
@@ -329,6 +330,32 @@ describe 'Boxer', ->
           subscribeAndDo ->
             waitForMessage 'aio:configured', assertMessage
             publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey
+
+    describe 'aio:restart' , ->
+      beforeEach (done) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container dont-start", timeout:5000, (err, stdout, stderr) ->
+          return done(err) if err
+          cleanDB ->
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
+            runBox done
+
+      it 'should restart an already created container', (done) ->
+        assertMessage = (message) ->
+          expect(message.type).to.eql 'aio:restarted'
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql 1
+          symlink = fs.readFileSync("/etc/lxc/auto/mclovins-container.conf").toString()
+          originalFile = fs.readFileSync("/var/lib/lxc/mclovins-container/config").toString()
+
+          expect(symlink).to.eql(originalFile)
+
+          childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.match /RUNNING/
+            done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:restarted', assertMessage
+          publishSettings type: "aio:restart"
 
     describe 'aio:destroy', ->
       beforeEach (done) ->
