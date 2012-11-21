@@ -8,8 +8,9 @@ shopt -s nullglob
 lxc_root=${1}
 box_name=${2}
 box_path=${lxc_root}/${box_name}
+fstab_path="/etc/fstab"
 
-if [[ `df -T | grep "xfs.*${lxc_root}$"` ]]; then
+if grep -q $box_path $fstab_path; then
   xfs_quota -x -c "limit -p bhard=0 ${box_name}" ${lxc_root}
   sed -i "/${box_name}/d" /etc/projects
   sed -i "/${box_name}/d" /etc/projid
@@ -17,5 +18,3 @@ fi
 
 umount ${box_path}
 sed -i "/${box_name}/d" /etc/fstab
-rm -rf ${box_path}*
-
