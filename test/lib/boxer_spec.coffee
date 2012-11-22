@@ -363,9 +363,10 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container", timeout: 5000, (err, stdout, stderr) ->
-            cleanDB ->
-              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}' 
-              runBox done
+            childProcess.exec "sudo #{scriptPath}/boxer-unmount-container '/var/lib/lxc' 'mclovins-container'", timeout: 5000, (err, stdout, stderr) ->
+              cleanDB ->
+                publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}' 
+                runBox done
 
       it 'should destroy the container and remove all remnants', (done) ->
         assertMessage = (message) ->
