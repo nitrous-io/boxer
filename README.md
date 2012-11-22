@@ -12,7 +12,7 @@ perform these steps (on an Ubuntu 12.04 machine)
 
 - Install lxc and bridge-utils
 
-```sudo apt-get install lxc bridge-utils```
+`sudo apt-get install lxc bridge-utils`
 
 - Add a bridge network to your network config
 
@@ -33,50 +33,29 @@ iface br-lxc inet static
 
 - Bring up your bridge network interface
 
-```
-sudo ifup br-lxc
-```
+`sudo ifup br-lxc` 
 
 - Check if it is indeed up
 
-```
-sudo ifconfig br-lxc
-```
+`sudo ifconfig br-lxc`
 
-- Install an LXC container called ```test-container-template```
+- Install an LXC container called `test-container-template` by running
+  `script/setup`
 
-```
-lxc-create -n test-container-template -t ubuntu -f /root/lxc/default.conf -- -r precise
-```
+`./script/setup`
 
-If you can't find /root/lxc/defaultc.conf, probably running the script in
-bombay will work
-```
-sudo lxc-create -n test-container-template -t action -f ~/workspace/bombay/ansible/global/templates/host/lxc_default.conf -- -r precise
-```
-
-This will take a while.
-
-- Once this is complete, you should see a container in
-   ```/var/lib/lxc/test-container-template``` (this will be used as the
-template for all the test containers created in the test suite)
-
-- Add `action` user to `test-container-template`
-```
-sudo chroot /var/lib/lxc/test-container-template/rootfs adduser action
-```
+- change test environment in your `config/runtimes.coffee` to contain `test:
+  "test_container_template"`. 
 
 - Install redis-server
 
-```sudo apt-get install redis-server```
+`sudo apt-get install redis-server`
 
 Run redis-server with the default configuration (if you change the port, make sure you change it in the config file in boxer as well)
 
 9. Run tests
 
 
-```
-make
-```
+`make`
 
 

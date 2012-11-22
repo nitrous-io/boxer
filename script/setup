@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [[ ! -d /var/lib/lxc/test_container_template ]]; then
+  sudo lxc-create -n test_container_template -t ubuntu -f $PWD/script/lxc_default.conf -- -r precise
+  sudo chroot /var/lib/lxc/test_container_template/rootfs useradd action -m -s /bin/bash -d /home/action
+fi
+
+echo "Done"

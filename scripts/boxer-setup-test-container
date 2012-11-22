@@ -5,8 +5,9 @@ set -o errexit
 shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
+box_id=1
 box_name='mclovins-container'
-container_template='test-container-template'
+container_template='test_container_template'
 ip='192.168.254.2'
 port='10000'
 box_path=${lxc_root}/${box_name}

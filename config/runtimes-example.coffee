@@ -5,7 +5,7 @@ runtimes =
     runtimes: {}
   test:
     runtimes:
-      test: 'test-container-template'
+      test: 'test_container_template'
   production:
     runtimes: {}
 
