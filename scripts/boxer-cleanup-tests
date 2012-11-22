@@ -21,6 +21,16 @@ if [ -d ${box_path} ]; then
     sed -i "/${name}/d" /etc/fstab
   fi
 
+  if [ -f /etc/projects ]; then
+    echo 'Removing line from /etc/projects'
+    sed -i "/${name}/d" /etc/projects
+  fi
+
+  if [ -f /etc/projid ]; then
+    echo 'Removing line from /etc/projid'
+    sed -i "/${name}/d" /etc/projid
+  fi
+
   echo 'Deleting all remnants of the container'
   rm -rf ${box_path}*
 
