@@ -36,6 +36,12 @@ mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
 mount -n -t overlayfs -o ${mount_options} none ${box_path}
 
+action_uid=`chroot ${container_path}/rootfs /usr/bin/id -u action`
+action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
+
+mkdir -p ${box_delta_path}/rootfs/home/action
+chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
+
 sed -i "s/${container_template}/${box_name}/g" ${box_path}/config
 echo "${box_name}" > ${box_path}/rootfs/etc/hostname
 echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
