@@ -14,11 +14,25 @@ if [ -d ${box_path} ]; then
   lxc-stop -n ${name}
   lxc-wait -n ${name} -s STOPPED
 
+  echo 'Removing line from /etc/fstab'
+  sed -i "/${name}/d" /etc/fstab
+
+  if [-f /etc/projects]; then
+    echo 'Removing line from /etc/projects'
+    sed -i "/${name}/d" /etc/projects
+  fi
+
+  if [-f /etc/projif]; then
+    echo 'Removing line from /etc/projid'
+    sed -i "/${name}/d" /etc/projid
+  fi
+
   echo 'Unmounting the container'
   umount ${box_path}
 
-  echo 'Removing line from /etc/fstab'
-  sed -i '/${box_name}/d' /etc/fstab
+  echo 'Destroy the lxc container'
+  lxc-destroy -n ${name}
+
   echo 'Deleting all remnants of the container'
   rm -rf ${box_path}*
 

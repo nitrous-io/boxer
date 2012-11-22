@@ -1,0 +1,20 @@
+#!/bin/bash -x
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root=${1}
+box_name=${2}
+username='action'
+
+box_path=${1}/${2}/rootfs
+env_path=${box_path}/etc/environment
+
+if [ -f ${env_path} ]; then
+  for key in "${@:3}"; do
+    # remove existing key
+    sed -i "/${key}=/d" ${env_path}
+  done
+fi

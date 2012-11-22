@@ -64,7 +64,7 @@ describe 'Boxer', ->
     cleanupContainer andDone
 
   describe 'run', ->
-    context 'aio:create', ->
+    describe 'aio:create', ->
       beforeEach (done) ->
         cleanDB ->
           multi = publisher.multi()
@@ -329,6 +329,44 @@ describe 'Boxer', ->
           subscribeAndDo ->
             waitForMessage 'aio:configured', assertMessage
             publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey
+
+      context 'setting env variables', ->
+        it 'sets the variables to /etc/profile', (done) ->
+          assertMessage = (message) ->
+            environmentFile = "/var/lib/lxc/mclovins-container/rootfs/etc/environment"
+            env = fs.readFileSync(environmentFile).toString()
+            expect(env).to.contain 'RDS_HOST=mysql://insecure'
+            expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
+            done()
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:set_env_variables",
+              data: {
+                'RDS_HOST': "mysql://insecure",
+                'RDS_PASSWORD': 'mysql-insecure'
+              }
+
+      context 'removing env variables', ->
+        beforeEach (done) ->
+          childProcess.exec "sudo scripts/boxer-set-env-variables '/var/lib/lxc' 'mclovins-container' 'RDS_HOST=123'", timeout: 5000, (err, stdout, stderr) ->
+            if err then throw err else done()
+
+        it 'remove the variables from /etc/profile', (done) ->
+          assertMessage = (message) ->
+            environmentFile = "/var/lib/lxc/mclovins-container/rootfs/etc/environment"
+            env = fs.readFileSync(environmentFile).toString()
+            expect(env).to.not.contain 'RDS_HOST=123'
+            done()
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:remove_env_variables",
+              data: ['RDS_HOST', 'RDS_PASSWORD']
 
     describe 'aio:destroy', ->
       beforeEach (done) ->
