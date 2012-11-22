@@ -10,6 +10,8 @@ module.exports = class MessageParser
     'aio:started'         : m.StartedMessage
     'aio:stop'            : m.StopMessage
     'aio:stopped'         : m.StoppedMessage
+    'aio:restart'         : m.RestartMessage
+    'aio:restarted'       : m.RestartedMessage
     'aio:destroy'         : m.DestroyMessage
     'aio:destroyed'       : m.DestroyedMessage
     'aio:configure'       : m.ConfigureMessage

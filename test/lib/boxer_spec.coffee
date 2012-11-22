@@ -231,12 +231,37 @@ describe 'Boxer', ->
           waitForMessage 'aio:advertise', assertMessage
           publishSettings type: "aio:locate"
 
+    describe 'aio:restart' , ->
+      beforeEach (done) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
+          return done(err) if err
+          cleanDB ->
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
+            runBox done
+
+      it 'should restart an already created container', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql 1
+          symlink = fs.readFileSync("/etc/lxc/auto/mclovins-container.conf").toString()
+          originalFile = fs.readFileSync("/var/lib/lxc/mclovins-container/config").toString()
+
+          expect(symlink).to.eql(originalFile)
+
+          childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.match /RUNNING/
+            done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:restarted', assertMessage
+          publishSettings type: "aio:restart"
+
     describe 'aio:stop', ->
       beforeEach (done) ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container"}'
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
             runBox done
 
       it 'should return an aio:stopped message with the box\'s id present', (done) ->
@@ -244,6 +269,7 @@ describe 'Boxer', ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
           expect(fs.existsSync("/etc/lxc/auto/mclovins-container.conf")).to.be.false
+          expect(fs.existsSync("/var/lib/lxc/mclovins-container/rootfs")).to.be.false
 
           childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /STOPPED/
@@ -258,7 +284,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container dont-start", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
             runBox done
 
       it 'should start an already created container', (done) ->
@@ -278,6 +304,7 @@ describe 'Boxer', ->
           waitForMessage 'aio:started', assertMessage
           publishSettings type: "aio:start"
 
+
     describe 'aio:configure', ->
       publicKeysFile = "/var/lib/lxc/mclovins-container/rootfs/etc/ssh/univ_public_keys"
       publicKey = null
@@ -286,7 +313,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}' 
             runBox done
 
       context 'adding public keys', ->
@@ -330,13 +357,14 @@ describe 'Boxer', ->
             waitForMessage 'aio:configured', assertMessage
             publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey
 
+
     describe 'aio:destroy', ->
       beforeEach (done) ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             cleanDB ->
-              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000}'
+              publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}' 
               runBox done
 
       it 'should destroy the container and remove all remnants', (done) ->

@@ -84,6 +84,8 @@ module.exports = class Boxer
         box.create successCallback, errCallback
     else if message.type == protocol.StartMessage.type && @id == message.id
       Box.find message.name, @redisStoreSettings, (err, box) ->
+        box.lxcRoot = boxer.lxcRoot
+
         box.start (err) ->
           if !err
             startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id})
@@ -93,10 +95,23 @@ module.exports = class Boxer
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.StopMessage.type && @id == message.id
       Box.find message.name, @redisStoreSettings, (err, box) ->
+        box.lxcRoot = boxer.lxcRoot
+
         box.stop (err) ->
           if !err
             stoppedMessage = new protocol.StoppedMessage({id: boxer.id, boxId: box.id})
             boxer.publisher.publish boxer.coachChannel, stoppedMessage.encode()
+          else
+            boxer.publisher.publish boxer.coachChannel,
+                             new protocol.InvalidParamsMessage(id: boxer.id).encode()
+    else if message.type == protocol.RestartMessage.type && @id == message.id
+      Box.find message.name, @redisStoreSettings, (err, box) ->
+        box.lxcRoot = boxer.lxcRoot
+
+        box.restart (err) ->
+          if !err
+            restartedMessage = new protocol.RestartedMessage({id: boxer.id, boxId: box.id})
+            boxer.publisher.publish boxer.coachChannel, restartedMessage.encode()
           else
             boxer.publisher.publish boxer.coachChannel,
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
