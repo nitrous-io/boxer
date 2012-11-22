@@ -62,7 +62,7 @@ describe 'Boxer', ->
     cleanupContainer andDone
 
   describe 'run', ->
-    context 'aio:create', ->
+    describe 'aio:create', ->
       beforeEach (done) ->
         cleanDB ->
           multi = publisher.multi()
@@ -316,6 +316,24 @@ describe 'Boxer', ->
             waitForMessage 'aio:configured', assertMessage
             publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey
 
+      context 'setting env variables', ->
+        it 'sets the variables to /etc/profile', (done) ->
+          assertMessage = (message) ->
+            profile = "/var/lib/lxc/mclovins-container/rootfs/etc/profile"
+            profileContent = fs.readFileSync(profile).toString()
+            expect(profileContent).to.contain 'export RDS_HOST=mysql://insecure'
+            expect(profileContent).to.contain 'export RDS_PASSWORD=mysql-insecure'
+            done()
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:set_env_variables",
+              data: {
+                'RDS_HOST': "mysql://insecure",
+                'RDS_PASSWORD': 'mysql-insecure'
+              }
 
     describe 'aio:destroy', ->
       beforeEach (done) ->

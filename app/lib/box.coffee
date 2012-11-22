@@ -64,21 +64,26 @@ module.exports = class Box extends AutoAdvancingStateMachine
       done(err)
 
   configure: (dataType, data, done) ->
-    self = this
     if dataType == 'aio:configure:add_public_key'
       publicKey = data
 
-      self._execShellCommand 'boxer-add-public-keys',
-                             [@lxcRoot, @name, publicKey],
-                             sudo: true,
-                             done
+      @_execShellCommand "boxer-add-public-keys",
+                          [@lxcRoot, @name, publicKey],
+                          sudo: true,
+                          done
     else if dataType == 'aio:configure:remove_public_key'
       publicKey = data.replace(/\//g, "\\/")
 
-      self._execShellCommand 'boxer-remove-public-key',
-                             [@lxcRoot, @name, publicKey],
-                             sudo: true,
-                             done
+      @_execShellCommand "boxer-remove-public-key",
+                          [@lxcRoot, @name, publicKey],
+                          sudo: true,
+                          done
+    else if dataType == 'aio:configure:set_env_variables'
+      envVars = ( "#{key}=#{value}" for key, value of data )
+      @_execShellCommand "boxer-set-env-variables",
+                          [@lxcRoot, @name].concat(envVars),
+                          sudo: true,
+                          done
 
   stop: (cb) ->
     if this.valid()
