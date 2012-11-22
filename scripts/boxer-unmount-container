@@ -10,7 +10,7 @@ box_name=${2}
 box_path=${lxc_root}/${box_name}
 fstab_path="/etc/fstab"
 
-if grep -q $box_path $fstab_path; then
+if [[ `df -T | grep "xfs.*${lxc_root}$"` ]]; then
   xfs_quota -x -c "limit -p bhard=0 ${box_name}" ${lxc_root}
   sed -i "/${box_name}/d" /etc/projects
   sed -i "/${box_name}/d" /etc/projid
