@@ -11,7 +11,8 @@ _ = require 'underscore'
 module.exports = class Box extends AutoAdvancingStateMachine
   states: [
     { name: 'initialized',         onAdvance: '_acquireResources',    onRollback: '_notifyRollback' }
-    { name: 'resourcesAcquired',   onAdvance: '_mountContainer',      onRollback: '_releaseResources' }
+    { name: 'resourcesAcquired',   onAdvance: '_setupDeltaContainer', onRollback: '_releaseResources' }
+    { name: 'containerPrepared',   onAdvance: '_mountContainer',      onRollback: '_cleanupDeltaContainer' }
     { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
     { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
     { name: 'portForwardingSetUp', onAdvance: '_setDefaultKeyPair',   onRollback: '_releasePortForwarding' }
@@ -47,13 +48,14 @@ module.exports = class Box extends AutoAdvancingStateMachine
     if this.valid()
       this.startStateMachine()
     else
-      @rollbackCallback(new Error("Invalid Params"))
+      @rollbackCallback(new Error('Invalid Params'))
 
   start: (cb) ->
     if this.valid()
-      this._startContainer cb
+      this._mountContainer =>
+        this._startContainer cb
     else
-      cb(new Error("Invalid Params"))
+      cb(new Error('Invalid Params'))
 
   save: (done) ->
     @redisClient.hset 'aio:boxes', @name, this.encode(), (err, result) ->
@@ -68,29 +70,39 @@ module.exports = class Box extends AutoAdvancingStateMachine
     if dataType == 'aio:configure:add_public_key'
       publicKey = data
 
-      self._execShellCommand "boxer-add-public-keys",
+      self._execShellCommand 'boxer-add-public-keys',
                              [@lxcRoot, @name, publicKey],
                              sudo: true,
                              done
     else if dataType == 'aio:configure:remove_public_key'
       publicKey = data.replace(/\//g, "\\/")
 
-      self._execShellCommand "boxer-remove-public-key",
+      self._execShellCommand 'boxer-remove-public-key',
                              [@lxcRoot, @name, publicKey],
                              sudo: true,
                              done
 
   stop: (cb) ->
     if this.valid()
-      this._stopContainer cb
+      self = this
+      this._stopContainer ->
+        self._unmountContainer cb
     else
-      cb(new Error("Invalid Params"))
+      cb(new Error('Invalid Params'))
+
+  restart: (cb) ->
+    if this.valid()
+      self = this
+      this.stop ->
+        self.start cb
+    else
+      cb(new Error('Invalid Params'))
 
   destroy: (@rollbackCallback) ->
     if this.valid()
       this.rollbackStateMachine()
     else
-      cb(new Error("Invalid Params"))
+      cb(new Error('Invalid Params'))
 
   encode: ->
     JSON.stringify({
@@ -116,6 +128,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box.port = parsedBox.port
         box.memory = parsedBox.memory
         box.diskSpace = parsedBox.diskSpace
+        box.containerTemplate = parsedBox.containerTemplate
 
         cb(err, box)
       else
@@ -123,7 +136,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   # "Private" Methods
   _acquireResources: (done) ->
-    logger.info "Acquiring Resources"
+    logger.info 'Acquiring Resources'
     ResourcePool.acquire (err, resources) =>
       if !err
         @ip = resources.ip
@@ -132,7 +145,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       done(err)
 
   _releaseResources: (done) ->
-    logger.info "Releasing Resources"
+    logger.info 'Releasing Resources'
     resources = {
                   ip: @ip
                   port: @port
@@ -142,23 +155,37 @@ module.exports = class Box extends AutoAdvancingStateMachine
       logger.info "Done Releasing Resources #{err}"
       done(err)
 
+  _setupDeltaContainer: (done) ->
+    logger.info 'Setting Up Delta Container'
+    this._execShellCommand 'boxer-setup-delta-container',
+                           [@id, @lxcRoot, @name, @containerTemplate],
+                           sudo: true,
+                           done
+
   _mountContainer: (done) ->
-    logger.info "Mounting Container"
-    this._execShellCommand "boxer-mount-container",
+    logger.info 'Mounting Container'
+    this._execShellCommand 'boxer-mount-container',
                            [@id, @lxcRoot, @name, @containerTemplate, @diskSpace],
                            sudo: true,
                            done
 
   _unmountContainer: (done) ->
-    logger.info "Unmounting Container"
-    this._execShellCommand "boxer-unmount-container",
+    logger.info 'Unmounting Container'
+    this._execShellCommand 'boxer-unmount-container',
+                           [@lxcRoot, @name],
+                           sudo: true,
+                           done
+
+  _cleanupDeltaContainer: (done) ->
+    logger.info 'Cleaning Up Delta Container'
+    this._execShellCommand 'boxer-cleanup-delta-container',
                            [@lxcRoot, @name],
                            sudo: true,
                            done
 
   _configureBox: (done) ->
-    logger.info "Configuring Box"
-    this._execShellCommand "boxer-configure-box",
+    logger.info 'Configuring Box'
+    this._execShellCommand 'boxer-configure-box',
                            [@lxcRoot, @name, @containerTemplate, @ip]
                            sudo: true,
                            done
@@ -167,24 +194,24 @@ module.exports = class Box extends AutoAdvancingStateMachine
     done()
 
   _setUpPortForwarding: (done) ->
-    logger.info "Port Forwarding Set Up"
-    this._execShellCommand "boxer-setup-portforwarding",
+    logger.info 'Port Forwarding Set Up'
+    this._execShellCommand 'boxer-setup-portforwarding',
                            [@ip, @port],
                            sudo: true,
                            done
 
   _releasePortForwarding: (done) ->
-    logger.info "Port Forwarding Released"
-    this._execShellCommand "boxer-release-portforwarding",
+    logger.info 'Port Forwarding Released'
+    this._execShellCommand 'boxer-release-portforwarding',
                            [@ip, @port],
                            sudo: true,
                            done
 
   _setDefaultKeyPair: (done) ->
-    logger.info "Setting default ssh key-pair"
+    logger.info 'Setting default ssh key-pair'
     if @sshKeyPair? && @sshKeyPair.public_key? && @sshKeyPair.private_key?
       logger.info "Setting default ssh key pair with public: #{@sshKeyPair.public_key} and private: #{@sshKeyPair.private_key}"
-      this._execShellCommand "boxer-set-default-key-pair",
+      this._execShellCommand 'boxer-set-default-key-pair',
                              [@lxcRoot, @name, @sshKeyPair.public_key, @sshKeyPair.private_key],
                              sudo: true
                              done
@@ -192,22 +219,22 @@ module.exports = class Box extends AutoAdvancingStateMachine
       done()
 
   _removeDefaultKeyPair: (done) ->
-    logger.info "Remove default ssh key pair"
-    this._execShellCommand "boxer-remove-default-key-pair",
+    logger.info 'Remove default ssh key pair'
+    this._execShellCommand 'boxer-remove-default-key-pair',
                            [@lxcRoot, @name],
                            sudo: true
                            done
 
   _startContainer: (done) ->
-    logger.info "Start Container"
-    this._execShellCommand "boxer-start-container",
+    logger.info 'Start Container'
+    this._execShellCommand 'boxer-start-container',
                            [@name, @ip],
                            sudo: true,
                            done
 
   _stopContainer: (done) ->
-    logger.info "Stop Container"
-    this._execShellCommand "boxer-stop-container",
+    logger.info 'Stop Container'
+    this._execShellCommand 'boxer-stop-container',
                            [@name],
                            sudo: true,
                            done
@@ -215,7 +242,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _notifySuccess: (done) ->
     if @publicKeys?
       self = this
-      this._execShellCommand "boxer-add-public-keys",
+      this._execShellCommand 'boxer-add-public-keys',
                              [@lxcRoot, @name].concat(@publicKeys),
                              sudo: true, ->
                                self.successCallback?(null)
@@ -240,7 +267,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       done = opts
       opts = {}
 
-    prefix = if process.env.NODE_ENV == 'production' then "/var/apps/boxer/current/scripts/" else scriptPath
+    prefix = if process.env.NODE_ENV == 'production' then '/var/apps/boxer/current/scripts/' else scriptPath
     sudo = if opts.sudo then 'sudo' else ''
 
     command = _.flatten([
