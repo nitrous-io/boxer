@@ -77,6 +77,7 @@ describe Box, ->
                                                         ['/var/lib/lxc', 'rails-box'],
                                                         sudo: true,
                                                         cbSpy)
+
   describe '#configureBox', ->
     beforeEach ->
       box.ip = '192.168.254.2'
