@@ -44,6 +44,9 @@ iface br-lxc inet static
 
 `./script/setup`
 
+- change test environment in your `config/runtimes.coffee` to contain `test:
+  "test_container_template"`. 
+
 - Install redis-server
 
 `sudo apt-get install redis-server`
