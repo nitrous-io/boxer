@@ -21,8 +21,11 @@ EOF
 )
 
 mkdir -p ${box_path}
-mount -n -t overlayfs -o ${mount_options} none ${box_path}
-echo "${fstab_config}" >> /etc/fstab
+
+if [[ ! `cat /proc/mounts | grep "${box_name}"` ]]; then
+  mount -n -t overlayfs -o ${mount_options} none ${box_path}
+  echo "${fstab_config}" >> /etc/fstab
+fi
 
 if [[ `df -T | grep "xfs.*${lxc_root}$"` ]]; then
   echo "${box_id}:${box_delta_path}/rootfs/home/action" >> /etc/projects
