@@ -84,15 +84,17 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   stop: (cb) ->
     if this.valid()
-      this._stopContainer =>
-        this._unmountContainer cb
+      self = this
+      this._stopContainer ->
+        self._unmountContainer cb
     else
       cb(new Error('Invalid Params'))
 
   restart: (cb) ->
     if this.valid()
-      this.stop =>
-        this.start cb
+      self = this
+      this.stop ->
+        self.start cb
     else
       cb(new Error('Invalid Params'))
 
