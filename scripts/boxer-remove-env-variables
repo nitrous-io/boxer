@@ -10,11 +10,11 @@ box_name=${2}
 username='action'
 
 box_path=${1}/${2}/rootfs
-profile_path=${box_path}/etc/profile
+env_path=${box_path}/etc/environment
 
-if [ -f ${profile_path} ]; then
+if [ -f ${env_path} ]; then
   for key in "${@:3}"; do
     # remove existing key
-    sed -i "/export ${key}=/d" ${profile_path}
+    sed -i "/${key}=/d" ${env_path}
   done
 fi

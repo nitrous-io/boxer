@@ -10,17 +10,17 @@ box_name=${2}
 username='action'
 
 box_path=${1}/${2}/rootfs
-profile_path=${box_path}/etc/profile
+env_path=${box_path}/etc/environment
 
-if [ ! -f ${profile_path} ]; then
-  touch ${profile_path}
+if [ ! -f ${env_path} ]; then
+  touch ${env_path}
 fi
 
 for key_value in "${@:3}"; do
   # get the key out
   key=`echo "${key_value}" | cut -d"=" -f 1`
   # remove existing key
-  sed -i "/export ${key}=/d" ${profile_path}
+  sed -i "/${key}=/d" ${env_path}
   # add new value
-  echo "export ${key_value}" >> $profile_path
+  echo "${key_value}" >> ${env_path}
 done
