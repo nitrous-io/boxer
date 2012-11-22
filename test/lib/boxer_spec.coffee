@@ -291,10 +291,10 @@ describe 'Boxer', ->
       context 'setting env variables', ->
         it 'sets the variables to /etc/profile', (done) ->
           assertMessage = (message) ->
-            profile = "/var/lib/lxc/mclovins-container/rootfs/etc/profile"
-            profileContent = fs.readFileSync(profile).toString()
-            expect(profileContent).to.contain 'export RDS_HOST=mysql://insecure'
-            expect(profileContent).to.contain 'export RDS_PASSWORD=mysql-insecure'
+            environmentFile = "/var/lib/lxc/mclovins-container/rootfs/etc/environment"
+            env = fs.readFileSync(environmentFile).toString()
+            expect(env).to.contain 'RDS_HOST=mysql://insecure'
+            expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
             done()
 
           subscribeAndDo ->
@@ -314,9 +314,9 @@ describe 'Boxer', ->
 
         it 'remove the variables from /etc/profile', (done) ->
           assertMessage = (message) ->
-            profile = "/var/lib/lxc/mclovins-container/rootfs/etc/profile"
-            profileContent = fs.readFileSync(profile).toString()
-            expect(profileContent).to.not.contain 'export RDS_HOST=123'
+            environmentFile = "/var/lib/lxc/mclovins-container/rootfs/etc/environment"
+            env = fs.readFileSync(environmentFile).toString()
+            expect(env).to.not.contain 'RDS_HOST=123'
             done()
 
           subscribeAndDo ->
