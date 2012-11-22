@@ -307,6 +307,24 @@ describe 'Boxer', ->
                 'RDS_PASSWORD': 'mysql-insecure'
               }
 
+      context 'removing env variables', ->
+        beforeEach (done) ->
+          childProcess.exec "sudo scripts/boxer-set-env-variables '/var/lib/lxc' 'mclovins-container' 'RDS_HOST=123'", timeout: 5000, (err, stdout, stderr) ->
+            if err then throw err else done()
+
+        it 'remove the variables from /etc/profile', (done) ->
+          assertMessage = (message) ->
+            profile = "/var/lib/lxc/mclovins-container/rootfs/etc/profile"
+            profileContent = fs.readFileSync(profile).toString()
+            expect(profileContent).to.not.contain 'export RDS_HOST=123'
+            done()
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:remove_env_variables",
+              data: ['RDS_HOST', 'RDS_PASSWORD']
 
     describe 'aio:destroy', ->
       beforeEach (done) ->
