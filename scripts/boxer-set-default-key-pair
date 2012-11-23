@@ -7,8 +7,6 @@ shopt -s nullglob
 
 lxc_root=${1}
 box_name=${2}
-public_key=${3}
-private_key=${4}
 username='action'
 
 box_path=${1}/${2}/rootfs
@@ -21,12 +19,7 @@ action_gid=`chroot ${box_path} /usr/bin/id -g action`
 
 chroot ${box_path} su action -c "mkdir -p ${ssh_dir}"
 
-if [ ! -f ${box_path}${public_key_path} ]; then
-  chroot ${box_path} su action -c "echo \"${public_key}\" > ${public_key_path}"
-  chroot ${box_path} chmod 644 ${public_key_path}
-fi
-
 if [ ! -f ${box_path}${private_key_path} ]; then
-  chroot ${box_path} su action -c "echo \"${private_key}\" > ${private_key_path}"
-  chroot ${box_path} chmod 600 ${private_key_path}
+  # we dont have any valid private key, lets generate one
+  chroot ${box_path} su action -c "/usr/bin/ssh-keygen -N '' -f /home/action/.ssh/id_rsa -b 1024 -t rsa -q"
 fi
