@@ -21,5 +21,5 @@ chroot ${box_path} su action -c "mkdir -p ${ssh_dir}"
 
 if [ ! -f ${box_path}${private_key_path} ]; then
   # we dont have any valid private key, lets generate one
-  chroot ${box_path} su action -c "/usr/bin/ssh-keygen -N '' -f /home/action/.ssh/id_rsa -b 1024 -t rsa -q"
+  chroot ${box_path} su action -c "/usr/bin/ssh-keygen -N '' -f ${private_key_path} -b 1024 -t rsa -q"
 fi
