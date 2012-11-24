@@ -24,7 +24,6 @@ describe 'Boxer', ->
     attributes.diskSpace ?= '1G'
     attributes.publicKeys ?= []
     attributes.snapshotURL ?= null
-    attributes.sshKeyPair ?= null
     publishSettings attributes
 
   # start a box with selected settings
@@ -44,7 +43,6 @@ describe 'Boxer', ->
     coach.subscribe settings.coachChannel, (err, result) ->
       throw err if err
       callback()
-
 
   before ->
     settings = require('../../config/settings')
@@ -74,82 +72,43 @@ describe 'Boxer', ->
             return done(err) if err
             runBox done
 
-      context 'successfully provisioned (with default key pair specified)', ->
-        it 'should return an aio:created message with the requisite properties filled', (done) ->
-          assertMessage = (message) ->
-            root = "/var/lib/lxc/mclovins-container/rootfs"
-            networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
-            name = fs.readFileSync("#{root}/etc/hostname")
-            publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
-            fstab = fs.readFileSync("/etc/fstab").toString()
-            publicKey = fs.readFileSync("#{root}/home/action/.ssh/id_rsa.pub").toString().trim()
-            privateKey = fs.readFileSync("#{root}/home/action/.ssh/id_rsa").toString().trim()
+      it 'returns aio:created with the requisite properties when successfully provisioned', (done) ->
+        assertMessage = (message) ->
+          root = "/var/lib/lxc/mclovins-container/rootfs"
+          networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
+          name = fs.readFileSync("#{root}/etc/hostname")
+          publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
+          fstab = fs.readFileSync("/etc/fstab").toString()
 
-            expect(message.port).to.eql 10000
-            expect(message.boxId).to.eql 1
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.success).to.be.true
-            expect(networkConfig).to.match /address 192.168.254.2/
-            expect(name).to.match /mclovins-container/
-            expect(fstab).to.match /mclovins-container/
-            expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
-            expect(publicKey).to.eql 'public-key'
-            expect(privateKey).to.eql 'private-key'
+          expect(message.port).to.eql 10000
+          expect(message.boxId).to.eql 1
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.success).to.be.true
+          expect(networkConfig).to.match /address 192.168.254.2/
+          expect(name).to.match /mclovins-container/
+          expect(fstab).to.match /mclovins-container/
+          expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
+          expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
+          expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
+          expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
 
-            childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-              expect(stdout).to.match /192\.168\.254\.2:22/
+          childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.match /192\.168\.254\.2:22/
 
-              publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
-                msg = JSON.parse(res)
-                expect(msg.id).to.eql 1
-                expect(msg.name).to.eql 'mclovins-container'
-                expect(msg.ip).to.eql '192.168.254.2'
-                expect(msg.port).to.eql 10000
-                expect(msg.memory).to.eql '256M'
-                expect(msg.diskSpace).to.eql '1G'
-                expect(msg.boxerId).to.eql 'test.action.io'
-                done(err)
+            publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
+              msg = JSON.parse(res)
+              expect(msg.id).to.eql 1
+              expect(msg.name).to.eql 'mclovins-container'
+              expect(msg.ip).to.eql '192.168.254.2'
+              expect(msg.port).to.eql 10000
+              expect(msg.memory).to.eql '256M'
+              expect(msg.diskSpace).to.eql '1G'
+              expect(msg.boxerId).to.eql 'test.action.io'
+              done(err)
 
-          subscribeAndDo ->
-            waitForMessage 'aio:created', assertMessage
-            createBox publicKeys: ["public-key-1", "public-key-2"], sshKeyPair: { public_key: 'public-key', private_key: 'private-key' }
-
-      context 'successfully provisioned (without default key pair specified)', ->
-        it 'should return an aio:created message with the requisite properties filled', (done) ->
-          assertMessage = (message) ->
-            root = "/var/lib/lxc/mclovins-container/rootfs"
-            networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
-            name = fs.readFileSync("#{root}/etc/hostname")
-            publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
-            fstab = fs.readFileSync("/etc/fstab").toString()
-
-            expect(message.port).to.eql 10000
-            expect(message.boxId).to.eql 1
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.success).to.be.true
-            expect(networkConfig).to.match /address 192.168.254.2/
-            expect(name).to.match /mclovins-container/
-            expect(fstab).to.match /mclovins-container/
-            expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
-            expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.false
-
-            childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-              expect(stdout).to.match /192\.168\.254\.2:22/
-
-              publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
-                msg = JSON.parse(res)
-                expect(msg.id).to.eql 1
-                expect(msg.name).to.eql 'mclovins-container'
-                expect(msg.ip).to.eql '192.168.254.2'
-                expect(msg.port).to.eql 10000
-                expect(msg.memory).to.eql '256M'
-                expect(msg.diskSpace).to.eql '1G'
-                expect(msg.boxerId).to.eql 'test.action.io'
-                done(err)
-
-          subscribeAndDo ->
-            waitForMessage 'aio:created', assertMessage
-            createBox publicKeys: ["public-key-1", "public-key-2"]
+        subscribeAndDo ->
+          waitForMessage 'aio:created', assertMessage
+          createBox publicKeys: ["public-key-1", "public-key-2"]
 
       context 'unsuccessful provisioning', ->
         beforeEach ->

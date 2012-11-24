@@ -68,7 +68,6 @@ module.exports = class Boxer
         box.diskSpace = message.diskSpace
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
-        box.sshKeyPair = message.sshKeyPair
         box.boxerId = @id
 
         # These callbacks are called in the context of the Box instance, so @id, @ip, @port, etc. refer to instance variables
