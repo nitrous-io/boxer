@@ -335,6 +335,30 @@ describe 'Boxer', ->
                 'RDS_PASSWORD': 'mysql-insecure'
               }
 
+      context 'setting env variables (with returnVars)', ->
+        it 'sets the variables to /etc/profile', (done) ->
+          assertMessage = (message) ->
+            environmentFile = "/var/lib/lxc/mclovins-container/rootfs/etc/environment"
+            env = fs.readFileSync(environmentFile).toString()
+            expect(env).to.contain 'RDS_HOST=mysql://insecure'
+            expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
+
+            expect(message.returnVars).to.eql { 'addon_id': 1 }
+            done()
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:set_env_variables",
+              returnVars: {
+                'addon_id': 1
+              },
+              data: {
+                'RDS_HOST': "mysql://insecure",
+                'RDS_PASSWORD': 'mysql-insecure'
+              }
+
       context 'removing env variables', ->
         beforeEach (done) ->
           childProcess.exec "sudo scripts/boxer-set-env-variables '/var/lib/lxc' 'mclovins-container' 'RDS_HOST=123'", timeout: 5000, (err, stdout, stderr) ->

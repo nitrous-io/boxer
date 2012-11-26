@@ -52,6 +52,8 @@ module.exports = class Boxer
 
   _handle:(message) ->
     boxer = this
+    returnVars = message.returnVars
+
     logger.info "Received Message: #{message.type} | id: #{message.id}"
 
     if message.type == protocol.LocateMessage.type
@@ -87,7 +89,7 @@ module.exports = class Boxer
 
         box.start (err) ->
           if !err
-            startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id})
+            startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
             boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
           else
             boxer.publisher.publish boxer.coachChannel,
@@ -98,7 +100,7 @@ module.exports = class Boxer
 
         box.stop (err) ->
           if !err
-            stoppedMessage = new protocol.StoppedMessage({id: boxer.id, boxId: box.id})
+            stoppedMessage = new protocol.StoppedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
             boxer.publisher.publish boxer.coachChannel, stoppedMessage.encode()
           else
             boxer.publisher.publish boxer.coachChannel,
@@ -109,7 +111,7 @@ module.exports = class Boxer
 
         box.restart (err) ->
           if !err
-            restartedMessage = new protocol.RestartedMessage({id: boxer.id, boxId: box.id})
+            restartedMessage = new protocol.RestartedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
             boxer.publisher.publish boxer.coachChannel, restartedMessage.encode()
           else
             boxer.publisher.publish boxer.coachChannel,
@@ -120,7 +122,7 @@ module.exports = class Boxer
 
         box.destroy (err) ->
           if !err
-            destroyedMessage = new protocol.DestroyedMessage({id: boxer.id, boxId: box.id})
+            destroyedMessage = new protocol.DestroyedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
             boxer.publisher.publish boxer.coachChannel, destroyedMessage.encode()
           else
             boxer.publisher.publish boxer.coachChannel,
@@ -131,7 +133,7 @@ module.exports = class Boxer
 
         box.configure message.dataType, message.data, (err) ->
           if !err
-            configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id})
+            configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id, dataType: message.dataType, returnVars: returnVars})
             boxer.publisher.publish boxer.coachChannel, configuredMessage.encode()
           else
             boxer.publisher.publish boxer.coachChannel,
