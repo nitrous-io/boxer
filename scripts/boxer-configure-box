@@ -9,6 +9,8 @@ lxc_root=${1}
 box_name=${2}
 container_template=${3}
 ip=${4}
+gateway=${5}
+interface=${6}
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
@@ -17,11 +19,12 @@ auto eth0
 iface eth0 inet static
     address ${ip}
     netmask 255.255.255.0
-    gateway 192.168.254.1
+    gateway ${gateway}
 EOF
 )
 
+sed -i "/lxc.network.link/d" ${lxc_root}/${box_name}/config
+echo "lxc.network.link=${interface}" >> ${lxc_root}/${box_name}/config
 sed -i "s/${container_template}/${box_name}/g" ${lxc_root}/${box_name}/config
 echo "${box_name}" > ${lxc_root}/${box_name}/rootfs/etc/hostname
 echo "${network_config}" > ${lxc_root}/${box_name}/rootfs/etc/network/interfaces
-
