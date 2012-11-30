@@ -104,12 +104,13 @@ describe Box, ->
     beforeEach ->
       box.ip = '192.168.254.2'
       box.gateway = '192.168.254.1'
+      box.interface = 'br-lxc-254'
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
       box._configureBox(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
-                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template', '192.168.254.2', '192.168.254.1'],
+                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template', '192.168.254.2', '192.168.254.1', 'br-lxc-254'],
                                                         sudo: true,
                                                         cbSpy)
 

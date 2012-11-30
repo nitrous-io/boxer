@@ -200,7 +200,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _configureBox: (done) ->
     logger.info 'Configuring Box'
     this._execShellCommand 'boxer-configure-box',
-                           [@lxcRoot, @name, @containerTemplate, @ip, @gateway]
+                           [@lxcRoot, @name, @containerTemplate, @ip, @gateway, @interface],
                            sudo: true,
                            done
 
