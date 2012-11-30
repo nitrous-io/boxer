@@ -46,7 +46,7 @@ describe 'ResourcePool', ->
           done() if !err
 
       it 'should release the resource back to the pool', (done) ->
-        ResourcePool.release JSON.stringify(resource), (err) =>
+        ResourcePool.release resource, (err) =>
           multi = client.multi()
           multi.llen 'available_resources'
           multi.llen 'used_resources'

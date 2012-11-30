@@ -14,8 +14,8 @@ module.exports = class ResourcePool
 
     if resource?
       multi = @client.multi()
-      multi.lrem 'used_resources', 0, resource
-      multi.rpush 'available_resources', resource
+      multi.lrem 'used_resources', 0, JSON.stringify(resource)
+      multi.rpush 'available_resources', JSON.stringify(resource)
       multi.exec (err, replies) ->
         cb err
     else
