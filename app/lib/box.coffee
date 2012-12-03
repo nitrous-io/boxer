@@ -21,7 +21,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   ]
 
   constructor: (@id, redisStoreSettings) ->
-    @ip = @port = @boxerCallback = null
+    @ip = @gateway = @interface = @port = @boxerCallback = null
     @name = @containerTemplate = @lxcRoot = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
     @boxerId = null
@@ -117,6 +117,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     id: @id
                     name: @name
                     ip: @ip
+                    gateway: @gateway
+                    interface: @interface
                     port: @port
                     memory: @memory
                     diskSpace: @diskSpace
@@ -133,6 +135,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box = new Box(parsedBox.id, redisStoreSettings)
         box.name = parsedBox.name
         box.ip = parsedBox.ip
+        box.gateway = parsedBox.gateway
+        box.interface = parsedBox.interface
         box.port = parsedBox.port
         box.memory = parsedBox.memory
         box.diskSpace = parsedBox.diskSpace
@@ -148,18 +152,20 @@ module.exports = class Box extends AutoAdvancingStateMachine
     ResourcePool.acquire (err, resources) =>
       if !err
         @ip = resources.ip
+        @gateway = resources.gateway
+        @interface = resources.interface
         @port = parseInt(resources.port)
 
       done(err)
 
   _releaseResources: (done) ->
     logger.info 'Releasing Resources'
-    resources = {
-                  ip: @ip
-                  port: @port
-                }
-
-    ResourcePool.release resources, (err) ->
+    resource =
+      ip: @ip
+      gateway: @gateway
+      interface: @interface
+      port: @port
+    ResourcePool.release resource, (err) ->
       logger.info "Done Releasing Resources #{err}"
       done(err)
 
@@ -194,7 +200,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _configureBox: (done) ->
     logger.info 'Configuring Box'
     this._execShellCommand 'boxer-configure-box',
-                           [@lxcRoot, @name, @containerTemplate, @ip]
+                           [@lxcRoot, @name, @containerTemplate, @ip, @gateway, @interface],
                            sudo: true,
                            done
 

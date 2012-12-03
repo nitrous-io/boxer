@@ -103,12 +103,14 @@ describe Box, ->
   describe '#configureBox', ->
     beforeEach ->
       box.ip = '192.168.254.2'
+      box.gateway = '192.168.254.1'
+      box.interface = 'br-lxc-254'
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
       box._configureBox(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
-                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template', '192.168.254.2'],
+                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template', '192.168.254.2', '192.168.254.1', 'br-lxc-254'],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -143,6 +145,8 @@ describe Box, ->
 
     beforeEach ->
       box.ip = '192.168.254.2'
+      box.gateway = '192.168.254.1'
+      box.interface = 'br-lxc-254'
       box.port = 21000
       error = new Error 'some error'
       sinon.stub ResourcePool, 'release', (resources, cb) -> cb(error)
@@ -154,8 +158,10 @@ describe Box, ->
     it "calls ResourcePool.release with the box's ip and port", ->
       resources = ResourcePool.release.args[0][0]
       expect(resources).to.deep.equal
-        port: box.port
         ip: box.ip
+        gateway: box.gateway
+        interface: box.interface
+        port: box.port
       expect(cbSpy).to.have.been.calledWith error
 
   describe "#removeDefaultKeyPair", ->
