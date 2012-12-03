@@ -66,8 +66,7 @@ describe 'Boxer', ->
       beforeEach (done) ->
         cleanDB ->
           multi = publisher.multi()
-          multi.rpush 'available_ips', '192.168.254.2'
-          multi.rpush 'available_ports', '10000'
+          multi.rpush 'available_resources', JSON.stringify({ip:'192.168.254.2',gateway:'192.168.254.1',interface:'br-lxc',port:'10000'})
           multi.exec (err, replies) ->
             return done(err) if err
             runBox done
