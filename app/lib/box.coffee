@@ -85,8 +85,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
                           sudo: true,
                           done
     else if dataType == 'aio:configure:remove_env_variables'
+      envVars = ( "#{key}=#{value}" for key, value of data )
       @_execShellCommand "boxer-remove-env-variables",
-                          [@lxcRoot, @name].concat(data),
+                          [@lxcRoot, @name].concat(envVars),
                           sudo: true,
                           done
 
