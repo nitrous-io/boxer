@@ -13,9 +13,7 @@ box_path=${1}/${2}/rootfs
 env_path=${box_path}/etc/environment
 
 if [ -f ${env_path} ]; then
-  for key_value in "${@:3}"; do
-    # get the key out
-    key=`echo "${key_value}" | cut -d"=" -f 1`
+  for key in "${@:3}"; do
     # remove existing key
     sed -i "/${key}=/d" ${env_path}
   done
