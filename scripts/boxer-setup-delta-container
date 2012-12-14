@@ -5,10 +5,11 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
+lxc_root='/var/lib/lxc'
+
 box_id=${1}
-lxc_root=${2}
-box_name=${3}
-container_template=${4}
+box_name=${2}
+container_template=${3}
 
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}_delta

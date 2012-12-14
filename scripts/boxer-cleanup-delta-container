@@ -5,8 +5,8 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
-lxc_root=${1}
-box_name=${2}
+lxc_root='/var/lib/lxc'
+box_name=${1}
 box_path=${lxc_root}/${box_name}
 
 rm -rf ${box_path}*

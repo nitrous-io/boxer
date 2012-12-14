@@ -10,7 +10,6 @@ describe Box, ->
     box = new Box(1)
     box.name = 'rails-box'
     box.containerTemplate = 'ruby-container-template'
-    box.lxcRoot = '/var/lib/lxc'
     box.memory = 256
     box.diskSpace = 4096
 
@@ -27,7 +26,6 @@ describe Box, ->
           box.containerTemplate = 'ruby'
           box.memory = 256
           box.diskSpace = 4096
-          box.lxcRoot = '/var/lib/lxc'
 
         it 'should be true', ->
           expect(box.valid(onCreate: true)).to.be.true
@@ -63,7 +61,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-mount-container",
-                                                        [1, "/var/lib/lxc", "rails-box", "ruby-container-template", 4096],
+                                                        [1, "rails-box", "ruby-container-template", 4096],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -74,7 +72,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-unmount-container",
-                                                        ['/var/lib/lxc', 'rails-box'],
+                                                        ['rails-box'],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -85,7 +83,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-setup-delta-container",
-                                                        [1, "/var/lib/lxc", "rails-box", "ruby-container-template"],
+                                                        [1, "rails-box", "ruby-container-template"],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -96,7 +94,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-cleanup-delta-container",
-                                                        ['/var/lib/lxc', 'rails-box'],
+                                                        ['rails-box'],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -110,7 +108,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
-                                                        ['/var/lib/lxc', 'rails-box', 'ruby-container-template', '192.168.254.2', '192.168.254.1', 'br-lxc-254'],
+                                                        ['rails-box', 'ruby-container-template', '192.168.254.2', '192.168.254.1', 'br-lxc-254'],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -172,7 +170,7 @@ describe Box, ->
       box._removeDefaultKeyPair(cbSpy)
       box._execShellCommand.should.have.been.calledWith(
         "boxer-remove-default-key-pair",
-        ['/var/lib/lxc', 'rails-box'],
+        ['rails-box'],
         sudo: true,
         cbSpy
       )

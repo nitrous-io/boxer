@@ -5,12 +5,12 @@
 #set -o errexit
 #shopt -s nullglob
 
-lxc_root=${1}
-box_name=${2}
-container_template=${3}
-ip=${4}
-gateway=${5}
-interface=${6}
+lxc_root='/var/lib/lxc'
+box_name=${1}
+container_template=${2}
+ip=${3}
+gateway=${4}
+interface=${5}
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback

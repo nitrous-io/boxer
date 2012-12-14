@@ -22,7 +22,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   constructor: (@id, redisStoreSettings) ->
     @ip = @gateway = @interface = @port = @boxerCallback = null
-    @name = @containerTemplate = @lxcRoot = null
+    @name = @containerTemplate = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
     @boxerId = null
     # Setup the Redis client
@@ -34,7 +34,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     self = this
 
     if opts?.onCreate?
-      attributesToValidate = ['id', 'name', 'containerTemplate', 'memory', 'diskSpace', 'lxcRoot']
+      attributesToValidate = ['id', 'name', 'containerTemplate', 'memory', 'diskSpace']
     else
       attributesToValidate = ['id', 'name']
 
@@ -68,25 +68,25 @@ module.exports = class Box extends AutoAdvancingStateMachine
       publicKey = data
 
       @_execShellCommand "boxer-add-public-keys",
-                          [@lxcRoot, @name, publicKey],
+                          [@name, publicKey],
                           sudo: true,
                           done
     else if dataType == 'aio:configure:remove_public_key'
       publicKey = data.replace(/\//g, "\\/")
 
       @_execShellCommand "boxer-remove-public-key",
-                          [@lxcRoot, @name, publicKey],
+                          [@name, publicKey],
                           sudo: true,
                           done
     else if dataType == 'aio:configure:set_env_variables'
       envVars = ( "#{key}=#{value}" for key, value of data )
       @_execShellCommand "boxer-set-env-variables",
-                          [@lxcRoot, @name].concat(envVars),
+                          [@name].concat(envVars),
                           sudo: true,
                           done
     else if dataType == 'aio:configure:remove_env_variables'
       @_execShellCommand "boxer-remove-env-variables",
-                          [@lxcRoot, @name].concat(data),
+                          [@name].concat(data),
                           sudo: true,
                           done
 
@@ -172,35 +172,35 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setupDeltaContainer: (done) ->
     logger.info 'Setting Up Delta Container'
     this._execShellCommand 'boxer-setup-delta-container',
-                           [@id, @lxcRoot, @name, @containerTemplate],
+                           [@id, @name, @containerTemplate],
                            sudo: true,
                            done
 
   _mountContainer: (done) ->
     logger.info 'Mounting Container'
     this._execShellCommand 'boxer-mount-container',
-                           [@id, @lxcRoot, @name, @containerTemplate, @diskSpace],
+                           [@id, @name, @containerTemplate, @diskSpace],
                            sudo: true,
                            done
 
   _unmountContainer: (done) ->
     logger.info 'Unmounting Container'
     this._execShellCommand 'boxer-unmount-container',
-                           [@lxcRoot, @name],
+                           [@name],
                            sudo: true,
                            done
 
   _cleanupDeltaContainer: (done) ->
     logger.info 'Cleaning Up Delta Container'
     this._execShellCommand 'boxer-cleanup-delta-container',
-                           [@lxcRoot, @name],
+                           [@name],
                            sudo: true,
                            done
 
   _configureBox: (done) ->
     logger.info 'Configuring Box'
     this._execShellCommand 'boxer-configure-box',
-                           [@lxcRoot, @name, @containerTemplate, @ip, @gateway, @interface],
+                           [@name, @containerTemplate, @ip, @gateway, @interface],
                            sudo: true,
                            done
 
@@ -224,14 +224,14 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setDefaultKeyPair: (done) ->
     logger.info 'Setting default ssh key-pair'
     this._execShellCommand 'boxer-set-default-key-pair',
-                            [@lxcRoot, @name],
+                            [@name],
                             sudo: true
                             done
 
   _removeDefaultKeyPair: (done) ->
     logger.info 'Remove default ssh key pair'
     this._execShellCommand 'boxer-remove-default-key-pair',
-                           [@lxcRoot, @name],
+                           [@name],
                            sudo: true
                            done
 
@@ -253,7 +253,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     if @publicKeys?
       self = this
       this._execShellCommand 'boxer-add-public-keys',
-                             [@lxcRoot, @name].concat(@publicKeys),
+                             [@name].concat(@publicKeys),
                              sudo: true, ->
                                self.successCallback?(null)
                                delete self.successCallback

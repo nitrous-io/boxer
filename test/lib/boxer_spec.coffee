@@ -296,7 +296,7 @@ describe 'Boxer', ->
       context 'removing public keys', ->
         beforeEach (done) ->
           publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
-          childProcess.exec "sudo scripts/boxer-add-public-keys '/var/lib/lxc' 'mclovins-container' '#{publicKey}'", timeout: 5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container' '#{publicKey}'", timeout: 5000, (err, stdout, stderr) ->
             if err then throw err else done()
 
         it 'should remove the public key from the box', (done) ->
@@ -360,7 +360,7 @@ describe 'Boxer', ->
 
       context 'removing env variables', ->
         beforeEach (done) ->
-          childProcess.exec "sudo scripts/boxer-set-env-variables '/var/lib/lxc' 'mclovins-container' 'RDS_HOST=123'", timeout: 5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo scripts/boxer-set-env-variables 'mclovins-container' 'RDS_HOST=123'", timeout: 5000, (err, stdout, stderr) ->
             if err then throw err else done()
 
         it 'remove the variables from /etc/profile', (done) ->
@@ -382,7 +382,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container", timeout: 5000, (err, stdout, stderr) ->
-            childProcess.exec "sudo #{scriptPath}/boxer-unmount-container '/var/lib/lxc' 'mclovins-container'", timeout: 5000, (err, stdout, stderr) ->
+            childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container'", timeout: 5000, (err, stdout, stderr) ->
               cleanDB ->
                 publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}' 
                 runBox done

@@ -5,12 +5,12 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
-lxc_root=${1}
-box_name=${2}
-public_key=${3}
+lxc_root='/var/lib/lxc'
+box_name=${1}
+public_key=${2}
 username='root'
 
-box_path=${1}/${2}/rootfs
+box_path=${lxc_root}/${box_name}/rootfs
 ssh_path='/etc/ssh/univ_public_keys'
 
 if [ -f ${box_path}${ssh_path} ]; then

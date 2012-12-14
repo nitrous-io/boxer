@@ -5,11 +5,12 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
+lxc_root='/var/lib/lxc'
+
 box_id=${1}
-lxc_root=${2}
-box_name=${3}
-container_template=${4}
-disk_limit=${5}
+box_name=${2}
+container_template=${3}
+disk_limit=${4}
 
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}_delta
@@ -25,7 +26,7 @@ mkdir -p ${box_path}
 (
   flock -x 200
 
-  if [[ ! `cat /proc/mounts | grep "${box_name}"` ]]; then
+  if [[ ! `cat /proc/mounts | grep "${box_path}\>"` ]]; then
     mount -n -t overlayfs -o ${mount_options} none ${box_path}
     echo "${fstab_config}" >> /etc/fstab
   fi

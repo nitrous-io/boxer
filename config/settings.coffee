@@ -4,7 +4,6 @@ env = process.env.NODE_ENV
 
 settings =
   common:
-    lxcRoot: '/var/lib/lxc'
     boxerChannel: 'aio-boxer-channel'
     coachChannel: 'aio-coach-channel'
     id: process.env.BOXER_ID
