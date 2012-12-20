@@ -209,10 +209,6 @@ describe 'Boxer', ->
         assertMessage = (message) ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
-          symlink = fs.readFileSync("/etc/lxc/auto/mclovins-container.conf").toString()
-          originalFile = fs.readFileSync("/var/lib/lxc/mclovins-container/config").toString()
-
-          expect(symlink).to.eql(originalFile)
 
           childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
@@ -234,7 +230,6 @@ describe 'Boxer', ->
         assertMessage = (message) ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
-          expect(fs.existsSync("/etc/lxc/auto/mclovins-container.conf")).to.be.false
           expect(fs.existsSync("/var/lib/lxc/mclovins-container/rootfs")).to.be.false
 
           childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
@@ -257,10 +252,6 @@ describe 'Boxer', ->
         assertMessage = (message) ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
-          symlink = fs.readFileSync("/etc/lxc/auto/mclovins-container.conf").toString()
-          originalFile = fs.readFileSync("/var/lib/lxc/mclovins-container/config").toString()
-
-          expect(symlink).to.eql(originalFile)
 
           childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
