@@ -3,19 +3,24 @@ redis = require 'redis'
 module.exports = class ResourcePool
   @acquire: (cb) ->
     this.initRedisClient()
+    self = this
 
-    @client.brpoplpush 'available_resources', 'used_resources', 1, (err, resource) ->
-      if err || !resource?
+    @client.brpoplpush 'aio:available_resources', 'aio:used_resources', 1, (err, ip) ->
+      if err || !ip?
         err = new Error "Could Not Acquire Resources"
-      cb(err, JSON.parse(resource))
+        cb(err, null)
+      else
+        self.client.hgetall "aio:nwr:#{ip}", (err, resource) ->
+          resource.ip = ip
+          cb(err, resource)
 
   @release: (resource, cb) ->
     this.initRedisClient()
 
     if resource?
       multi = @client.multi()
-      multi.lrem 'used_resources', 0, JSON.stringify(resource)
-      multi.rpush 'available_resources', JSON.stringify(resource)
+      multi.lrem 'aio:used_resources', 0, resource.ip
+      multi.rpush 'aio:available_resources', resource.ip
       multi.exec (err, replies) ->
         cb err
     else

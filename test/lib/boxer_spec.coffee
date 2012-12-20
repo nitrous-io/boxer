@@ -10,6 +10,13 @@ scriptPath          = __dirname.replace('test/lib', 'scripts/')
 describe 'Boxer', ->
   boxer = coach = publisher = settings = redisMQSettings = redisStoreSettings = null
 
+  ip = '192.168.254.2'
+
+  resource =
+    gateway:'192.168.254.1',
+    interface:'br-lxc',
+    port:'10000'
+
   publishSettings = (attributes) ->
     attributes.id ?= 'test.action.io'
     attributes.name ?= 'mclovins-container'
@@ -66,7 +73,8 @@ describe 'Boxer', ->
       beforeEach (done) ->
         cleanDB ->
           multi = publisher.multi()
-          multi.rpush 'available_resources', JSON.stringify({ip:'192.168.254.2',gateway:'192.168.254.1',interface:'br-lxc',port:'10000'})
+          multi.rpush 'aio:available_resources', ip
+          multi.hmset "aio:nwr:#{ip}", resource
           multi.exec (err, replies) ->
             return done(err) if err
             runBox done
@@ -271,7 +279,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}' 
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
             runBox done
 
       context 'adding public keys', ->
@@ -384,7 +392,7 @@ describe 'Boxer', ->
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container'", timeout: 5000, (err, stdout, stderr) ->
               cleanDB ->
-                publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}' 
+                publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
                 runBox done
 
       it 'should destroy the container and remove all remnants', (done) ->
