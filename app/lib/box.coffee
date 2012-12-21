@@ -22,6 +22,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   constructor: (@id, redisStoreSettings) ->
     @ip = @gateway = @interface = @port = @boxerCallback = null
+    @containerState = 'stopped'
     @name = @containerTemplate = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
     @boxerId = null
@@ -50,10 +51,17 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   start: (cb) ->
     if this.valid()
-      this._mountContainer =>
-        this._startContainer cb
+      self = this
+      self._mountContainer ->
+        self._startContainer ->
+          self.updateAttributes containerState: 'running', cb
     else
       cb(new Error('Invalid Params'))
+
+  updateAttributes: (attrs, cb) ->
+    self = this
+    _.each attrs, (v, k, attrs) -> self[k] = v
+    self.save cb
 
   save: (done) ->
     @redisClient.hset 'aio:boxes', @name, this.encode(), (err, result) ->
@@ -94,7 +102,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
     if this.valid()
       self = this
       this._stopContainer ->
-        self._unmountContainer cb
+        self._unmountContainer ->
+          self.updateAttributes containerState: 'stopped', cb
     else
       cb(new Error('Invalid Params'))
 
@@ -125,6 +134,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     snapshotURL: @snapshotURL
                     containerTemplate: @containerTemplate
                     boxerId: @boxerId
+                    containerState: @containerState
                   })
 
   @find: (name, redisStoreSettings, cb) ->
@@ -141,6 +151,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box.memory = parsedBox.memory
         box.diskSpace = parsedBox.diskSpace
         box.containerTemplate = parsedBox.containerTemplate
+        box.containerState = parsedBox.containerState
 
         cb(err, box)
       else

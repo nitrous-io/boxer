@@ -111,6 +111,7 @@ describe 'Boxer', ->
               expect(msg.memory).to.eql '256M'
               expect(msg.diskSpace).to.eql '1G'
               expect(msg.boxerId).to.eql 'test.action.io'
+              expect(msg.containerState).to.eql 'stopped'
               done(err)
 
         subscribeAndDo ->
@@ -161,6 +162,7 @@ describe 'Boxer', ->
                 publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
                   expect(res).to.be.null
                   done(err)
+
           subscribeAndDo ->
             waitForMessage 'aio:created', assertMessage
             createBox()
@@ -202,7 +204,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","state":"running"}'
             runBox done
 
       it 'should restart an already created container', (done) ->
@@ -212,7 +214,13 @@ describe 'Boxer', ->
 
           childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
-            done()
+
+            publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
+              msg = JSON.parse(res)
+              expect(msg.id).to.eql 1
+              expect(msg.name).to.eql 'mclovins-container'
+              expect(msg.containerState).to.eql 'running'
+              done(err)
 
         subscribeAndDo ->
           waitForMessage 'aio:restarted', assertMessage
@@ -223,7 +231,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running"}'
             runBox done
 
       it 'should return an aio:stopped message with the box\'s id present', (done) ->
@@ -234,7 +242,12 @@ describe 'Boxer', ->
 
           childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /STOPPED/
-            done(err)
+            publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
+              msg = JSON.parse(res)
+              expect(msg.id).to.eql 1
+              expect(msg.name).to.eql 'mclovins-container'
+              expect(msg.containerState).to.eql 'stopped'
+              done(err)
 
         subscribeAndDo ->
           waitForMessage 'aio:stopped', assertMessage
@@ -245,7 +258,7 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container dont-start", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
+            publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
             runBox done
 
       it 'should start an already created container', (done) ->
@@ -255,7 +268,12 @@ describe 'Boxer', ->
 
           childProcess.exec "sudo lxc-info -n mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
-            done()
+            publisher.hget 'aio:boxes', 'mclovins-container', (err, res) ->
+              msg = JSON.parse(res)
+              expect(msg.id).to.eql 1
+              expect(msg.name).to.eql 'mclovins-container'
+              expect(msg.containerState).to.eql 'running'
+              done(err)
 
         subscribeAndDo ->
           waitForMessage 'aio:started', assertMessage
