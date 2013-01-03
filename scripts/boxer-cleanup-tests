@@ -5,7 +5,7 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
-name='mclovins-container'
+name=${1}
 lxc_root='/var/lib/lxc'
 quoted_lxc_root='\/var\/lib\/lxc\/'
 box_path=${lxc_root}/${name}

@@ -66,7 +66,7 @@ describe 'Boxer', ->
     coach.unsubscribe() if coach
     publisher.unsubscribe() if publisher
     boxer = coach = publisher = null
-    cleanupContainer andDone
+    cleanupContainer 'mclovins-container', andDone
 
   describe 'run', ->
     describe 'aio:create', ->
@@ -201,7 +201,7 @@ describe 'Boxer', ->
 
     describe 'aio:restart' , ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","state":"running"}'
@@ -228,7 +228,7 @@ describe 'Boxer', ->
 
     describe 'aio:stop', ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running"}'
@@ -255,7 +255,7 @@ describe 'Boxer', ->
 
     describe 'aio:start' , ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container mclovins-container 192.168.254.2 10000 dont-start", timeout:5000, (err, stdout, stderr) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
@@ -285,7 +285,7 @@ describe 'Boxer', ->
       publicKey = null
 
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
@@ -396,7 +396,7 @@ describe 'Boxer', ->
 
     describe 'aio:destroy', ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
           return done(err) if err
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container", timeout: 5000, (err, stdout, stderr) ->
             childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container'", timeout: 5000, (err, stdout, stderr) ->
