@@ -6,10 +6,11 @@ shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
 box_id=1
-box_name='mclovins-container'
+box_name=${1}
+ip=${2}
+port=${3}
+
 container_template='test_container_template'
-ip='192.168.254.2'
-port='10000'
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}_delta
 container_path=${lxc_root}/${container_template}
@@ -57,7 +58,7 @@ fi
 
 iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
 
-if [[ $1 != 'dont-start' ]]; then
+if [[ $4 != 'dont-start' ]]; then
   lxc-start -n ${box_name} -d
   lxc-wait -n ${box_name} -s RUNNING
   ln -s /var/lib/lxc/${box_name}/config /etc/lxc/auto/${box_name}.conf
