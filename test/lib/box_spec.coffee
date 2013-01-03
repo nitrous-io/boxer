@@ -166,7 +166,7 @@ describe Box, ->
     beforeEach ->
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
 
-    it 'removes defauly public and private key for the box', ->
+    it 'removes default public and private key for the box', ->
       box._removeDefaultKeyPair(cbSpy)
       box._execShellCommand.should.have.been.calledWith(
         "boxer-remove-default-key-pair",
