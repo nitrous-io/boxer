@@ -37,9 +37,4 @@ if [ -d ${box_path} ]; then
 
   echo 'Flushing IPTables'
   iptables -t nat -F
-
-  echo "Deleting /etc/lxc/auto/${name}.conf"
-  if [ -h /etc/lxc/auto/${name}.conf ]; then
-    rm -f /etc/lxc/auto/${name}.conf
-  fi
 fi

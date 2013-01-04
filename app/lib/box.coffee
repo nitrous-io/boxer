@@ -3,9 +3,12 @@ ResourcePool = require './resource_pool'
 settings = require '../../config/settings'
 escapeShellArg = require('./utils').escapeShellArg
 initRedisClientWith = require('./utils').initRedisClientWith
+redisStoreSettings = require('../../config/settings').redisStore
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
 logger = require './logger'
+
+async = require 'async'
 _ = require 'underscore'
 
 module.exports = class Box extends AutoAdvancingStateMachine
@@ -20,14 +23,14 @@ module.exports = class Box extends AutoAdvancingStateMachine
     { name: 'boxSaved',            onAdvance: '_notifySuccess',       onRollback: 'delete' }
   ]
 
-  constructor: (@id, redisStoreSettings) ->
+  constructor: (@id) ->
     @ip = @gateway = @interface = @port = @boxerCallback = null
     @containerState = 'stopped'
     @name = @containerTemplate = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
     @boxerId = null
     # Setup the Redis client
-    @redisClient = initRedisClientWith(redisStoreSettings) if redisStoreSettings?
+    @redisClient = initRedisClientWith(redisStoreSettings)
     super
 
   valid: (opts) ->
@@ -137,7 +140,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     containerState: @containerState
                   })
 
-  @find: (name, redisStoreSettings, cb) ->
+  @find: (name, cb) ->
     redisClient = initRedisClientWith(redisStoreSettings)
     redisClient.hget 'aio:boxes', name, (err, res) ->
       if !err
@@ -156,6 +159,15 @@ module.exports = class Box extends AutoAdvancingStateMachine
         cb(err, box)
       else
         cb(err, null)
+
+  @startAll: (done) ->
+    redisClient = initRedisClientWith(redisStoreSettings)
+    redisClient.hkeys 'aio:boxes', (err, ids) ->
+      done(err) if err
+
+      async.map ids, Box.find, (err, boxes) ->
+        startAll = (box, cb) -> if box.containerState == 'running' then box.start(cb) else cb()
+        async.forEachSeries boxes, startAll, (err) -> done() if !err
 
   # "Private" Methods
   _acquireResources: (done) ->
@@ -176,6 +188,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       gateway: @gateway
       interface: @interface
       port: @port
+
     ResourcePool.release resource, (err) ->
       logger.info "Done Releasing Resources #{err}"
       done(err)

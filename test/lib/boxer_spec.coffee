@@ -256,7 +256,8 @@ describe 'Boxer', ->
     describe 'aio:start' , ->
       beforeEach (done) ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", timeout:5000, (err, stdout, stderr) ->
-          return done(err) if err
+          done(err) if err
+
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
             runBox done

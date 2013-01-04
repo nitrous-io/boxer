@@ -61,6 +61,5 @@ iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
 if [[ $5 != 'dont-start' ]]; then
   lxc-start -n ${box_name} -d
   lxc-wait -n ${box_name} -s RUNNING
-  ln -s /var/lib/lxc/${box_name}/config /etc/lxc/auto/${box_name}.conf
 fi
 

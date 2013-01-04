@@ -82,7 +82,7 @@ module.exports = class Boxer
 
         box.create successCallback, errCallback
     else if message.type == protocol.StartMessage.type && @id == message.id
-      Box.find message.name, @redisStoreSettings, (err, box) ->
+      Box.find message.name, (err, box) ->
         box.start (err) ->
           if !err
             startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
@@ -91,7 +91,7 @@ module.exports = class Boxer
             boxer.publisher.publish boxer.coachChannel,
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.StopMessage.type && @id == message.id
-      Box.find message.name, @redisStoreSettings, (err, box) ->
+      Box.find message.name, (err, box) ->
         box.stop (err) ->
           if !err
             stoppedMessage = new protocol.StoppedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
@@ -100,7 +100,7 @@ module.exports = class Boxer
             boxer.publisher.publish boxer.coachChannel,
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.RestartMessage.type && @id == message.id
-      Box.find message.name, @redisStoreSettings, (err, box) ->
+      Box.find message.name, (err, box) ->
         box.restart (err) ->
           if !err
             restartedMessage = new protocol.RestartedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
@@ -109,7 +109,7 @@ module.exports = class Boxer
             boxer.publisher.publish boxer.coachChannel,
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.DestroyMessage.type && @id == message.id
-      Box.find message.name, @redisStoreSettings, (err, box) ->
+      Box.find message.name, (err, box) ->
         box.destroy (err) ->
           if !err
             destroyedMessage = new protocol.DestroyedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
@@ -118,7 +118,7 @@ module.exports = class Boxer
             boxer.publisher.publish boxer.coachChannel,
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.ConfigureMessage.type && @id == message.id
-      Box.find message.name, @redisStoreSettings, (err, box) ->
+      Box.find message.name, (err, box) ->
         box.configure message.dataType, message.data, (err) ->
           if !err
             configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id, dataType: message.dataType, returnVars: returnVars})
