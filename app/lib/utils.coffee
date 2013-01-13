@@ -15,3 +15,12 @@ module.exports =
       database.select(settings.database)
 
     database
+
+  initAirbrakeClient: (airbrakeAPIKey) ->
+    airbrakeClient = null
+
+    if airbrakeAPIKey
+      airbrakeClient = require('airbrake').createClient airbrakeAPIKey
+
+    airbrakeClient
+

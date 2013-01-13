@@ -313,5 +313,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
     logger.info "Executing command #{command}"
     childProcess.exec command, timeout: 0, (err, stdout, stderr) ->
       if err
-        logger.info "stderr --> #{stderr}"
+        logger.info "boxer_exec_shell_command_err: #{stderr}"
+        throw err
       done(err)

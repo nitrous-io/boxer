@@ -4,10 +4,10 @@ _ = require 'underscore'
 settings = require './config/settings'
 Boxer = require './app/lib/boxer'
 logger = require './app/lib/logger'
+initAirbrakeClient = require('./app/lib/utils').initAirbrakeClient
 
-if settings.airbrakeAPIKey
-  airbrake = require('airbrake').createClient settings.airbrakeAPIKey
-  airbrake.handleExceptions()
+airbrakeClient = initAirbrakeClient(settings.airbrakeAPIKey)
+airbrakeClient?.handleExceptions()
 
 boxer = new Boxer(settings)
 boxer.run()
