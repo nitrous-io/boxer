@@ -312,10 +312,18 @@ describe 'Boxer', ->
             publishSettings type: "aio:configure", dataType: "aio:configure:add_public_key", data: publicKey
 
       context 'removing public keys', ->
+        publicKey1 = publicKey2 = null
+
         beforeEach (done) ->
-          publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
-          childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container' '#{publicKey}'", timeout: 5000, (err, stdout, stderr) ->
-            if err then throw err else done()
+          publicKey1 = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
+          publicKey2 = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone.local"
+
+          childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container' '#{publicKey1}'", timeout: 5000, (err, stdout, stderr) ->
+            if err
+              throw err
+            else
+              childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container' '#{publicKey2}'", timeout: 5000, (err, stdout, stderr) ->
+                if err then throw err else done()
 
         it 'should remove the public key from the box', (done) ->
           assertMessage = (message) ->
@@ -326,12 +334,12 @@ describe 'Boxer', ->
             output = fs.readFileSync(publicKeysFile).toString().trim()
 
             expect(fs.existsSync(publicKeysFile)).to.be.true
-            expect(output).to.eql ''
+            expect(output).to.eql publicKey2
             done()
 
           subscribeAndDo ->
             waitForMessage 'aio:configured', assertMessage
-            publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey
+            publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey1
 
       context 'setting env variables', ->
         it 'sets the variables to /etc/profile', (done) ->
