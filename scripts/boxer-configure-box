@@ -7,7 +7,7 @@ shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
 box_name=${1}
-container_template=${2}
+container_template=base_container_template
 ip=${3}
 gateway=${4}
 interface=${5}

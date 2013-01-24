@@ -7,9 +7,10 @@ shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
 
+container_template=base_container_template
 box_id=${1}
 box_name=${2}
-container_template=${3}
+home_template=${3}
 disk_limit=${4}
 
 box_path=${lxc_root}/${box_name}
