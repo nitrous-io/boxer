@@ -1,9 +1,9 @@
 #!/bin/bash
 
 [ -n "$DEBUG" ] && set -o xtrace
-#set -o nounset
-#set -o errexit
-#shopt -s nullglob
+set -o nounset
+set -o errexit
+shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
 box_name=${1}
@@ -11,6 +11,8 @@ container_template=${2}
 ip=${3}
 gateway=${4}
 interface=${5}
+uid=${6}
+gid=${7}
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
@@ -28,3 +30,8 @@ echo "lxc.network.link=${interface}" >> ${lxc_root}/${box_name}/config
 sed -i "s/${container_template}/${box_name}/g" ${lxc_root}/${box_name}/config
 echo "${box_name}" > ${lxc_root}/${box_name}/rootfs/etc/hostname
 echo "${network_config}" > ${lxc_root}/${box_name}/rootfs/etc/network/interfaces
+
+# Set the UID and the GID
+chroot ${lxc_root}/${box_name}/rootfs usermod -u ${uid} action
+chroot ${lxc_root}/${box_name}/rootfs groupmod -g ${gid} action
+chroot ${lxc_root}/${box_name}/rootfs chown -R ${uid}:${gid} /home/action

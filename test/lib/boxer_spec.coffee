@@ -86,6 +86,7 @@ describe 'Boxer', ->
           name = fs.readFileSync("#{root}/etc/hostname")
           publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
           fstab = fs.readFileSync("/etc/fstab").toString()
+          stats = fs.statSync("/#{root}/home/action")
 
           expect(message.port).to.eql 10000
           expect(message.boxId).to.eql 1
@@ -98,6 +99,9 @@ describe 'Boxer', ->
           expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
+          expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
+          expect(stats.uid).to.eql 15001
+          expect(stats.gid).to.eql 15001
 
           childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /192\.168\.254\.2:22/

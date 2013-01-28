@@ -23,6 +23,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
     { name: 'boxSaved',            onAdvance: '_notifySuccess',       onRollback: 'delete' }
   ]
 
+  @UID_BASE = 15000
+
   constructor: (@id) ->
     @ip = @gateway = @interface = @port = @boxerCallback = null
     @containerState = 'stopped'
@@ -222,9 +224,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            done
 
   _configureBox: (done) ->
-    logger.info 'Configuring Box'
+    logger.info "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [@name, @containerTemplate, @ip, @gateway, @interface],
+                           [@name, @containerTemplate, @ip, @gateway, @interface, this._uid(), this._gid()],
                            sudo: true,
                            done
 
@@ -316,3 +318,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
         logger.info "boxer_exec_shell_command_err: #{stderr}"
         throw err
       done(err)
+
+  _uid: ->
+    Box.UID_BASE + parseInt(@id)
+
+  _gid: ->
+    Box.UID_BASE + parseInt(@id)
