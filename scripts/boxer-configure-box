@@ -30,9 +30,11 @@ mac_address=`printf "02:00:%x:%x:%x:%x" ${ip//./ }`
 
 sed -i "/lxc.network.link/d" ${lxc_root}/${box_name}/config
 sed -i "/lxc.network.hwaddr/d" ${lxc_root}/${box_name}/config
+sed -i "/lxc.cap.drop/d" ${lxc_root}/${box_name}/config
 
 echo "lxc.network.link = ${interface}" >> ${lxc_root}/${box_name}/config
 echo "lxc.network.hwaddr = ${mac_address}" >> ${lxc_root}/${box_name}/config
+echo "lxc.cap.drop = audit_control audit_write mac_admin mac_override setpcap sys_boot sys_module sys_rawio sys_time setfcap sys_nice sys_pacct sys_ptrace" >> ${lxc_root}/${box_name}/config
 
 sed -i "s/${container_template}/${box_name}/g" ${lxc_root}/${box_name}/config
 echo "${box_name}" > ${lxc_root}/${box_name}/rootfs/etc/hostname
