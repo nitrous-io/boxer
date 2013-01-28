@@ -100,6 +100,8 @@ describe 'Boxer', ->
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
           expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
+          expect(fs.readFileSync("/var/lib/lxc/mclovins-container/config")).to.match /lxc.network.hwaddr = 02:00/
+
           expect(stats.uid).to.eql 15001
           expect(stats.gid).to.eql 15001
 
