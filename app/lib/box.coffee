@@ -171,6 +171,15 @@ module.exports = class Box extends AutoAdvancingStateMachine
         startAll = (box, cb) -> if box.containerState == 'running' then box.start(cb) else cb()
         async.forEachSeries boxes, startAll, (err) -> done() if !err
 
+  @configureAll: (done) ->
+    redisClient = initRedisClientWith(redisStoreSettings)
+    redisClient.hkeys 'aio:boxes', (err, ids) ->
+      done(err) if err
+
+      async.map ids, Box.find, (err, boxes) ->
+        configureAll = (box, cb) -> box._configureBox(cb)
+        async.forEachSeries boxes, configureAll, (err) -> done() if !err
+
   # "Private" Methods
   _acquireResources: (done) ->
     logger.info 'Acquiring Resources'
