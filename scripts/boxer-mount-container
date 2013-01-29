@@ -27,7 +27,7 @@ mkdir -p ${box_path}
 (
   flock -x 200
 
-  if [[ ! `cat /proc/mounts | grep "${box_path}\>"` ]]; then
+  if [[ ! `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
     mount -n -t overlayfs -o ${mount_options} none ${box_path}
     echo "${fstab_config}" >> /etc/fstab
 

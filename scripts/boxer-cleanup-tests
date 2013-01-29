@@ -15,7 +15,7 @@ if [ -d ${box_path} ]; then
   lxc-stop -n ${name}
   lxc-wait -n ${name} -s STOPPED
 
-  if [[ `cat /proc/mounts | grep "${box_path}\>"` ]]; then
+  if [[ `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
     echo 'Unmounting the container in cleanup tests'
     umount ${box_path}
     echo 'Removing line from /etc/fstab'
