@@ -322,10 +322,12 @@ module.exports = class Box extends AutoAdvancingStateMachine
                         ]).join(' ').trim()
 
     logger.info "Executing command #{command}"
+    start = new Date()
     childProcess.exec command, timeout: 0, (err, stdout, stderr) ->
       if err
         logger.info "boxer_exec_shell_command_err: #{stderr}"
         throw err
+      logger.info "command: #{command} took: #{+(new Date() - start)} ms"
       done(err)
 
   _uid: ->

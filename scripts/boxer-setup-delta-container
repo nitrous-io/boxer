@@ -11,14 +11,17 @@ box_id=${1}
 box_name=${2}
 container_template=${3}
 
+container_path=${lxc_root}/base_container_template
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}_delta
-container_path=${lxc_root}/${container_template}
+home_data_path=${lxc_root}/${container_template}
 
 action_uid=`chroot ${container_path}/rootfs /usr/bin/id -u action`
 action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
 
 mkdir -p ${box_delta_path}
 mkdir -p ${box_delta_path}/rootfs/home/action
+# copy all contents in $home_data_path to $box_delta_path
+tar -xzSpf $home_data_path.tar.gz -C $box_delta_path/rootfs/home/action
 chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
 
