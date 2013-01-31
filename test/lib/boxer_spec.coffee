@@ -85,7 +85,6 @@ describe 'Boxer', ->
           networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
           name = fs.readFileSync("#{root}/etc/hostname")
           publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
-          fstab = fs.readFileSync("/etc/fstab").toString()
           stats = fs.statSync("/#{root}/home/action")
 
           expect(message.port).to.eql 10000
@@ -94,7 +93,6 @@ describe 'Boxer', ->
           expect(message.success).to.be.true
           expect(networkConfig).to.match /address 192.168.254.2/
           expect(name).to.match /mclovins-container/
-          expect(fstab).to.match /mclovins-container/
           expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
           expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
@@ -426,7 +424,6 @@ describe 'Boxer', ->
 
           expect(fs.existsSync("/var/lib/lxc/mclovins-container")).to.be.false
           expect(fs.existsSync("/var/lib/lxc/mclovins-container_delta")).to.be.false
-          expect(fs.readFileSync("/etc/fstab").toString()).to.not.match /mclovins-container/
 
           childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.not.match /192\.168\.254\.254:22/
