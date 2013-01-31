@@ -15,10 +15,9 @@ fstab_path="/etc/fstab"
 
   if [[ `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
     xfs_quota -x -c "limit -p bhard=0 ${box_name}" ${lxc_root}
-    sed -i "/\b${box_name}_delta\b/d" /etc/projects
-    sed -i "/\b${box_name}\b/d" /etc/projid
+    sed -i "/\b${box_name}_delta:/d" /etc/projects
+    sed -i "/\b${box_name}:/d" /etc/projid
 
     umount ${box_path}
-    sed -i "/\b${box_name}\b/d" /etc/fstab
   fi
 ) 200>/var/lock/boxer.unmount_container
