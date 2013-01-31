@@ -18,8 +18,6 @@ if [ -d ${box_path} ]; then
   if [[ `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
     echo 'Unmounting the container in cleanup tests'
     umount ${box_path}
-    echo 'Removing line from /etc/fstab'
-    sed -i "/${quoted_lxc_root}${name}\b/d" /etc/fstab
   fi
 
   if [ -f /etc/projects ]; then
