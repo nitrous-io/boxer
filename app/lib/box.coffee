@@ -35,6 +35,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @redisClient = initRedisClientWith(redisStoreSettings)
     super
 
+  containerName: -> "#{@name}-#{@id}"
+
   valid: (opts) ->
     attributesToValidate = []
     self = this
@@ -69,11 +71,11 @@ module.exports = class Box extends AutoAdvancingStateMachine
     self.save cb
 
   save: (done) ->
-    @redisClient.hset 'aio:boxes', @name, this.encode(), (err, result) ->
+    @redisClient.hset 'aio:boxes', this.containerName(), this.encode(), (err, result) ->
       done(err)
 
   delete: (done) ->
-    @redisClient.hdel 'aio:boxes', @name, (err, res) ->
+    @redisClient.hdel 'aio:boxes', this.containerName(), (err, res) ->
       done(err)
 
   configure: (dataType, data, done) ->
@@ -81,25 +83,25 @@ module.exports = class Box extends AutoAdvancingStateMachine
       publicKey = data
 
       @_execShellCommand "boxer-add-public-keys",
-                          [@name, publicKey],
+                          [this.containerName(), publicKey],
                           sudo: true,
                           done
     else if dataType == 'aio:configure:remove_public_key'
       publicKey = data.replace(/\//g, "\\/")
 
       @_execShellCommand "boxer-remove-public-key",
-                          [@name, publicKey],
+                          [this.containerName(), publicKey],
                           sudo: true,
                           done
     else if dataType == 'aio:configure:set_env_variables'
       envVars = ( "#{key}=#{value}" for key, value of data )
       @_execShellCommand "boxer-set-env-variables",
-                          [@name].concat(envVars),
+                          [this.containerName()].concat(envVars),
                           sudo: true,
                           done
     else if dataType == 'aio:configure:remove_env_variables'
       @_execShellCommand "boxer-remove-env-variables",
-                          [@name].concat(data),
+                          [this.containerName()].concat(data),
                           sudo: true,
                           done
 
@@ -142,9 +144,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     containerState: @containerState
                   })
 
-  @find: (name, cb) ->
+  @find: (containerName, cb) ->
     redisClient = initRedisClientWith(redisStoreSettings)
-    redisClient.hget 'aio:boxes', name, (err, res) ->
+    redisClient.hget 'aio:boxes', containerName, (err, res) ->
       if !err
         parsedBox = JSON.parse(res)
         box = new Box(parsedBox.id, redisStoreSettings)
@@ -207,35 +209,35 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setupDeltaContainer: (done) ->
     logger.info 'Setting Up Delta Container'
     this._execShellCommand 'boxer-setup-delta-container',
-                           [@id, @name, @containerTemplate],
+                           [@id, this.containerName(), @containerTemplate],
                            sudo: true,
                            done
 
   _mountContainer: (done) ->
     logger.info 'Mounting Container'
     this._execShellCommand 'boxer-mount-container',
-                           [@id, @name, @containerTemplate, @diskSpace],
+                           [@id, this.containerName(), @containerTemplate, @diskSpace],
                            sudo: true,
                            done
 
   _unmountContainer: (done) ->
     logger.info 'Unmounting Container'
     this._execShellCommand 'boxer-unmount-container',
-                           [@name],
+                           [this.containerName()],
                            sudo: true,
                            done
 
   _cleanupDeltaContainer: (done) ->
     logger.info 'Cleaning Up Delta Container'
     this._execShellCommand 'boxer-cleanup-delta-container',
-                           [@name],
+                           [this.containerName()],
                            sudo: true,
                            done
 
   _configureBox: (done) ->
     logger.info "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [@name, @containerTemplate, @ip, @gateway, @interface, this._uid(), this._gid()],
+                           [this.containerName(), @containerTemplate, @ip, @gateway, @interface, this._uid(), this._gid()],
                            sudo: true,
                            done
 
@@ -259,28 +261,28 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setDefaultKeyPair: (done) ->
     logger.info 'Setting default ssh key-pair'
     this._execShellCommand 'boxer-set-default-key-pair',
-                            [@name],
+                            [this.containerName()],
                             sudo: true
                             done
 
   _removeDefaultKeyPair: (done) ->
     logger.info 'Remove default ssh key pair'
     this._execShellCommand 'boxer-remove-default-key-pair',
-                           [@name],
+                           [this.containerName()],
                            sudo: true
                            done
 
   _startContainer: (done) ->
     logger.info 'Start Container'
     this._execShellCommand 'boxer-start-container',
-                           [@name, @ip],
+                           [this.containerName(), @ip],
                            sudo: true,
                            done
 
   _stopContainer: (done) ->
     logger.info 'Stop Container'
     this._execShellCommand 'boxer-stop-container',
-                           [@name],
+                           [this.containerName()],
                            sudo: true,
                            done
 
@@ -288,7 +290,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     if @publicKeys?
       self = this
       this._execShellCommand 'boxer-add-public-keys',
-                             [@name].concat(@publicKeys),
+                             [this.containerName()].concat(@publicKeys),
                              sudo: true, ->
                                self.successCallback?(null)
                                delete self.successCallback

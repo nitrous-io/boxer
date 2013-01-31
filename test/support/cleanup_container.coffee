@@ -1,7 +1,7 @@
 childProcess = require 'child_process'
 
-module.exports = (name, done) ->
+module.exports = (name, ip, done) ->
   scriptPath = __dirname.replace('test/support', 'scripts')
-  command = "sudo #{scriptPath}/boxer-cleanup-tests #{name}"
+  command = "sudo #{scriptPath}/boxer-cleanup-tests #{name} #{ip}"
   childProcess.exec command, timeout: 5000, (err, stdout, stderr) ->
     done(err)
