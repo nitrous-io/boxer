@@ -6,7 +6,7 @@ describe 'ResourcePool', ->
   ip = '192.168.2.2'
   resource =
     gateway: '192.168.2.1'
-    interface: 'br-lxc-2'
+    interface: 'br-lxc-254'
     port: '10002'
 
   beforeEach ->

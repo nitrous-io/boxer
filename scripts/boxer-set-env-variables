@@ -3,6 +3,7 @@
 [ -n "$DEBUG" ] && set -o xtrace
 set -o nounset
 set -o errexit
+set -x
 shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
