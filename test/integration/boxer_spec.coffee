@@ -95,6 +95,8 @@ describe 'Boxer', ->
           expect(name).to.match /mclovins-container-1/
           expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
           expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
+          expect(fs.existsSync("/#{root}/home/action/workspace")).to.be.true
+
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
           expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
@@ -104,6 +106,10 @@ describe 'Boxer', ->
 
           expect(stats.uid).to.eql 15001
           expect(stats.gid).to.eql 15001
+          expect(fs.statSync("/#{root}/home/action/workspace").uid).to.eql 15001
+          expect(fs.statSync("/#{root}/home/action/workspace").gid).to.eql 15001
+
+
 
           childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /192\.168\.254\.2:22/
