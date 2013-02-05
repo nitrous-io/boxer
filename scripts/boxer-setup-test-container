@@ -1,7 +1,7 @@
 #!/bin/bash
 
-[ -n "$DEBUG" ] && set -o xtrace
 set -o errexit
+set -o xtrace
 shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
@@ -10,8 +10,9 @@ box_name=${2}
 ip=${3}
 port=${4}
 
-container_template='test_container_template'
-box_path=${lxc_root}/${box_name}
+container_name=${box_name}-${box_id}
+container_template='base_container_template'
+box_path=${lxc_root}/${container_name}
 box_delta_path=${box_path}_delta
 container_path=${lxc_root}/${container_template}
 network_config=$(cat <<EOF
@@ -28,10 +29,8 @@ EOF
 
 mount_options=rw,upperdir=${box_delta_path},lowerdir=${container_path}
 
-iptables -F -t nat
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
-mount -n -t overlayfs -o ${mount_options} none ${box_path}
 
 action_uid=`chroot ${container_path}/rootfs /usr/bin/id -u action`
 action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
@@ -39,22 +38,22 @@ action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
 mkdir -p ${box_delta_path}/rootfs/home/action
 chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
 
-sed -i "s/${container_template}/${box_name}/g" ${box_path}/config
-echo "${box_name}" > ${box_path}/rootfs/etc/hostname
+mount -n -t overlayfs -o ${mount_options} none ${box_path}
+echo "${box_id}:${box_delta_path}/rootfs/home/action" >> /etc/projects
+echo "${container_name}:${box_id}" >> /etc/projid
+
+xfs_quota -x -c "project -s ${container_name}" ${lxc_root}
+xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${lxc_root}
+
+sed -i "s/${container_template}/${container_name}/g" ${box_path}/config
+echo "${container_name}" > ${box_path}/rootfs/etc/hostname
 echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
-
-if [[ `df -T | grep "xfs.*${lxc_root}$"` ]]; then
-  echo "${box_id}:${box_delta_path}/rootfs/home/action" >> /etc/projects
-  echo "${box_name}:${box_id}" >> /etc/projid
-
-  xfs_quota -x -c "project -s ${box_name}" ${lxc_root}
-  xfs_quota -x -c "limit -p bhard=${disk_limit} ${box_name}" ${lxc_root}
-fi
 
 iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
 
 if [[ $5 != 'dont-start' ]]; then
-  lxc-start -n ${box_name} -d
-  lxc-wait -n ${box_name} -s RUNNING
-fi
+  lxc-start -n ${container_name} -d
+  while ! nc -z ${ip} 22 ; do sleep 0.5; done
 
+  echo "STARTING"
+fi
