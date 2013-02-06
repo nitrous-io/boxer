@@ -11,8 +11,8 @@ describe Box, ->
     box = new Box(1)
     box.name = 'rails-box'
     box.containerTemplate = 'ruby-container-template'
-    box.memory = 256
-    box.diskSpace = 4096
+    box.memory = '256M'
+    box.diskSpace = '1G'
 
     cbSpy = sinon.spy()
 
@@ -25,8 +25,8 @@ describe Box, ->
           box = new Box(1)
           box.name = 'mclovin'
           box.containerTemplate = 'ruby'
-          box.memory = 256
-          box.diskSpace = 4096
+          box.memory = '256M'
+          box.diskSpace = '1G'
 
         it 'should be true', ->
           expect(box.valid(onCreate: true)).to.be.true
@@ -59,6 +59,24 @@ describe Box, ->
     it 'includes box id and name', ->
       expect(box.containerName()).to.equal("rails-box-1")
 
+  describe '#memoryUnit', ->
+    it 'returns the unit of memory included in the box', ->
+      box.memory = '256M'
+      expect(box.memoryUnit()).to.equal('M')
+      box.memory = '1G'
+      expect(box.memoryUnit()).to.equal('G')
+      box.memory = '1024'
+      expect(box.memoryUnit()).to.equal('')
+
+  describe '#totalMemory', ->
+    it 'includes swap size of the box', ->
+      box.memory = '256M'
+      expect(box.totalMemory()).to.equal('768M')
+      box.memory = '1G'
+      expect(box.totalMemory()).to.equal('3G')
+      box.memory = '1024'
+      expect(box.totalMemory()).to.equal('3072')
+
   describe '#mountContainer', ->
     beforeEach ->
       sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
@@ -66,7 +84,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-mount-container",
-                                                        [1, "rails-box-1", "ruby-container-template", 4096],
+                                                        [1, "rails-box-1", "ruby-container-template", '1G'],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -113,7 +131,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
-                                                        ['rails-box-1', 'ruby-container-template', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001],
+                                                        ['rails-box-1', '256M', '768M', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001],
                                                         sudo: true,
                                                         cbSpy)
 

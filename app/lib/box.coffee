@@ -65,6 +65,25 @@ module.exports = class Box extends AutoAdvancingStateMachine
     else
       cb(new Error('Invalid Params'))
 
+  memoryUnit: ->
+    if ! (memoryUnit = @memory?.match(/\d+([A-Z])/)?[1])
+      ''
+    else
+      memoryUnit
+
+  totalMemory: ->
+    if @memory
+      memoryInteger = parseInt(@memory)
+      # totalMemory is the sum of the memory allocated to the box,
+      # plus twice the memory allocated for swap, so for 256M, the swap
+      # memory allocated will be 512M, making the total memory allocated to the box
+      # 768M
+      #
+      # This is used for the lxc.cgroup.memory.memsw.limit_in_bytes setting in LXC
+      "#{(memoryInteger * 3)}#{this.memoryUnit()}"
+    else
+      null
+
   updateAttributes: (attrs, cb) ->
     self = this
     _.each attrs, (v, k, attrs) -> self[k] = v
@@ -237,7 +256,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _configureBox: (done) ->
     logger.info "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [this.containerName(), @containerTemplate, @ip, @gateway, @interface, this._uid(), this._gid()],
+                           [this.containerName(), @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid()],
                            sudo: true,
                            done
 

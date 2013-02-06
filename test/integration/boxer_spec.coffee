@@ -81,7 +81,10 @@ describe 'Boxer', ->
 
       it 'returns aio:created with the requisite properties when successfully provisioned', (done) ->
         assertMessage = (message) ->
-          root = "/var/lib/lxc/mclovins-container-1/rootfs"
+          containerRoot = "/var/lib/lxc/mclovins-container-1"
+          root = "#{containerRoot}/rootfs"
+          lxcConfigFile = "#{containerRoot}/config"
+
           networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
           name = fs.readFileSync("#{root}/etc/hostname")
           publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
@@ -100,7 +103,10 @@ describe 'Boxer', ->
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
           expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
-          expect(fs.readFileSync("/var/lib/lxc/mclovins-container-1/config")).to.match /lxc.network.hwaddr = 02:00/
+          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.network.hwaddr = 02:00/
+          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
+          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 768M/
+
           expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
           expect(fs.readFileSync("/etc/projects")).to.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
 
@@ -108,8 +114,6 @@ describe 'Boxer', ->
           expect(stats.gid).to.eql 15001
           expect(fs.statSync("/#{root}/home/action/workspace").uid).to.eql 15001
           expect(fs.statSync("/#{root}/home/action/workspace").gid).to.eql 15001
-
-
 
           childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /192\.168\.254\.2:22/
