@@ -18,6 +18,10 @@ settings =
       password: null
       database: 0
     airbrakeAPIKey: process.env.AIRBRAKE_API_KEY
+    awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID
+    awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    awsRegion: process.env.AWS_REGION
+    awsBucket: process.env.AWS_BUCKET
   development: {}
   test:
     id: 'test.action.io'
@@ -31,6 +35,10 @@ settings =
       port: 6379
       password: null
       database: 0
+    awsAccessKeyId: 'aws_access_key_id'
+    awsSecretAccessKey: 'aws_secret_access_key'
+    awsRegion: 'aws_region'
+    awsBucket: 'aws_bucket'
   production: {}
 
 exportedSettings = _.extend(runtimes, _.extend(settings.common, settings[env]))

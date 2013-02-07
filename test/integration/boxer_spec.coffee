@@ -6,6 +6,7 @@ childProcess        = require 'child_process'
 fs                  = require 'fs'
 _                   = require 'underscore'
 scriptPath          = __dirname.replace('test/integration', 'scripts')
+nock                = require 'nock'
 
 describe 'Boxer', ->
   boxer = coach = publisher = settings = redisMQSettings = redisStoreSettings = null
@@ -459,3 +460,38 @@ describe 'Boxer', ->
         subscribeAndDo ->
           waitForMessage 'aio:destroyed', assertMessage
           publishSettings type: "aio:destroy", name: "mclovins-container-1"
+
+    describe 'aio:snapshot', ->
+      clock = null
+      uploadSnapshot = null
+
+      beforeEach (done) ->
+        clock = sinon.useFakeTimers()
+
+        uploadSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+          .put("/#{settings.awsBucket}/mclovins-container-1-#{+new Date()}.tar.gz")
+          .reply(200, "")
+
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+          done(err) if err
+          cleanDB ->
+            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+            runBox done
+
+      afterEach ->
+        clock.restore()
+
+      it 'creates a snapshot of container delta folder and keeps the box running', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql 1
+          expect(uploadSnapshot.isDone()).to.be.true
+          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1-0.tar.gz")).to.be.false
+
+          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.match /RUNNING/
+            done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:snapshotted', assertMessage
+          publishSettings type: "aio:snapshot", name: "mclovins-container-1"

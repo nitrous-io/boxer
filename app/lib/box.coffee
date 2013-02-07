@@ -7,6 +7,8 @@ redisStoreSettings = require('../../config/settings').redisStore
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
 logger = require './logger'
+s3 = require './s3'
+fs = require 'fs'
 
 async = require 'async'
 _ = require 'underscore'
@@ -144,6 +146,24 @@ module.exports = class Box extends AutoAdvancingStateMachine
   destroy: (@rollbackCallback) ->
     if this.valid()
       this.rollbackStateMachine()
+    else
+      cb(new Error('Invalid Params'))
+
+  snapshot: (cb) ->
+    if this.valid()
+      snapshotName = "#{this.containerName()}-#{+new Date()}.tar.gz"
+      snapshotPath = "/var/lib/lxc/#{snapshotName}"
+      this.stop =>
+        finishCompress = =>
+          stream = fs.createReadStream snapshotPath
+          writeParams = { Bucket: settings.awsBucket, Key: snapshotName, Body: stream }
+          s3.client.putObject writeParams, =>
+            fs.unlinkSync snapshotPath
+            this.start cb
+        this._execShellCommand 'boxer-tar-delta-container',
+                                [this.containerName(), snapshotName],
+                                sudo: true,
+                                finishCompress
     else
       cb(new Error('Invalid Params'))
 

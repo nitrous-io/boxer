@@ -49,7 +49,7 @@ module.exports = class Boxer
     @publisher.publish @coachChannel,
                        protocol.AdvertiseMessage.construct().encode()
 
-  _handle:(message) ->
+  _handle: (message) ->
     boxer = this
     returnVars = message.returnVars
 
@@ -126,3 +126,11 @@ module.exports = class Boxer
           else
             boxer.publisher.publish boxer.coachChannel,
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
+    else if message.type == protocol.SnapshotMessage.type && @id == message.id
+      Box.find message.name, (err, box) ->
+        box.snapshot (err) ->
+          message = if !err
+            new protocol.SnapshottedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
+          else
+            new protocol.InvalidParamsMessage(id: boxer.id)
+          boxer.publisher.publish boxer.coachChannel, message.encode()
