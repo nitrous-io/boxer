@@ -128,9 +128,15 @@ module.exports = class Boxer
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.SnapshotMessage.type && @id == message.id
       Box.find message.name, (err, box) ->
-        box.snapshot (err) ->
+        box.snapshot (err, snapshotName, snapshotUrl) ->
           message = if !err
-            new protocol.SnapshottedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
+            new protocol.SnapshottedMessage(
+              id: boxer.id,
+              boxId: box.id,
+              returnVars: returnVars
+              snapshotName: snapshotName
+              snapshotUrl: snapshotUrl
+            )
           else
             new protocol.InvalidParamsMessage(id: boxer.id)
           boxer.publisher.publish boxer.coachChannel, message.encode()

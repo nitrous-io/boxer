@@ -151,17 +151,19 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   snapshot: (cb) ->
     if this.valid()
-      snapshotName = "#{this.containerName()}-#{+new Date()}.tar.gz"
-      snapshotPath = "/var/lib/lxc/#{snapshotName}"
+      snapshotName = "#{this.containerName()}-#{+new Date()}"
+      snapshotTarFile = "#{snapshotName}.tar.gz"
+      snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotTarFile}"
+      snapshotPath = "/var/lib/lxc/#{snapshotTarFile}"
       this.stop =>
         finishCompress = =>
           stream = fs.createReadStream snapshotPath
-          writeParams = { Bucket: settings.awsBucket, Key: snapshotName, Body: stream }
+          writeParams = { Bucket: settings.awsBucket, Key: snapshotTarFile, Body: stream }
           s3.client.putObject writeParams, =>
             fs.unlinkSync snapshotPath
-            this.start cb
+            this.start (err) -> cb err, snapshotName, snapshotUrl
         this._execShellCommand 'boxer-tar-delta-container',
-                                [this.containerName(), snapshotName],
+                                [this.containerName(), snapshotTarFile],
                                 sudo: true,
                                 finishCompress
     else

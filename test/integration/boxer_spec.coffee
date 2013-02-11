@@ -463,13 +463,17 @@ describe 'Boxer', ->
 
     describe 'aio:snapshot', ->
       clock = null
+      snapshotName = null
+      snapshotUrl = null
       uploadSnapshot = null
 
       beforeEach (done) ->
         clock = sinon.useFakeTimers()
+        snapshotName = "mclovins-container-1-#{+new Date()}"
+        snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotName}.tar.gz"
 
         uploadSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
-          .put("/#{settings.awsBucket}/mclovins-container-1-#{+new Date()}.tar.gz")
+          .put("/#{settings.awsBucket}/#{snapshotName}.tar.gz")
           .reply(200, "")
 
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
@@ -485,6 +489,8 @@ describe 'Boxer', ->
         assertMessage = (message) ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
+          expect(message.snapshotName).to.eql snapshotName
+          expect(message.snapshotUrl).to.eql snapshotUrl
           expect(uploadSnapshot.isDone()).to.be.true
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1-0.tar.gz")).to.be.false
 
