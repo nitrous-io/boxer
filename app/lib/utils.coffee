@@ -15,7 +15,7 @@ module.exports =
       client.select(settings.database)
       # Catch errors which will cause the Redis client to reconnect
       # without killing the process
-      client.on 'error', (err) -> console.log 'Boxer Redis Error: ', err
+      client.on 'error', (err) -> console.log 'Redis Error: ', err
 
     client
 
