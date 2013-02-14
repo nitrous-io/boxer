@@ -7,14 +7,17 @@ module.exports =
     null
 
   initRedisClientWith: (settings) ->
-    database = null
+    client = null
 
     if settings
-      database = require('redis').createClient(settings.port, settings.host)
-      database.auth(settings.password) if settings.password?
-      database.select(settings.database)
+      client = require('redis').createClient(settings.port, settings.host)
+      client.auth(settings.password) if settings.password?
+      client.select(settings.database)
+      # Catch errors which will cause the Redis client to reconnect
+      # without killing the process
+      client.on 'error', (err) -> console.log 'Boxer Redis Error: ', err
 
-    database
+    client
 
   initAirbrakeClient: (airbrakeAPIKey) ->
     airbrakeClient = null
