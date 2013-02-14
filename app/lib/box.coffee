@@ -149,9 +149,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
     else
       cb(new Error('Invalid Params'))
 
-  snapshot: (cb) ->
+  snapshot: (name, cb) ->
     if this.valid()
-      snapshotName = "#{this.containerName()}-#{+new Date()}"
+      snapshotName = "#{name}-#{+new Date()}"
       snapshotTarFile = "#{snapshotName}.tar.gz"
       snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotTarFile}"
       snapshotPath = "/var/lib/lxc/#{snapshotTarFile}"
@@ -161,7 +161,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
           writeParams = { Bucket: settings.awsBucket, Key: snapshotTarFile, Body: stream }
           s3.client.putObject writeParams, =>
             fs.unlinkSync snapshotPath
-            this.start (err) -> cb err, snapshotName, snapshotUrl
+            this.start (err) -> cb err, snapshotUrl
         this._execShellCommand 'boxer-tar-delta-container',
                                 [this.containerName(), snapshotTarFile],
                                 sudo: true,
