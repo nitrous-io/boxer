@@ -29,12 +29,12 @@ settings =
       host: '0.0.0.0'
       port: 6379
       password: null
-      database: 0
+      database: 1
     redisStore:
       host: '0.0.0.0'
       port: 6379
       password: null
-      database: 0
+      database: 1
     awsAccessKeyId: 'aws_access_key_id'
     awsSecretAccessKey: 'aws_secret_access_key'
     awsRegion: 'aws_region'
