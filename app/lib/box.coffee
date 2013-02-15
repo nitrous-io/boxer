@@ -2,8 +2,8 @@ AutoAdvancingStateMachine = require './auto_advancing_state_machine'
 ResourcePool = require './resource_pool'
 settings = require '../../config/settings'
 escapeShellArg = require('./utils').escapeShellArg
-initRedisClientWith = require('./utils').initRedisClientWith
 redisStoreSettings = require('../../config/settings').redisStore
+redisClient = require('./utils').initRedisClientWith(redisStoreSettings)
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
 logger = require './logger'
@@ -34,8 +34,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @name = @containerTemplate = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
     @boxerId = null
-    # Setup the Redis client
-    @redisClient = initRedisClientWith(redisStoreSettings)
     super
 
   containerName: -> "#{@name}-#{@id}"
@@ -93,11 +91,11 @@ module.exports = class Box extends AutoAdvancingStateMachine
     self.save cb
 
   save: (done) ->
-    @redisClient.hset 'aio:boxes', this.containerName(), this.encode(), (err, result) ->
+    redisClient.hset 'aio:boxes', this.containerName(), this.encode(), (err, result) ->
       done(err)
 
   delete: (done) ->
-    @redisClient.hdel 'aio:boxes', this.containerName(), (err, res) ->
+    redisClient.hdel 'aio:boxes', this.containerName(), (err, res) ->
       done(err)
 
   configure: (dataType, data, done) ->
@@ -201,7 +199,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
                   })
 
   @find: (containerName, cb) ->
-    redisClient = initRedisClientWith(redisStoreSettings)
     redisClient.hget 'aio:boxes', containerName, (err, res) ->
       if !err
         parsedBox = JSON.parse(res)
@@ -221,7 +218,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
         cb(err, null)
 
   @startAll: (done) ->
-    redisClient = initRedisClientWith(redisStoreSettings)
     redisClient.hkeys 'aio:boxes', (err, ids) ->
       done(err) if err
 
@@ -230,7 +226,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
         async.forEachSeries boxes, startAll, (err) -> done() if !err
 
   @configureAll: (done) ->
-    redisClient = initRedisClientWith(redisStoreSettings)
     redisClient.hkeys 'aio:boxes', (err, ids) ->
       done(err) if err
 

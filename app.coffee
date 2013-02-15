@@ -10,7 +10,7 @@ initAirbrakeClient = require('./app/lib/utils').initAirbrakeClient
 
 if process.env.NODE_ENV == 'production'
   airbrakeClient = initAirbrakeClient(settings.airbrakeAPIKey)
-  airbrakeClient?.handleExceptions()
+  airbrakeClient?.handleExceptions() # Don't die when exceptions occur
 
 # send uptime/memory usage data to statsd
 Repoman = require('repoman')
