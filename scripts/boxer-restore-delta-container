@@ -14,7 +14,7 @@ snapshot_path=${3}
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}_delta
 
-mkdir -p ${box_delta_path}
+rm -rf ${box_delta_path}/rootfs/home/action
 mkdir -p ${box_delta_path}/rootfs/home/action
 # copy all contents in $home_data_path to $box_delta_path
 tar -xzSpf $snapshot_path -C $box_delta_path/rootfs/home/action
