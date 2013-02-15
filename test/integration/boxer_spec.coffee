@@ -488,8 +488,6 @@ describe 'Boxer', ->
       assertMessage = (message) ->
         expect(message.id).to.eql 'test.action.io'
         expect(message.boxId).to.eql 1
-        expect(message.snapshotId).to.eql 123
-        expect(message.snapshotName).to.eql "mclovins-container-snapshot"
         expect(message.snapshotUrl).to.eql snapshotUrl
         expect(uploadSnapshot.isDone()).to.be.true
         expect(fs.existsSync("/var/lib/lxc/mclovins-container-snapshot-0.tar.gz")).to.be.false
@@ -503,7 +501,6 @@ describe 'Boxer', ->
         publishSettings
           type: "aio:snapshot"
           name: "mclovins-container-1"
-          snapshotId: 123
           snapshotName: "mclovins-container-snapshot"
 
   describe 'aio:restore_snapshot', ->
@@ -527,8 +524,6 @@ describe 'Boxer', ->
       assertMessage = (message) ->
         expect(message.id).to.eql 'test.action.io'
         expect(message.boxId).to.eql 1
-        expect(message.returnVars.snapshotId).to.eql 123
-        expect(message.snapshotUrl).to.eql snapshotUrl
         expect(downloadSnapshot.isDone()).to.be.true
         expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta/rootfs/home/action/test.txt")).to.be.true
 
@@ -541,5 +536,4 @@ describe 'Boxer', ->
         publishSettings
           type: "aio:restore_snapshot"
           name: "mclovins-container-1"
-          returnVars: { snapshotId: 123 }
           snapshotUrl: snapshotUrl

@@ -7,6 +7,5 @@ module.exports = class RestoredSnapshotMessage extends BaseMessage
     @id = attributes.id
     @boxId = attributes.boxId
     @name = attributes.name
-    @snapshotUrl = attributes.snapshotUrl
     @data = attributes.data
     super

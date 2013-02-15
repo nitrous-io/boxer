@@ -134,8 +134,6 @@ module.exports = class Boxer
               id: boxer.id,
               boxId: box.id,
               returnVars: returnVars
-              snapshotId: message.snapshotId
-              snapshotName: message.snapshotName
               snapshotUrl: snapshotUrl
             )
           else
@@ -149,7 +147,6 @@ module.exports = class Boxer
               id: boxer.id,
               boxId: box.id,
               returnVars: returnVars
-              snapshotUrl: message.snapshotUrl
             )
           else
             new protocol.InvalidParamsMessage(id: boxer.id)
