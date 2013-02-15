@@ -11,4 +11,4 @@ snapshot_name=${2}
 box_path=${lxc_root}/${box_name}
 box_delta_path=${lxc_root}/${box_name}_delta
 
-cd $lxc_root && tar cpzf $snapshot_name ${box_delta_path}/rootfs/home/action
+cd $lxc_root && tar -C ${box_delta_path}/rootfs/home/action -czpf $snapshot_name .
