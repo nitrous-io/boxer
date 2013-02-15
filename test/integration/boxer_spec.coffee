@@ -6,6 +6,7 @@ childProcess        = require 'child_process'
 fs                  = require 'fs'
 _                   = require 'underscore'
 scriptPath          = __dirname.replace('test/integration', 'scripts')
+fixturesPath        = __dirname.replace('test/integration', 'test/fixtures')
 nock                = require 'nock'
 
 describe 'Boxer', ->
@@ -504,3 +505,41 @@ describe 'Boxer', ->
           name: "mclovins-container-1"
           snapshotId: 123
           snapshotName: "mclovins-container-snapshot"
+
+  describe 'aio:restore_snapshot', ->
+    downloadSnapshot = null
+    snapshotUrl = null
+    snapshotFile = "mclovins-container-snapshot-1234.tar.gz"
+
+    beforeEach (done) ->
+      snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotFile}"
+      downloadSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+        .get("/#{settings.awsBucket}/#{snapshotFile}")
+        .reply(200, fs.readFileSync("#{fixturesPath}/#{snapshotFile}"))
+
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+          runBox done
+
+    it 'restore the specified snapshot to container delta folder and keeps the box running', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.boxId).to.eql 1
+        expect(message.returnVars.snapshotId).to.eql 123
+        expect(message.snapshotUrl).to.eql snapshotUrl
+        expect(downloadSnapshot.isDone()).to.be.true
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta/rootfs/home/action/test.txt")).to.be.true
+
+        childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.match /RUNNING/
+          done()
+
+      subscribeAndDo ->
+        waitForMessage 'aio:restored_snapshot', assertMessage
+        publishSettings
+          type: "aio:restore_snapshot"
+          name: "mclovins-container-1"
+          returnVars: { snapshotId: 123 }
+          snapshotUrl: snapshotUrl

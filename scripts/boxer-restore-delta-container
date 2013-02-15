@@ -1,0 +1,21 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root='/var/lib/lxc'
+
+box_id=${1}
+box_name=${2}
+snapshot_path=${3}
+
+box_path=${lxc_root}/${box_name}
+box_delta_path=${box_path}_delta
+
+mkdir -p ${box_delta_path}
+mkdir -p ${box_delta_path}/rootfs/home/action
+# copy all contents in $home_data_path to $box_delta_path
+tar -xzSpf $snapshot_path -C $box_delta_path/rootfs/home/action
+

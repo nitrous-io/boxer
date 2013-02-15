@@ -141,3 +141,16 @@ module.exports = class Boxer
           else
             new protocol.InvalidParamsMessage(id: boxer.id)
           boxer.publisher.publish boxer.coachChannel, message.encode()
+    else if message.type == protocol.RestoreSnapshotMessage.type && @id == message.id
+      Box.find message.name, (err, box) ->
+        box.restore_snapshot message.snapshotUrl, (err) ->
+          message = if !err
+            new protocol.RestoredSnapshotMessage(
+              id: boxer.id,
+              boxId: box.id,
+              returnVars: returnVars
+              snapshotUrl: message.snapshotUrl
+            )
+          else
+            new protocol.InvalidParamsMessage(id: boxer.id)
+          boxer.publisher.publish boxer.coachChannel, message.encode()
