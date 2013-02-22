@@ -89,6 +89,7 @@ describe 'Boxer', ->
           name = fs.readFileSync("#{root}/etc/hostname")
           publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
           stats = fs.statSync("/#{root}/home/action")
+          etcActionBoxId = fs.readFileSync("#{root}/etc/action/box_id").toString().trim()
 
           expect(message.port).to.eql 10000
           expect(message.boxId).to.eql 1
@@ -109,6 +110,7 @@ describe 'Boxer', ->
 
           expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
           expect(fs.readFileSync("/etc/projects")).to.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+          expect(etcActionBoxId).to.eql '1'
 
           expect(stats.uid).to.eql 15001
           expect(stats.gid).to.eql 15001
