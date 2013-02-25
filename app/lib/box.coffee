@@ -302,7 +302,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _configureBox: (done) ->
     logger.info "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [this.containerName(), @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid()],
+                           [@id, this.containerName(), @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid()],
                            sudo: true,
                            done
 
