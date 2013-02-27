@@ -537,3 +537,32 @@ describe 'Boxer', ->
           type: "aio:restore_snapshot"
           name: "mclovins-container-1"
           snapshotUrl: snapshotUrl
+
+  describe 'aio:delete_snapshot', ->
+    deleteSnapshot = null
+    snapshotUrl = null
+    snapshotFile = "mclovins-container-snapshot-1234.tar.gz"
+
+    beforeEach (done) ->
+      snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotFile}"
+      deleteSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+        .delete("/#{settings.awsBucket}/#{snapshotFile}")
+        .reply(200, "")
+
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+          runBox done
+
+    it 'deleted the snapshot on s3', (done) ->
+      assertMessage = (message) ->
+        expect(deleteSnapshot.isDone()).to.be.true
+        done()
+
+      subscribeAndDo ->
+        waitForMessage 'aio:deleted_snapshot', assertMessage
+        publishSettings
+          type: "aio:delete_snapshot"
+          name: "mclovins-container-1"
+          snapshotUrl: snapshotUrl
