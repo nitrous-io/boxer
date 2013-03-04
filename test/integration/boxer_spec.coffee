@@ -135,7 +135,7 @@ describe 'Boxer', ->
         waitForMessage 'aio:created', assertMessage
         createBox publicKeys: ["public-key-1", "public-key-2"]
 
-    describe 'create from a snapshot', ->
+    xdescribe 'create from a snapshot', ->
       downloadSnapshot = null
       snapshotUrl = null
       snapshotFile = "mclovins-container-snapshot-1234.tar.gz"

@@ -1,0 +1,11 @@
+module.exports =
+  configure: require './configure'
+  create: require './create'
+  deleteSnapshot: require './delete_snapshot'
+  destroy: require './destroy'
+  locate: require './locate'
+  restart: require './restart'
+  restoreSnapshot: require './restore_snapshot'
+  snapshot: require './snapshot'
+  start: require './start'
+  stop: require './stop'
