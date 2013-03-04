@@ -135,6 +135,34 @@ describe 'Boxer', ->
         waitForMessage 'aio:created', assertMessage
         createBox publicKeys: ["public-key-1", "public-key-2"]
 
+    describe 'create from a snapshot', ->
+      downloadSnapshot = null
+      snapshotUrl = null
+      snapshotFile = "mclovins-container-snapshot-1234.tar.gz"
+
+      beforeEach ->
+        snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotFile}"
+        downloadSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+          .get("/#{settings.awsBucket}/#{snapshotFile}")
+          .reply(200, fs.readFileSync("#{fixturesPath}/#{snapshotFile}"))
+
+      it 'create the box with the snapshot content', (done) ->
+        assertMessage = (message) ->
+          containerRoot = "/var/lib/lxc/mclovins-container-1"
+          root = "#{containerRoot}/rootfs"
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.success).to.be.true
+          expect(downloadSnapshot.isDone()).to.be.true
+          expect(fs.existsSync("#{root}/rootfs/home/action/test.txt")).to.be.true
+
+          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.match /RUNNING/
+            done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:created', assertMessage
+          createBox snapshotURL: snapshotUrl, runtime: ""
+
     context 'unsuccessful provisioning', ->
       beforeEach ->
         sinon.stub Box.prototype, 'save', -> throw new Error("OMG")
