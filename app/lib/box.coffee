@@ -281,7 +281,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _mountContainer: (done) ->
     logger.info 'Mounting Container'
     this._execShellCommand 'boxer-mount-container',
-                           [@id, this.containerName(), @containerTemplate, @diskSpace],
+                           [@id, this.containerName(), @diskSpace],
                            sudo: true,
                            done
 
