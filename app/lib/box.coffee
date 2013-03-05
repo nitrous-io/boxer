@@ -1,11 +1,9 @@
 AutoAdvancingStateMachine = require './auto_advancing_state_machine'
 ResourcePool = require './resource_pool'
 settings = require '../../config/settings'
-escapeShellArg = require('./utils').escapeShellArg
+{ execShellCommand  } = require './utils'
 redisStoreSettings = require('../../config/settings').redisStore
 redisClient = require('./utils').initRedisClientWith(redisStoreSettings)
-scriptPath = __dirname.replace('app/lib', 'scripts/')
-childProcess = require 'child_process'
 logger = require './logger'
 s3 = require './s3'
 fs = require 'fs'
@@ -102,28 +100,27 @@ module.exports = class Box extends AutoAdvancingStateMachine
     if dataType == 'aio:configure:add_public_key'
       publicKey = data
 
-      @_execShellCommand "boxer-add-public-keys",
-                          [this.containerName(), publicKey],
-                          sudo: true,
-                          done
+      execShellCommand "boxer-add-public-keys",
+                        [this.containerName(), publicKey],
+                        sudo: true,
+                        done
     else if dataType == 'aio:configure:remove_public_key'
       publicKey = data.replace(/\//g, "\\/")
-
-      @_execShellCommand "boxer-remove-public-key",
-                          [this.containerName(), publicKey],
-                          sudo: true,
-                          done
+      execShellCommand "boxer-remove-public-key",
+                        [this.containerName(), publicKey],
+                        sudo: true,
+                        done
     else if dataType == 'aio:configure:set_env_variables'
       envVars = ( "#{key}=#{value}" for key, value of data )
-      @_execShellCommand "boxer-set-env-variables",
-                          [this.containerName()].concat(envVars),
-                          sudo: true,
-                          done
+      execShellCommand "boxer-set-env-variables",
+                        [this.containerName()].concat(envVars),
+                        sudo: true,
+                        done
     else if dataType == 'aio:configure:remove_env_variables'
-      @_execShellCommand "boxer-remove-env-variables",
-                          [this.containerName()].concat(data),
-                          sudo: true,
-                          done
+      execShellCommand "boxer-remove-env-variables",
+                        [this.containerName()].concat(data),
+                        sudo: true,
+                        done
 
   stop: (cb) ->
     if this.valid()
@@ -268,114 +265,115 @@ module.exports = class Box extends AutoAdvancingStateMachine
         (cb) -> s3.client.getObject getParams, cb
         (data, cb) -> fs.writeFile snapshotFile, data.Body, cb
         (cb) =>
-          this._execShellCommand 'boxer-setup-delta-container',
-                                  [@id, this.containerName(), snapshotFile],
-                                  sudo: true,
-                                  cb
+          execShellCommand 'boxer-setup-delta-container',
+                            [@id, this.containerName(), snapshotFile],
+                            sudo: true,
+                            cb
       ], done
     else
       dataPath = "/var/lib/lxc/#{@containerTemplate}.tar.gz"
-      this._execShellCommand 'boxer-setup-delta-container',
-                              [@id, this.containerName(), dataPath],
-                              sudo: true,
-                              done
+      execShellCommand 'boxer-setup-delta-container',
+                        [@id, this.containerName(), dataPath],
+                        sudo: true,
+                        done
 
   _compressDeltaContainer: (fileName, done) ->
     logger.info 'Compressing Delta Container'
-    this._execShellCommand 'boxer-tar-delta-container',
-                            [this.containerName(), fileName],
-                            sudo: true,
-                            done
+    execShellCommand 'boxer-tar-delta-container',
+                      [this.containerName(), fileName],
+                      sudo: true,
+                      done
 
   _restoreDeltaContainer: (snapshotFile, done) ->
     logger.info 'Restoring Delta Container'
-    this._execShellCommand 'boxer-restore-delta-container',
-                           [@id, this.containerName(), snapshotFile],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-restore-delta-container',
+                      [@id, this.containerName(), snapshotFile],
+                      sudo: true,
+                      done
 
   _mountContainer: (done) ->
     logger.info 'Mounting Container'
-    this._execShellCommand 'boxer-mount-container',
-                           [@id, this.containerName(), @diskSpace],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-mount-container',
+                      [@id, this.containerName(), @diskSpace],
+                      sudo: true,
+                      done
 
   _unmountContainer: (done) ->
     logger.info 'Unmounting Container'
-    this._execShellCommand 'boxer-unmount-container',
-                           [this.containerName()],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-unmount-container',
+                      [this.containerName()],
+                      sudo: true,
+                      done
 
   _cleanupDeltaContainer: (done) ->
     logger.info 'Cleaning Up Delta Container'
-    this._execShellCommand 'boxer-cleanup-delta-container',
-                           [this.containerName()],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-cleanup-delta-container',
+                      [this.containerName()],
+                      sudo: true,
+                      done
 
   _configureBox: (done) ->
     logger.info "Configuring Box: #{this._uid()} #{this._gid()}"
-    this._execShellCommand 'boxer-configure-box',
-                           [@id, this.containerName(), @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid()],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-configure-box',
+                      [@id, this.containerName(), @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid()],
+                      sudo: true,
+                      done
 
   _removeBoxConfig: (done) ->
     done()
 
   _setUpPortForwarding: (done) ->
     logger.info 'Port Forwarding Set Up'
-    this._execShellCommand 'boxer-setup-portforwarding',
-                           [@ip, @port],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-setup-portforwarding',
+                      [@ip, @port],
+                      sudo: true,
+                      done
 
   _releasePortForwarding: (done) ->
     logger.info 'Port Forwarding Released'
-    this._execShellCommand 'boxer-release-portforwarding',
-                           [@ip, @port],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-release-portforwarding',
+                      [@ip, @port],
+                      sudo: true,
+                      done
 
   _setDefaultKeyPair: (done) ->
     logger.info 'Setting default ssh key-pair'
-    this._execShellCommand 'boxer-set-default-key-pair',
-                            [this.containerName()],
-                            sudo: true
-                            done
+    execShellCommand 'boxer-set-default-key-pair',
+                      [this.containerName()],
+                      sudo: true
+                      done
 
   _removeDefaultKeyPair: (done) ->
     logger.info 'Remove default ssh key pair'
-    this._execShellCommand 'boxer-remove-default-key-pair',
-                           [this.containerName()],
-                           sudo: true
-                           done
+    execShellCommand 'boxer-remove-default-key-pair',
+                      [this.containerName()],
+                      sudo: true
+                      done
 
   _startContainer: (done) ->
     logger.info 'Start Container'
-    this._execShellCommand 'boxer-start-container',
-                           [this.containerName(), @ip],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-start-container',
+                      [this.containerName(), @ip],
+                      sudo: true,
+                      done
 
   _stopContainer: (done) ->
     logger.info 'Stop Container'
-    this._execShellCommand 'boxer-stop-container',
-                           [this.containerName()],
-                           sudo: true,
-                           done
+    execShellCommand 'boxer-stop-container',
+                      [this.containerName()],
+                      sudo: true,
+                      done
 
   _notifySuccess: (done) ->
     if @publicKeys?
       self = this
-      this._execShellCommand 'boxer-add-public-keys',
-                             [this.containerName()].concat(@publicKeys),
-                             sudo: true, ->
-                               self.successCallback?(null)
-                               delete self.successCallback
-                               done()
+      execShellCommand 'boxer-add-public-keys',
+                        [this.containerName()].concat(@publicKeys),
+                        sudo: true,
+                        ->
+                          self.successCallback?(null)
+                          delete self.successCallback
+                          done()
     else
       @successCallback?(null)
       delete @successCallback
@@ -385,33 +383,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @rollbackCallback?(null)
     delete @rollbackCallback
     done()
-
-  _execShellCommand: (cmd, args, opts, done) ->
-    if _.isFunction(args)
-      done = args
-      args = []
-      opts = {}
-    else if _.isFunction(opts)
-      done = opts
-      opts = {}
-
-    prefix = if process.env.NODE_ENV == 'production' then '/var/apps/boxer/current/scripts/' else scriptPath
-    sudo = if opts.sudo then 'sudo' else ''
-
-    command = _.flatten([
-                          sudo
-                          "#{prefix}#{cmd}"
-                          _.map(args, (x) -> escapeShellArg(x))
-                        ]).join(' ').trim()
-
-    logger.info "Executing command #{command}"
-    start = new Date()
-    childProcess.exec command, timeout: 0, (err, stdout, stderr) ->
-      if err
-        logger.info "boxer_exec_shell_command_err: #{stderr}"
-        throw err
-      logger.info "command: #{command} took: #{+(new Date() - start)} ms"
-      done(err)
 
   _uid: ->
     Box.UID_BASE + parseInt(@id)
