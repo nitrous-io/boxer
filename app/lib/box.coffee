@@ -259,10 +259,26 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   _setupDeltaContainer: (done) ->
     logger.info 'Setting Up Delta Container'
-    this._execShellCommand 'boxer-setup-delta-container',
-                           [@id, this.containerName(), @containerTemplate],
-                           sudo: true,
-                           done
+    if @snapshotURL
+      snapshotKey = url.parse(@snapshotURL).path.replace('/', '')
+      snapshotFile = "/tmp/#{snapshotKey}"
+      getParams = { Bucket: settings.awsBucket, Key: snapshotKey }
+
+      async.waterfall [
+        (cb) -> s3.client.getObject getParams, cb
+        (data, cb) -> fs.writeFile snapshotFile, data.Body, cb
+        (cb) =>
+          this._execShellCommand 'boxer-setup-delta-container',
+                                  [@id, this.containerName(), snapshotFile],
+                                  sudo: true,
+                                  cb
+      ], done
+    else
+      dataPath = "/var/lib/lxc/#{@containerTemplate}.tar.gz"
+      this._execShellCommand 'boxer-setup-delta-container',
+                              [@id, this.containerName(), dataPath],
+                              sudo: true,
+                              done
 
   _compressDeltaContainer: (fileName, done) ->
     logger.info 'Compressing Delta Container'

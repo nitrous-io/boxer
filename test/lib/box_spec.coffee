@@ -106,7 +106,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-setup-delta-container",
-                                                        [1, "rails-box-1", "ruby-container-template"],
+                                                        [1, "rails-box-1", "/var/lib/lxc/ruby-container-template.tar.gz"],
                                                         sudo: true,
                                                         cbSpy)
 

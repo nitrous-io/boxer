@@ -135,7 +135,7 @@ describe 'Boxer', ->
         waitForMessage 'aio:created', assertMessage
         createBox publicKeys: ["public-key-1", "public-key-2"]
 
-    xdescribe 'create from a snapshot', ->
+    describe 'create from a snapshot', ->
       downloadSnapshot = null
       snapshotUrl = null
       snapshotFile = "mclovins-container-snapshot-1234.tar.gz"
@@ -154,10 +154,7 @@ describe 'Boxer', ->
           expect(message.success).to.be.true
           expect(downloadSnapshot.isDone()).to.be.true
           expect(fs.existsSync("#{root}/rootfs/home/action/test.txt")).to.be.true
-
-          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-            expect(stdout).to.match /RUNNING/
-            done()
+          done()
 
         subscribeAndDo ->
           waitForMessage 'aio:created', assertMessage
