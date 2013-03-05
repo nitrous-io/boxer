@@ -145,7 +145,7 @@ module.exports = class Boxer
           boxer.publisher.publish boxer.coachChannel, message.encode()
     else if message.type == protocol.RestoreSnapshotMessage.type && @id == message.id
       Box.find message.name, (err, box) ->
-        box.restore_snapshot message.snapshotUrl, (err) ->
+        box.restoreSnapshot message.snapshotUrl, (err) ->
           message = if !err
             new protocol.RestoredSnapshotMessage(
               id: boxer.id,

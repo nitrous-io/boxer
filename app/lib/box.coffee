@@ -168,7 +168,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       (cb) => this.start cb
     ], (err) -> done(err, snapshotUrl)
 
-  restore_snapshot: (snapshotUrl, done) ->
+  restoreSnapshot: (snapshotUrl, done) ->
     return done(new Error('Invalid Params')) unless this.valid()
     snapshotKey = url.parse(snapshotUrl).path.replace('/', '')
     snapshotFile = "/tmp/#{snapshotKey}"
