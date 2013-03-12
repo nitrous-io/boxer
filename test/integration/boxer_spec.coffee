@@ -591,3 +591,54 @@ describe 'Boxer', ->
           type: "aio:delete_snapshot"
           name: "mclovins-container-1"
           snapshotUrl: snapshotUrl
+
+  describe 'aio:archive', ->
+    clock = null
+    snapshotName = null
+    snapshotUrl = null
+    uploadSnapshot = null
+
+    beforeEach (done) ->
+      clock = sinon.useFakeTimers()
+      snapshotName = "mclovins-container-1-#{+new Date()}"
+      snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotName}.tar.gz"
+
+      uploadSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+        .put("/#{settings.awsBucket}/#{snapshotName}.tar.gz")
+        .reply(200, "")
+
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+          runBox done
+
+    afterEach ->
+      clock.restore()
+
+    it 'creates a snapshot of container delta folder and terminates the box', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.boxId).to.eql 1
+        expect(message.snapshotUrl).to.eql snapshotUrl
+        expect(uploadSnapshot.isDone()).to.be.true
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1-0.tar.gz")).to.be.false
+
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
+        expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
+        expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+
+        childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.not.match /192\.168\.254\.254:22/
+
+          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.match /STOPPED/
+
+            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+              expect(res).to.be.null
+              done()
+
+      subscribeAndDo ->
+        waitForMessage 'aio:archived', assertMessage
+        publishSettings type: "aio:archive", name: "mclovins-container-1"

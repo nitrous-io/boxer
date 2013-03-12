@@ -179,6 +179,26 @@ module.exports = class Box extends AutoAdvancingStateMachine
       (cb) => this.start cb
     ], done
 
+  archive: (done) ->
+    return done(new Error('Invalid Params')) unless this.valid()
+    snapshotName = "#{this.containerName()}-#{+new Date()}"
+    snapshotTarFile = "#{snapshotName}.tar.gz"
+    snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotTarFile}"
+    snapshotPath = "/var/lib/lxc/#{snapshotTarFile}"
+
+    uploadSnapshot = (cb) ->
+      stream = fs.createReadStream snapshotPath
+      writeParams = { Bucket: settings.awsBucket, Key: snapshotTarFile, Body: stream }
+      s3.client.putObject writeParams, (err) -> cb(err)
+
+    async.waterfall [
+      (cb) => this.stop cb
+      (cb) => this._compressDeltaContainer snapshotTarFile, cb
+      (cb) => uploadSnapshot cb
+      (cb) => fs.unlink snapshotPath, cb
+      (cb) => this.destroy cb
+    ], (err) -> done(err, snapshotUrl)
+
   encode: ->
     JSON.stringify({
                     id: @id

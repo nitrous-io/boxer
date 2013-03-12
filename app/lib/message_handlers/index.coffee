@@ -9,3 +9,4 @@ module.exports =
   snapshot: require './snapshot'
   start: require './start'
   stop: require './stop'
+  archive: require './archive'

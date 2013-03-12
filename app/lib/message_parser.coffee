@@ -23,6 +23,8 @@ module.exports = class MessageParser
     'aio:restored_snapshot' : m.RestoredSnapshotMessage
     'aio:delete_snapshot'   : m.DeleteSnapshotMessage
     'aio:deleted_snapshot'  : m.DeletedSnapshotMessage
+    'aio:archive'           : m.ArchiveMessage
+    'aio:archived'          : m.ArchivedMessage
 
   @decode: (messageJSON) ->
     parsedMessage = JSON.parse(messageJSON)
