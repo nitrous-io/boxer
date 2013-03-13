@@ -7,17 +7,21 @@ shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
 
+# home_data_path is the full path to the compressed home directory
+# such as
+# /var/lib/lxc/ruby_template.tar.gz for ruby_template
+# or
+# /tmp/some_container_snapshot_123456.tar.gz for snapshot
 box_id=${1}
 box_name=${2}
-container_template=${3}
+home_data_path=${3}
 
 container_path=${lxc_root}/base_container_template
 box_path=${lxc_root}/${box_name}
 box_delta_path=${box_path}_delta
-home_data_path=${lxc_root}/${container_template}
 
 mkdir -p ${box_delta_path}
 mkdir -p ${box_delta_path}/rootfs/home/action
 # copy all contents in $home_data_path to $box_delta_path
-tar -xzSpf $home_data_path.tar.gz -C $box_delta_path/rootfs/home/action
+tar -xzSpf $home_data_path -C $box_delta_path/rootfs/home/action
 

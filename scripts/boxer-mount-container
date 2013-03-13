@@ -10,8 +10,7 @@ lxc_root='/var/lib/lxc'
 container_template=base_container_template
 box_id=${1}
 container_name=${2}
-home_template=${3}
-disk_limit=${4}
+disk_limit=${3}
 
 box_path=${lxc_root}/${container_name}
 box_delta_path=${box_path}_delta
