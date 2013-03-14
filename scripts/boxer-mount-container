@@ -29,8 +29,8 @@ mkdir -p ${box_path}
     echo "${box_id}:${box_delta_path}/rootfs/home/action" >> /etc/projects
     echo "${container_name}:${box_id}" >> /etc/projid
 
-    xfs_quota -x -c "project -s ${container_name}" ${lxc_root}
-    xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${lxc_root}
+    xfs_quota -x -c "project -s ${container_name}" ${lxc_root} || true
+    xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${lxc_root} || true
   fi
 
 ) 200>/var/lock/boxer.mount_container
