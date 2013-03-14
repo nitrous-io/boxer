@@ -23,12 +23,12 @@ settings =
     id: 'test.action.io'
     redisMQ:
       host: '0.0.0.0'
-      port: 6379
+      port: 65000
       password: null
       database: 0
     redisStore:
       host: '0.0.0.0'
-      port: 6379
+      port: 65000
       password: null
       database: 0
   production: {}
