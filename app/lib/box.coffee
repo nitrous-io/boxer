@@ -217,7 +217,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   @find: (containerName, cb) ->
     redisClient.hget 'aio:boxes', containerName, (err, res) ->
-      if !err
+      if !err && res
         parsedBox = JSON.parse(res)
         box = new Box(parsedBox.id, redisStoreSettings)
         box.name = parsedBox.name
@@ -232,7 +232,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
         cb(err, box)
       else
-        cb(err, null)
+        cb(new Error("Missing box #{containerName}"), null)
 
   @startAll: (done) ->
     redisClient.hkeys 'aio:boxes', (err, ids) ->
