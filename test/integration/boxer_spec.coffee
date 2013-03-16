@@ -6,6 +6,8 @@ childProcess        = require 'child_process'
 fs                  = require 'fs'
 _                   = require 'underscore'
 scriptPath          = __dirname.replace('test/integration', 'scripts')
+fixturesPath        = __dirname.replace('test/integration', 'test/fixtures')
+nock                = require 'nock'
 
 describe 'Boxer', ->
   boxer = coach = publisher = settings = redisMQSettings = redisStoreSettings = null
@@ -68,396 +70,499 @@ describe 'Boxer', ->
     boxer = coach = publisher = null
     cleanupContainer 'mclovins-container-1', ip, andDone
 
-  describe 'run', ->
-    describe 'aio:create', ->
-      beforeEach (done) ->
-        cleanDB ->
-          multi = publisher.multi()
-          multi.rpush 'aio:available_resources', ip
-          multi.hmset "aio:nwr:#{ip}", resource
-          multi.exec (err, replies) ->
-            return done(err) if err
-            runBox done
+  describe 'aio:create', ->
+    beforeEach (done) ->
+      cleanDB ->
+        multi = publisher.multi()
+        multi.rpush 'aio:available_resources', ip
+        multi.hmset "aio:nwr:#{ip}", resource
+        multi.exec (err, replies) ->
+          return done(err) if err
+          runBox done
 
-      it 'returns aio:created with the requisite properties when successfully provisioned', (done) ->
+    it 'returns aio:created with the requisite properties when successfully provisioned', (done) ->
+      assertMessage = (message) ->
+        containerRoot = "/var/lib/lxc/mclovins-container-1"
+        root = "#{containerRoot}/rootfs"
+        lxcConfigFile = "#{containerRoot}/config"
+
+        networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
+        name = fs.readFileSync("#{root}/etc/hostname")
+        publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
+        stats = fs.statSync("/#{root}/home/action")
+
+        expect(message.port).to.eql 10000
+        expect(message.boxId).to.eql 1
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.success).to.be.true
+        expect(networkConfig).to.match /address 192.168.254.2/
+        expect(name).to.match /mclovins-container-1/
+        expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
+        expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
+        expect(fs.existsSync("/#{root}/home/action/workspace")).to.be.true
+
+        expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
+        expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
+        expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
+        expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.network.hwaddr = 02:00/
+        expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
+        expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 768M/
+
+        expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
+        expect(fs.readFileSync("/etc/projects")).to.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+
+        expect(stats.uid).to.eql 15001
+        expect(stats.gid).to.eql 15001
+        expect(fs.statSync("/#{root}/home/action/workspace").uid).to.eql 15001
+        expect(fs.statSync("/#{root}/home/action/workspace").gid).to.eql 15001
+
+        childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.match /192\.168\.254\.2:22/
+
+          publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+            msg = JSON.parse(res)
+            expect(msg.id).to.eql 1
+            expect(msg.name).to.eql 'mclovins-container'
+            expect(msg.ip).to.eql '192.168.254.2'
+            expect(msg.port).to.eql 10000
+            expect(msg.memory).to.eql '256M'
+            expect(msg.diskSpace).to.eql '1G'
+            expect(msg.boxerId).to.eql 'test.action.io'
+            expect(msg.containerState).to.eql 'stopped'
+            done(err)
+
+      subscribeAndDo ->
+        waitForMessage 'aio:created', assertMessage
+        createBox publicKeys: ["public-key-1", "public-key-2"]
+
+    context 'unsuccessful provisioning', ->
+      beforeEach ->
+        sinon.stub Box.prototype, 'save', -> throw new Error("OMG")
+
+      afterEach ->
+        Box.prototype.save.restore()
+
+      it 'should return an aio:created message with the success flag set to false', (done) ->
         assertMessage = (message) ->
-          containerRoot = "/var/lib/lxc/mclovins-container-1"
-          root = "#{containerRoot}/rootfs"
-          lxcConfigFile = "#{containerRoot}/config"
-
-          networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
-          name = fs.readFileSync("#{root}/etc/hostname")
-          publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
-          stats = fs.statSync("/#{root}/home/action")
-          etcActionBoxId = fs.readFileSync("#{root}/etc/action/box_id").toString().trim()
-
-          expect(message.port).to.eql 10000
           expect(message.boxId).to.eql 1
           expect(message.id).to.eql 'test.action.io'
-          expect(message.success).to.be.true
-          expect(networkConfig).to.match /address 192.168.254.2/
-          expect(name).to.match /mclovins-container-1/
-          expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
-          expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
-          expect(fs.existsSync("/#{root}/home/action/workspace")).to.be.true
-
-          expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
-          expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
-          expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
-          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.network.hwaddr = 02:00/
-          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
-          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 768M/
-
-          expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
-          expect(etcActionBoxId).to.eql '1'
-
-          expect(stats.uid).to.eql 15001
-          expect(stats.gid).to.eql 15001
-          expect(fs.statSync("/#{root}/home/action/workspace").uid).to.eql 15001
-          expect(fs.statSync("/#{root}/home/action/workspace").gid).to.eql 15001
+          expect(message.success).to.eql false
 
           childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-            expect(stdout).to.match /192\.168\.254\.2:22/
-
-            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-              msg = JSON.parse(res)
-              expect(msg.id).to.eql 1
-              expect(msg.name).to.eql 'mclovins-container'
-              expect(msg.ip).to.eql '192.168.254.2'
-              expect(msg.port).to.eql 10000
-              expect(msg.memory).to.eql '256M'
-              expect(msg.diskSpace).to.eql '1G'
-              expect(msg.boxerId).to.eql 'test.action.io'
-              expect(msg.containerState).to.eql 'stopped'
-              done(err)
-
-        subscribeAndDo ->
-          waitForMessage 'aio:created', assertMessage
-          createBox publicKeys: ["public-key-1", "public-key-2"]
-
-      context 'unsuccessful provisioning', ->
-        beforeEach ->
-          sinon.stub Box.prototype, 'save', -> throw new Error("OMG")
-
-        afterEach ->
-          Box.prototype.save.restore()
-
-        it 'should return an aio:created message with the success flag set to false', (done) ->
-          assertMessage = (message) ->
-            expect(message.boxId).to.eql 1
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.success).to.eql false
-
-            childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-              expect(stdout).to.not.match /192\.168\.254\.2:22/
-
-              childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-                expect(stdout).to.match /STOPPED/
-
-                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-                  expect(res).to.be.null
-                  done(err)
-
-          subscribeAndDo ->
-            waitForMessage 'aio:created', assertMessage
-            createBox()
-
-      context 'no resources available on redis', ->
-        beforeEach (andDone) -> cleanDB andDone
-
-        it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
-          assertMessage = (message) ->
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.success).to.eql false
-
-            childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-              expect(stdout).to.not.match /192\.168\.254\.2:22/
-
-              childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-                expect(stdout).to.match /STOPPED/
-
-                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-                  expect(res).to.be.null
-                  done(err)
-
-          subscribeAndDo ->
-            waitForMessage 'aio:created', assertMessage
-            createBox()
-
-      context 'invalid params', ->
-        it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
-          assertMessage = (message) ->
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.success).to.eql false
-
-            childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-              expect(stdout).to.not.match /192\.168\.254\.2:22/
-
-              childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-                expect(stdout).to.match /STOPPED/
-
-                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-                  expect(res).to.be.null
-                  done(err)
-
-          subscribeAndDo ->
-            waitForMessage 'aio:created', assertMessage
-            publishSettings type: "aio:create", runtime: 'test'
-
-    describe 'aio:locate', ->
-      beforeEach (andDone) -> cleanDB -> runBox andDone
-
-      it 'should return an aio:advertise message with the boxer\'s capabilities', (done) ->
-        assertMessage = (message) ->
-          expect(message.id).to.eql 'test.action.io'
-          expect(message.freeMemory).to.exist
-          done()
-        subscribeAndDo ->
-          waitForMessage 'aio:advertise', assertMessage
-          publishSettings type: "aio:locate"
-
-    describe 'aio:restart' , ->
-      beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
-          return done(err) if err
-          cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","state":"running"}'
-            runBox done
-
-      it 'should restart an already created container', (done) ->
-        assertMessage = (message) ->
-          expect(message.id).to.eql 'test.action.io'
-          expect(message.boxId).to.eql 1
-          expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
-
-          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-            expect(stdout).to.match /RUNNING/
-
-            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-              msg = JSON.parse(res)
-              expect(msg.id).to.eql 1
-              expect(msg.name).to.eql 'mclovins-container'
-              expect(msg.containerState).to.eql 'running'
-              done(err)
-
-        subscribeAndDo ->
-          waitForMessage 'aio:restarted', assertMessage
-          publishSettings type: "aio:restart", name: "mclovins-container-1"
-
-    describe 'aio:stop', ->
-      beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
-          return done(err) if err
-          cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running"}'
-            runBox done
-
-      it 'should return an aio:stopped message with the box\'s id present', (done) ->
-        assertMessage = (message) ->
-          expect(message.id).to.eql 'test.action.io'
-          expect(message.boxId).to.eql 1
-          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1/rootfs")).to.be.false
-          expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
-
-          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-            expect(stdout).to.match /STOPPED/
-            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-              msg = JSON.parse(res)
-              expect(msg.id).to.eql 1
-              expect(msg.name).to.eql 'mclovins-container'
-              expect(msg.containerState).to.eql 'stopped'
-              done(err)
-
-        subscribeAndDo ->
-          waitForMessage 'aio:stopped', assertMessage
-          publishSettings type: "aio:stop", name: "mclovins-container-1"
-
-    describe 'aio:start' , ->
-      beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", timeout:5000, (err, stdout, stderr) ->
-          done(err) if err
-
-          cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
-            runBox done
-
-      it 'should start an already created container', (done) ->
-        assertMessage = (message) ->
-          expect(message.id).to.eql 'test.action.io'
-          expect(message.boxId).to.eql 1
-
-          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-            expect(stdout).to.match /RUNNING/
-            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-              msg = JSON.parse(res)
-              expect(msg.id).to.eql 1
-              expect(msg.name).to.eql 'mclovins-container'
-              expect(msg.containerState).to.eql 'running'
-              done(err)
-
-        subscribeAndDo ->
-          waitForMessage 'aio:started', assertMessage
-          publishSettings type: "aio:start", name: "mclovins-container-1"
-
-
-    describe 'aio:configure', ->
-      publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
-      publicKey = null
-
-      beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
-          done(err) if err
-          cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
-            runBox done
-
-      context 'adding public keys', ->
-        beforeEach ->
-          publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
-
-        it 'should add a public key to the box', (done) ->
-          assertMessage = (message) ->
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.boxId).to.eql 1
-
-            output = fs.readFileSync(publicKeysFile).toString().trim()
-
-            expect(fs.existsSync(publicKeysFile)).to.be.true
-            expect(output).to.eql publicKey
-            done()
-
-          subscribeAndDo ->
-            waitForMessage 'aio:configured', assertMessage
-            publishSettings type: "aio:configure", dataType: "aio:configure:add_public_key", data: publicKey, name: "mclovins-container-1"
-
-      context 'removing public keys', ->
-        publicKey1 = publicKey2 = null
-
-        beforeEach (done) ->
-          publicKey1 = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
-          publicKey2 = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone.local"
-
-          childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container-1' '#{publicKey1}'", timeout: 5000, (err, stdout, stderr) ->
-            if err
-              throw err
-            else
-              childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container-1' '#{publicKey2}'", timeout: 5000, (err, stdout, stderr) ->
-                if err then throw err else done()
-
-        it 'should remove the public key from the box', (done) ->
-          assertMessage = (message) ->
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.boxId).to.eql 1
-
-            publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
-            output = fs.readFileSync(publicKeysFile).toString().trim()
-
-            expect(fs.existsSync(publicKeysFile)).to.be.true
-            expect(output).to.eql publicKey2
-            done()
-
-          subscribeAndDo ->
-            waitForMessage 'aio:configured', assertMessage
-            publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey1, name: "mclovins-container-1"
-
-      context 'setting env variables', ->
-        it 'sets the variables to /etc/profile', (done) ->
-          assertMessage = (message) ->
-            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
-            env = fs.readFileSync(environmentFile).toString()
-            expect(env).to.contain 'RDS_HOST=mysql://insecure'
-            expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
-            done()
-
-          subscribeAndDo ->
-            waitForMessage 'aio:configured', assertMessage
-            publishSettings
-              type: "aio:configure"
-              dataType: "aio:configure:set_env_variables",
-              name: "mclovins-container-1",
-              data: {
-                'RDS_HOST': "mysql://insecure",
-                'RDS_PASSWORD': 'mysql-insecure'
-              }
-
-      context 'setting env variables (with returnVars)', ->
-        it 'sets the variables to /etc/profile', (done) ->
-          assertMessage = (message) ->
-            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
-            env = fs.readFileSync(environmentFile).toString()
-            expect(env).to.contain 'RDS_HOST=mysql://insecure'
-            expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
-
-            expect(message.returnVars).to.eql { 'addon_id': 1 }
-            done()
-
-          subscribeAndDo ->
-            waitForMessage 'aio:configured', assertMessage
-            publishSettings
-              type: "aio:configure"
-              dataType: "aio:configure:set_env_variables",
-              name: "mclovins-container-1",
-              returnVars: {
-                'addon_id': 1
-              },
-              data: {
-                'RDS_HOST': "mysql://insecure",
-                'RDS_PASSWORD': 'mysql-insecure'
-              }
-
-      context 'removing env variables', ->
-        beforeEach (done) ->
-          childProcess.exec "sudo scripts/boxer-set-env-variables 'mclovins-container-1' 'RDS_HOST=123'", timeout: 5000, (err, stdout, stderr) ->
-            if err then throw err else done()
-
-        it 'remove the variables from /etc/profile', (done) ->
-          assertMessage = (message) ->
-            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
-            env = fs.readFileSync(environmentFile).toString()
-            expect(env).to.not.contain 'RDS_HOST=123'
-            done()
-
-          subscribeAndDo ->
-            waitForMessage 'aio:configured', assertMessage
-            publishSettings
-              type: "aio:configure"
-              dataType: "aio:configure:remove_env_variables",
-              data: ['RDS_HOST', 'RDS_PASSWORD'],
-              name: "mclovins-container-1"
-
-    describe 'aio:destroy', ->
-      beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
-          return done(err) if err
-          childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-            childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container-1'", timeout: 5000, (err, stdout, stderr) ->
-              cleanDB ->
-                publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
-                runBox done
-
-      it 'should destroy the container and remove all remnants', (done) ->
-        assertMessage = (message) ->
-          expect(message.id).to.eql 'test.action.io'
-          expect(message.boxId).to.eql 1
-
-          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
-          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
-          expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
-
-          childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-            expect(stdout).to.not.match /192\.168\.254\.254:22/
+            expect(stdout).to.not.match /192\.168\.254\.2:22/
 
             childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
               expect(stdout).to.match /STOPPED/
 
               publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
                 expect(res).to.be.null
-                done()
+                done(err)
 
         subscribeAndDo ->
-          waitForMessage 'aio:destroyed', assertMessage
-          publishSettings type: "aio:destroy", name: "mclovins-container-1"
+          waitForMessage 'aio:created', assertMessage
+          createBox()
+
+    context 'no resources available on redis', ->
+      beforeEach (andDone) -> cleanDB andDone
+
+      it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.success).to.eql false
+
+          childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.not.match /192\.168\.254\.2:22/
+
+            childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+              expect(stdout).to.match /STOPPED/
+
+              publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                expect(res).to.be.null
+                done(err)
+
+        subscribeAndDo ->
+          waitForMessage 'aio:created', assertMessage
+          createBox()
+
+    context 'invalid params', ->
+      it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.success).to.eql false
+
+          childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.not.match /192\.168\.254\.2:22/
+
+            childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+              expect(stdout).to.match /STOPPED/
+
+              publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                expect(res).to.be.null
+                done(err)
+
+        subscribeAndDo ->
+          waitForMessage 'aio:created', assertMessage
+          publishSettings type: "aio:create", runtime: 'test'
+
+  describe 'aio:locate', ->
+    beforeEach (andDone) -> cleanDB -> runBox andDone
+
+    it 'should return an aio:advertise message with the boxer\'s capabilities', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.freeMemory).to.exist
+        done()
+      subscribeAndDo ->
+        waitForMessage 'aio:advertise', assertMessage
+        publishSettings type: "aio:locate"
+
+  describe 'aio:restart' , ->
+    beforeEach (done) ->
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        return done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","state":"running"}'
+          runBox done
+
+    it 'should restart an already created container', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.boxId).to.eql 1
+        expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
+        expect(fs.readFileSync("/etc/projects")).to.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+
+        childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.match /RUNNING/
+
+          publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+            msg = JSON.parse(res)
+            expect(msg.id).to.eql 1
+            expect(msg.name).to.eql 'mclovins-container'
+            expect(msg.containerState).to.eql 'running'
+            done(err)
+
+      subscribeAndDo ->
+        waitForMessage 'aio:restarted', assertMessage
+        publishSettings type: "aio:restart", name: "mclovins-container-1"
+
+  describe 'aio:stop', ->
+    beforeEach (done) ->
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        return done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running"}'
+          runBox done
+
+    it 'should return an aio:stopped message with the box\'s id present', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.boxId).to.eql 1
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1/rootfs")).to.be.false
+        expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
+        expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+
+        childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.match /STOPPED/
+          publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+            msg = JSON.parse(res)
+            expect(msg.id).to.eql 1
+            expect(msg.name).to.eql 'mclovins-container'
+            expect(msg.containerState).to.eql 'stopped'
+            done(err)
+
+      subscribeAndDo ->
+        waitForMessage 'aio:stopped', assertMessage
+        publishSettings type: "aio:stop", name: "mclovins-container-1"
+
+  describe 'aio:start' , ->
+    beforeEach (done) ->
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", timeout:5000, (err, stdout, stderr) ->
+        done(err) if err
+
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+          runBox done
+
+    it 'should start an already created container', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.boxId).to.eql 1
+
+        childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.match /RUNNING/
+          publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+            msg = JSON.parse(res)
+            expect(msg.id).to.eql 1
+            expect(msg.name).to.eql 'mclovins-container'
+            expect(msg.containerState).to.eql 'running'
+            done(err)
+
+      subscribeAndDo ->
+        waitForMessage 'aio:started', assertMessage
+        publishSettings type: "aio:start", name: "mclovins-container-1"
+
+  describe 'aio:configure', ->
+    publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
+    publicKey = null
+
+    beforeEach (done) ->
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
+          runBox done
+
+    context 'adding public keys', ->
+      beforeEach ->
+        publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
+
+      it 'should add a public key to the box', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql 1
+
+          output = fs.readFileSync(publicKeysFile).toString().trim()
+
+          expect(fs.existsSync(publicKeysFile)).to.be.true
+          expect(output).to.eql publicKey
+          done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:configured', assertMessage
+          publishSettings type: "aio:configure", dataType: "aio:configure:add_public_key", data: publicKey, name: "mclovins-container-1"
+
+    context 'removing public keys', ->
+      publicKey1 = publicKey2 = null
+
+      beforeEach (done) ->
+        publicKey1 = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
+        publicKey2 = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone.local"
+
+        childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container-1' '#{publicKey1}'", timeout: 5000, (err, stdout, stderr) ->
+          if err
+            throw err
+          else
+            childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container-1' '#{publicKey2}'", timeout: 5000, (err, stdout, stderr) ->
+              if err then throw err else done()
+
+      it 'should remove the public key from the box', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql 1
+
+          publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
+          output = fs.readFileSync(publicKeysFile).toString().trim()
+
+          expect(fs.existsSync(publicKeysFile)).to.be.true
+          expect(output).to.eql publicKey2
+          done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:configured', assertMessage
+          publishSettings type: "aio:configure", dataType: "aio:configure:remove_public_key", data: publicKey1, name: "mclovins-container-1"
+
+    context 'setting env variables', ->
+      it 'sets the variables to /etc/profile', (done) ->
+        assertMessage = (message) ->
+          environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
+          env = fs.readFileSync(environmentFile).toString()
+          expect(env).to.contain 'RDS_HOST=mysql://insecure'
+          expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
+          done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:configured', assertMessage
+          publishSettings
+            type: "aio:configure"
+            dataType: "aio:configure:set_env_variables",
+            name: "mclovins-container-1",
+            data: {
+              'RDS_HOST': "mysql://insecure",
+              'RDS_PASSWORD': 'mysql-insecure'
+            }
+
+    context 'setting env variables (with returnVars)', ->
+      it 'sets the variables to /etc/profile', (done) ->
+        assertMessage = (message) ->
+          environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
+          env = fs.readFileSync(environmentFile).toString()
+          expect(env).to.contain 'RDS_HOST=mysql://insecure'
+          expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
+
+          expect(message.returnVars).to.eql { 'addon_id': 1 }
+          done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:configured', assertMessage
+          publishSettings
+            type: "aio:configure"
+            dataType: "aio:configure:set_env_variables",
+            name: "mclovins-container-1",
+            returnVars: {
+              'addon_id': 1
+            },
+            data: {
+              'RDS_HOST': "mysql://insecure",
+              'RDS_PASSWORD': 'mysql-insecure'
+            }
+
+    context 'removing env variables', ->
+      beforeEach (done) ->
+        childProcess.exec "sudo scripts/boxer-set-env-variables 'mclovins-container-1' 'RDS_HOST=123'", timeout: 5000, (err, stdout, stderr) ->
+          if err then throw err else done()
+
+      it 'remove the variables from /etc/profile', (done) ->
+        assertMessage = (message) ->
+          environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
+          env = fs.readFileSync(environmentFile).toString()
+          expect(env).to.not.contain 'RDS_HOST=123'
+          done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:configured', assertMessage
+          publishSettings
+            type: "aio:configure"
+            dataType: "aio:configure:remove_env_variables",
+            data: ['RDS_HOST', 'RDS_PASSWORD'],
+            name: "mclovins-container-1"
+
+  describe 'aio:destroy', ->
+    beforeEach (done) ->
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        return done(err) if err
+        childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container-1'", timeout: 5000, (err, stdout, stderr) ->
+            cleanDB ->
+              publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
+              runBox done
+
+    it 'should destroy the container and remove all remnants', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.boxId).to.eql 1
+
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
+        expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
+        expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+
+        childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.not.match /192\.168\.254\.254:22/
+
+          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.match /STOPPED/
+
+            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+              expect(res).to.be.null
+              done()
+
+      subscribeAndDo ->
+        waitForMessage 'aio:destroyed', assertMessage
+        publishSettings type: "aio:destroy", name: "mclovins-container-1"
+
+  describe 'aio:snapshot', ->
+    clock = null
+    snapshotName = null
+    snapshotUrl = null
+    uploadSnapshot = null
+
+    beforeEach (done) ->
+      clock = sinon.useFakeTimers()
+      snapshotName = "mclovins-container-snapshot-#{+new Date()}"
+      snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotName}.tar.gz"
+
+      uploadSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+        .put("/#{settings.awsBucket}/#{snapshotName}.tar.gz")
+        .reply(200, "")
+
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+          runBox done
+
+    afterEach ->
+      clock.restore()
+
+    it 'creates a snapshot of container delta folder and keeps the box running', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.boxId).to.eql 1
+        expect(message.snapshotUrl).to.eql snapshotUrl
+        expect(uploadSnapshot.isDone()).to.be.true
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-snapshot-0.tar.gz")).to.be.false
+
+        childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.match /RUNNING/
+          done()
+
+      subscribeAndDo ->
+        waitForMessage 'aio:snapshotted', assertMessage
+        publishSettings
+          type: "aio:snapshot"
+          name: "mclovins-container-1"
+          snapshotName: "mclovins-container-snapshot"
+
+  describe 'aio:restore_snapshot', ->
+    downloadSnapshot = null
+    snapshotUrl = null
+    snapshotFile = "mclovins-container-snapshot-1234.tar.gz"
+
+    beforeEach (done) ->
+      snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotFile}"
+      downloadSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+        .get("/#{settings.awsBucket}/#{snapshotFile}")
+        .reply(200, fs.readFileSync("#{fixturesPath}/#{snapshotFile}"))
+
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+          runBox done
+
+    it 'restore the specified snapshot to container delta folder and keeps the box running', (done) ->
+      assertMessage = (message) ->
+        expect(message.id).to.eql 'test.action.io'
+        expect(message.boxId).to.eql 1
+        expect(downloadSnapshot.isDone()).to.be.true
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta/rootfs/home/action/test.txt")).to.be.true
+
+        childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+          expect(stdout).to.match /RUNNING/
+          done()
+
+      subscribeAndDo ->
+        waitForMessage 'aio:restored_snapshot', assertMessage
+        publishSettings
+          type: "aio:restore_snapshot"
+          name: "mclovins-container-1"
+          snapshotUrl: snapshotUrl
+
+  describe 'aio:delete_snapshot', ->
+    deleteSnapshot = null
+    snapshotUrl = null
+    snapshotFile = "mclovins-container-snapshot-1234.tar.gz"
+
+    beforeEach (done) ->
+      snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotFile}"
+      deleteSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+        .delete("/#{settings.awsBucket}/#{snapshotFile}")
+        .reply(200, "")
+
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        done(err) if err
+        cleanDB ->
+          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+          runBox done
+
+    it 'deleted the snapshot on s3', (done) ->
+      assertMessage = (message) ->
+        expect(deleteSnapshot.isDone()).to.be.true
+        done()
+
+      subscribeAndDo ->
+        waitForMessage 'aio:deleted_snapshot', assertMessage
+        publishSettings
+          type: "aio:delete_snapshot"
+          name: "mclovins-container-1"
+          snapshotUrl: snapshotUrl

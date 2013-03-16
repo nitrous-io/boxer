@@ -3,6 +3,10 @@ Box = require './box'
 protocol = require '../protocol'
 initRedisClientWith = require('./utils').initRedisClientWith
 logger = require './logger'
+s3 = require './s3'
+url = require 'url'
+settings = require '../../config/settings'
+fs = require 'fs'
 
 module.exports = class Boxer
   @ADVERTISE_INTERVAL = 5 # seconds
@@ -49,7 +53,7 @@ module.exports = class Boxer
     @publisher.publish @coachChannel,
                        protocol.AdvertiseMessage.construct().encode()
 
-  _handle:(message) ->
+  _handle: (message) ->
     boxer = this
     returnVars = message.returnVars
 
@@ -126,3 +130,42 @@ module.exports = class Boxer
           else
             boxer.publisher.publish boxer.coachChannel,
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
+    else if message.type == protocol.SnapshotMessage.type && @id == message.id
+      Box.find message.name, (err, box) ->
+        box.snapshot message.snapshotName, (err, snapshotUrl) ->
+          message = if !err
+            new protocol.SnapshottedMessage(
+              id: boxer.id,
+              boxId: box.id,
+              returnVars: returnVars
+              snapshotUrl: snapshotUrl
+            )
+          else
+            new protocol.InvalidParamsMessage(id: boxer.id)
+          boxer.publisher.publish boxer.coachChannel, message.encode()
+    else if message.type == protocol.RestoreSnapshotMessage.type && @id == message.id
+      Box.find message.name, (err, box) ->
+        box.restoreSnapshot message.snapshotUrl, (err) ->
+          message = if !err
+            new protocol.RestoredSnapshotMessage(
+              id: boxer.id,
+              boxId: box.id,
+              returnVars: returnVars
+            )
+          else
+            new protocol.InvalidParamsMessage(id: boxer.id)
+          boxer.publisher.publish boxer.coachChannel, message.encode()
+    else if message.type == protocol.DeleteSnapshotMessage.type && @id == message.id
+      snapshotKey = url.parse(message.snapshotUrl).path.replace('/', '')
+      snapshotFile = "/tmp/#{snapshotKey}"
+      params = { Bucket: settings.awsBucket, Key: snapshotKey }
+
+      s3.client.deleteObject params, (err) ->
+        message = if !err
+          new protocol.DeletedSnapshotMessage(
+            id: boxer.id,
+            returnVars: returnVars
+          )
+        else
+          new protocol.InvalidParamsMessage(id: boxer.id)
+        boxer.publisher.publish boxer.coachChannel, message.encode()

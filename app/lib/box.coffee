@@ -7,6 +7,9 @@ redisClient = require('./utils').initRedisClientWith(redisStoreSettings)
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
 logger = require './logger'
+s3 = require './s3'
+fs = require 'fs'
+url = require 'url'
 
 async = require 'async'
 _ = require 'underscore'
@@ -145,6 +148,40 @@ module.exports = class Box extends AutoAdvancingStateMachine
     else
       cb(new Error('Invalid Params'))
 
+  snapshot: (name, done) ->
+    return done(new Error('Invalid Params')) unless this.valid()
+    snapshotName = "#{name}-#{+new Date()}"
+    snapshotTarFile = "#{snapshotName}.tar.gz"
+    snapshotUrl = "s3://#{settings.awsBucket}/#{snapshotTarFile}"
+    snapshotPath = "/var/lib/lxc/#{snapshotTarFile}"
+
+    uploadSnapshot = (cb) ->
+      stream = fs.createReadStream snapshotPath
+      writeParams = { Bucket: settings.awsBucket, Key: snapshotTarFile, Body: stream }
+      s3.client.putObject writeParams, (err) -> cb(err)
+
+    async.waterfall [
+      (cb) => this.stop cb
+      (cb) => this._compressDeltaContainer snapshotTarFile, cb
+      (cb) => uploadSnapshot cb
+      (cb) => fs.unlink snapshotPath, cb
+      (cb) => this.start cb
+    ], (err) -> done(err, snapshotUrl)
+
+  restoreSnapshot: (snapshotUrl, done) ->
+    return done(new Error('Invalid Params')) unless this.valid()
+    snapshotKey = url.parse(snapshotUrl).path.replace('/', '')
+    snapshotFile = "/tmp/#{snapshotKey}"
+    getParams = { Bucket: settings.awsBucket, Key: snapshotKey }
+
+    async.waterfall [
+      (cb) -> s3.client.getObject getParams, cb
+      (data, cb) -> fs.writeFile snapshotFile, data.Body, cb
+      (cb) => this.stop cb
+      (cb) => this._restoreDeltaContainer snapshotFile, cb
+      (cb) => this.start cb
+    ], done
+
   encode: ->
     JSON.stringify({
                     id: @id
@@ -224,6 +261,20 @@ module.exports = class Box extends AutoAdvancingStateMachine
     logger.info 'Setting Up Delta Container'
     this._execShellCommand 'boxer-setup-delta-container',
                            [@id, this.containerName(), @containerTemplate],
+                           sudo: true,
+                           done
+
+  _compressDeltaContainer: (fileName, done) ->
+    logger.info 'Compressing Delta Container'
+    this._execShellCommand 'boxer-tar-delta-container',
+                            [this.containerName(), fileName],
+                            sudo: true,
+                            done
+
+  _restoreDeltaContainer: (snapshotFile, done) ->
+    logger.info 'Restoring Delta Container'
+    this._execShellCommand 'boxer-restore-delta-container',
+                           [@id, this.containerName(), snapshotFile],
                            sudo: true,
                            done
 
