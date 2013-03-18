@@ -10,12 +10,20 @@ module.exports = (boxer, message) ->
     (cb) -> Box.find message.name, cb
     (box, cb) -> box.archive (err, snapshotUrl) -> cb(err, snapshotUrl, box)
   ], (err, snapshotUrl, box) ->
-    message = if !err
-      new protocol.ArchivedMessage
-        boxId: box.id
-        id: boxer.id
-        name: message.name
-        snapshotUrl: snapshotUrl
+    if !box
+      message = new protocol.InvalidParamsMessage(id: boxer.id)
     else
-      new protocol.InvalidParamsMessage(id: boxer.id)
+      if !err && snapshotUrl
+        message = new protocol.ArchivedMessage
+          boxId: box.id
+          id: boxer.id
+          name: message.name
+          snapshotUrl: snapshotUrl
+          success: true
+      else
+        message = new protocol.ArchivedMessage
+          boxId: box.id
+          id: boxer.id
+          name: message.name
+          success: false
     boxer.publisher.publish boxer.coachChannel, message.encode()

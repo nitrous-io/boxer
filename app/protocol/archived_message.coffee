@@ -8,4 +8,5 @@ module.exports = class ArchivedMessage extends BaseMessage
     @boxId = attributes.boxId
     @snapshotUrl = attributes.snapshotUrl
     @name = attributes.name
+    @success = attributes.success
     super
