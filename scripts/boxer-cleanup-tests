@@ -15,7 +15,9 @@ box_delta_path=${lxc_root}/${name}_delta
 if [ -d ${box_path} ]; then
   echo "Stopping the container ${name} ${ip}"
   lxc-stop -n ${name}
-  while nc -z ${ip} 22 ; do sleep 0.5; done
+  echo "Waiting for ${name} ${ip} to stop"
+  lxc-wait -n ${name} -s STOPPED
+  echo "Container stopped"
 
   if [[ `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
     echo 'Unmounting the container in cleanup tests'
