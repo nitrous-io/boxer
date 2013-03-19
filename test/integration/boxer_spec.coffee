@@ -605,9 +605,11 @@ describe 'Boxer', ->
 
       childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
         done(err) if err
-        cleanDB ->
-          publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
-          runBox done
+        childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container-1'", timeout: 5000, (err, stdout, stderr) ->
+            cleanDB ->
+              publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+              runBox done
 
     afterEach ->
       clock.restore()

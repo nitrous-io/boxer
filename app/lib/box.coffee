@@ -192,7 +192,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
       s3.client.putObject writeParams, (err) -> cb(err)
 
     async.waterfall [
-      (cb) => this.stop cb
       (cb) => this._compressDeltaContainer snapshotTarFile, cb
       (cb) => uploadSnapshot cb
       (cb) => fs.unlink snapshotPath, cb
