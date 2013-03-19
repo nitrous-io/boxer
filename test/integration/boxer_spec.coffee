@@ -40,11 +40,11 @@ describe 'Boxer', ->
 
   # wait for a specific message type from coach, when we get it, pass the
   # message to callback
-  waitForMessage = (messageType, callback) ->
+  waitForMessage = (messageType, callback, done) ->
     coach.on 'message', (channel, rawMessage) ->
       message = MessageParser.decode(rawMessage)
       if message.type == messageType
-        callback message
+        callback(message, done)
 
   subscribeAndDo = (callback) ->
     coach.subscribe settings.coachChannel, (err, result) ->
@@ -137,53 +137,110 @@ describe 'Boxer', ->
           createBox publicKeys: ["public-key-1", "public-key-2"]
 
       context 'unsuccessful provisioning', ->
-        beforeEach ->
-          sinon.stub Box.prototype, 'save', -> throw new Error("OMG")
+        assertCreateFailedMessage = (message, done) ->
+          containerRoot = "/var/lib/lxc/mclovins-container-1"
+          containerRootDelta = "/var/lib/lxc/mclovins-container-1_delta"
 
-        afterEach ->
-          Box.prototype.save.restore()
+          expect(fs.existsSync(containerRoot)).to.be.false
+          expect(fs.existsSync(containerRootDelta)).to.be.false
+          expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
+          expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.success).to.eql false
 
-        it 'should return an aio:created message with the success flag set to false', (done) ->
-          assertMessage = (message) ->
-            expect(message.boxId).to.eql 1
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.success).to.eql false
+          childProcess.exec "sudo iptables -L -t nat", timeout: 0, (err, stdout, stderr) ->
+            expect(stdout).to.not.match /192\.168\.254\.2:22/
 
-            childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-              expect(stdout).to.not.match /192\.168\.254\.2:22/
+            childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 0, (err, stdout, stderr) ->
+              expect(stdout).to.match /STOPPED/
 
-              childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-                expect(stdout).to.match /STOPPED/
+              publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                expect(res).to.be.null
+                done(err)
 
-                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-                  expect(res).to.be.null
-                  done(err)
+        context 'no resources available on redis', ->
+          beforeEach (andDone) -> cleanDB andDone
 
-          subscribeAndDo ->
-            waitForMessage 'aio:created', assertMessage
-            createBox()
+          it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+            subscribeAndDo ->
+              waitForMessage 'aio:created', assertCreateFailedMessage, done
+              createBox()
 
-      context 'no resources available on redis', ->
-        beforeEach (andDone) -> cleanDB andDone
+        context 'setupDeltaContainer fails', ->
+          beforeEach ->
+            sinon.stub Box.prototype, '_setupDeltaContainer', (cb) ->
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-setup-delta-container', ['1', 'mclovins-container-1', 'test_container_template'], sudo: true, cb
 
-        it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
-          assertMessage = (message) ->
-            expect(message.id).to.eql 'test.action.io'
-            expect(message.success).to.eql false
+          afterEach ->
+            Box.prototype._setupDeltaContainer.restore()
 
-            childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
-              expect(stdout).to.not.match /192\.168\.254\.2:22/
+          it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+            subscribeAndDo ->
+              waitForMessage 'aio:created', assertCreateFailedMessage, done
+              createBox()
 
-              childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
-                expect(stdout).to.match /STOPPED/
+        context 'mountContainer fails', ->
+          beforeEach ->
+            sinon.stub Box.prototype, '_mountContainer', (cb) ->
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-mount-container', [], sudo: true, cb
 
-                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-                  expect(res).to.be.null
-                  done(err)
+          afterEach ->
+            Box.prototype._mountContainer.restore()
 
-          subscribeAndDo ->
-            waitForMessage 'aio:created', assertMessage
-            createBox()
+          it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+            subscribeAndDo ->
+              waitForMessage 'aio:created', assertCreateFailedMessage, done
+              createBox()
+
+        context 'configureBox fails', ->
+          beforeEach ->
+            sinon.stub Box.prototype, '_configureBox', (cb) ->
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-configure-box', [], sudo: true, cb
+
+          afterEach ->
+            Box.prototype._configureBox.restore()
+
+          it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+            subscribeAndDo ->
+              waitForMessage 'aio:created', assertCreateFailedMessage, done
+              createBox()
+
+        context 'setupPortForwarding fails', ->
+          beforeEach ->
+            sinon.stub Box.prototype, '_setUpPortForwarding', (cb) ->
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-setup-portforwarding 192.168.254.2 10000', [], sudo: true, cb
+
+          afterEach ->
+            Box.prototype._setUpPortForwarding.restore()
+
+          it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+            subscribeAndDo ->
+              waitForMessage 'aio:created', assertCreateFailedMessage, done
+              createBox()
+
+        context 'setDefaultKeyPair fails', ->
+          beforeEach ->
+            sinon.stub Box.prototype, '_setDefaultKeyPair', (cb) -> box._execShellCommand '../support/fail-script', [], sudo: true, cb
+
+          afterEach ->
+            Box.prototype._setDefaultKeyPair.restore()
+
+          it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+            subscribeAndDo ->
+              waitForMessage 'aio:created', assertCreateFailedMessage, done
+              createBox()
+
+        context 'save fails', ->
+          beforeEach ->
+            sinon.stub Box.prototype, 'save', -> throw new Error("OMG")
+
+          afterEach ->
+            Box.prototype.save.restore()
+
+          it 'should return an aio:created message with the success flag set to false', (done) ->
+            subscribeAndDo ->
+              waitForMessage 'aio:created', assertCreateFailedMessage, done
+              createBox()
 
       context 'invalid params', ->
         it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
