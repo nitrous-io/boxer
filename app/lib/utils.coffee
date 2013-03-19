@@ -6,7 +6,7 @@ module.exports =
       return "'" + string.replace(/'/g, "'\"'\"'") + "'"
     null
 
-  initRedisClientWith: (settings) ->
+  initRedisClientWith: (settings, clientName = "") ->
     client = null
 
     if settings
@@ -16,7 +16,7 @@ module.exports =
       # Catch errors which will cause the Redis client to reconnect
       # without killing the process
       if process.env.NODE_ENV != 'test'
-        client.on 'error', (err) -> console.log 'Redis Error: ', err
+        client.on 'error', (err) -> console.log "Redis Error on client: #{clientName}: ", err
 
     client
 
