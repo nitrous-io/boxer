@@ -161,7 +161,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       (cb) => this.stop cb
       (cb) => this._compressDeltaContainer snapshotTarFile, cb
       (cb) => uploadSnapshot cb
-      (cb) => fs.unlink snapshotPath, cb
+      (cb) => this._removeFile snapshotPath, cb
       (cb) => this.start cb
     ], (err) -> done(err, snapshotUrl)
 
@@ -194,7 +194,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     async.waterfall [
       (cb) => this._compressDeltaContainer snapshotTarFile, cb
       (cb) => uploadSnapshot cb
-      (cb) => fs.unlink snapshotPath, cb
+      (cb) => this._removeFile snapshotPath, cb
       (cb) => this.destroy cb
     ], (err) -> done(err, snapshotUrl)
 
@@ -382,6 +382,13 @@ module.exports = class Box extends AutoAdvancingStateMachine
                       [this.containerName()],
                       sudo: true,
                       done
+
+  _removeFile: (fileName, done) ->
+    logger.info "Removing file: #{fileName}"
+    execShellCommand 'boxer-remove-file',
+                     [fileName],
+                     sudo: true,
+                     done
 
   _notifySuccess: (done) ->
     if @publicKeys?
