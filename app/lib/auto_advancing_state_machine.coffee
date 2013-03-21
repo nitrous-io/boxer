@@ -1,4 +1,5 @@
 _ = require 'underscore'
+domain = require 'domain'
 
 module.exports = klass = class AutoAdvancingStateMachine
   states: []
@@ -27,10 +28,13 @@ module.exports = klass = class AutoAdvancingStateMachine
 
   _advance: ->
     state = this._currentState()
-    try
-      this[state.onAdvance]?(@_advanceDone)
-    catch err
+    advanceDomain = domain.create()
+
+    advanceDomain.on 'error', (err) =>
       this._advanceDone(err)
+
+    advanceDomain.run =>
+      this[state.onAdvance]?(@_advanceDone)
 
   _rollbackDone: (err) =>
     if err
@@ -41,7 +45,13 @@ module.exports = klass = class AutoAdvancingStateMachine
 
   _rollback: ->
     state = this._currentState()
-    this[state.onRollback]?(@_rollbackDone)
+    rollbackDomain = domain.create()
+
+    rollbackDomain.on 'error', (err) =>
+      this._rollbackDone(err)
+
+    rollbackDomain.run =>
+      this[state.onRollback]?(@_rollbackDone)
 
   startStateMachine: ->
     this._advance()

@@ -69,6 +69,19 @@ describe 'StateMachine', ->
         sm.goBackToA.called.should.be.true
         sm.state.should.eql 'A'
 
+    context 'when goToC throws an exception', ->
+      beforeEach ->
+        sm.goToB.callsArgOn(0, sm)
+        sm.goToC.throws(new Error('error'))
+        sm.goBackToA.callsArgOn(0, sm)
+        sm.startStateMachine()
+
+      it 'goes all the way back to A', ->
+        sm.goToB.called.should.be.true
+        sm.goToC.called.should.be.true
+        sm.goBackToA.called.should.be.true
+        sm.state.should.eql 'A'
+
   describe '#rollbackStateMachine', ->
     context 'when nothing fails', ->
       beforeEach ->
@@ -94,6 +107,19 @@ describe 'StateMachine', ->
       beforeEach ->
         sm.goBackToB.callsArgOn(0, sm)
         sm.goBackToA.callsArgOnWith(0, sm, new Error('error'))
+        sm.goToC.callsArgOn(0, sm)
+        sm.rollbackStateMachine()
+
+      it 'goes all the way back to C', ->
+        sm.goBackToB.called.should.be.true
+        sm.goBackToA.called.should.be.true
+        sm.goToC.called.should.be.true
+        sm.state.should.eql 'C'
+
+    context 'when goBackToA throws an exception', ->
+      beforeEach ->
+        sm.goBackToB.callsArgOn(0, sm)
+        sm.goBackToA.throws(new Error('error'))
         sm.goToC.callsArgOn(0, sm)
         sm.rollbackStateMachine()
 
