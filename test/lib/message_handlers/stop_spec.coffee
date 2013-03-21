@@ -5,7 +5,7 @@ Box = require './../../../app/lib/box'
 { StopMessage, InvalidParamsMessage } = require './../../../app/protocol'
 { stop } = require './../../../app/lib/message_handlers'
 
-waitMessage = (cb) -> setTimeout cb, 1
+waitMessage = (cb) -> setTimeout cb, 10
 
 describe 'Stop', ->
   boxer = message = null
