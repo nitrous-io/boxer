@@ -6,6 +6,9 @@ runtimes =
   test:
     runtimes:
       test: 'test_container_template'
+    disks: ['/lxc/disk1']
+    selectedDisk: '/lxc/disk1'
+
   production:
     runtimes: {}
 

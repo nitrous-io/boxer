@@ -16,6 +16,7 @@ gateway=${7}
 interface=${8}
 uid=${9}
 gid=${10}
+disk=${11}
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
@@ -27,10 +28,10 @@ iface eth0 inet static
     gateway ${gateway}
 EOF
 )
-etc_action=${lxc_root}/${container_name}/rootfs/etc/action
+etc_action=${disk}/${container_name}/rootfs/etc/action
 
-home_data_path=${lxc_root}/${container_template}
-box_delta_path=${lxc_root}/${container_name}_delta
+home_data_path=${disk}/${container_template}
+box_delta_path=${disk}/${container_name}_delta
 
 # Untar the contents of the specific container template (ruby, python, etc.) into the box itself
 tar -xzSpf $home_data_path.tar.gz -C $box_delta_path/rootfs/home/action

@@ -23,14 +23,14 @@ settings =
     id: 'test.action.io'
     redisMQ:
       host: '0.0.0.0'
-      port: 65000
+      port: 6379
       password: null
-      database: 0
+      database: 2
     redisStore:
       host: '0.0.0.0'
-      port: 65000
+      port: 6379
       password: null
-      database: 0
+      database: 2
   production: {}
 
 exportedSettings = _.extend(runtimes, _.extend(settings.common, settings[env]))

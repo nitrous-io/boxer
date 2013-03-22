@@ -4,6 +4,7 @@ set -o errexit
 set -o xtrace
 shopt -s nullglob
 
+disk='/lxc/disk1'
 lxc_root='/var/lib/lxc'
 box_id=${1}
 box_name=${2}
@@ -12,9 +13,9 @@ port=${4}
 
 container_name=${box_name}-${box_id}
 container_template='base_container_template'
-box_path=${lxc_root}/${container_name}
+box_path=${disk}/${container_name}
 box_delta_path=${box_path}_delta
-container_path=${lxc_root}/${container_template}
+container_path=${disk}/${container_template}
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
@@ -31,6 +32,7 @@ mount_options=rw,upperdir=${box_delta_path},lowerdir=${container_path}
 
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
+mkdir -p ${lxc_root}/${container_name}
 
 action_uid=`chroot ${container_path}/rootfs /usr/bin/id -u action`
 action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
@@ -38,12 +40,16 @@ action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
 mkdir -p ${box_delta_path}/rootfs/home/action
 chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
 
+# overlay in disk
 mount -n -t overlayfs -o ${mount_options} none ${box_path}
+# bind to lxc location so we can have lxc goodies
+mount --bind ${box_path} ${lxc_root}/${container_name}
+
 echo "${box_id}:${box_delta_path}/rootfs/home/action" >> /etc/projects
 echo "${container_name}:${box_id}" >> /etc/projid
 
-xfs_quota -x -c "project -s ${container_name}" ${lxc_root}
-xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${lxc_root}
+xfs_quota -x -c "project -s ${container_name}" ${disk}
+xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk}
 
 sed -i "s/${container_template}/${container_name}/g" ${box_path}/config
 echo "${container_name}" > ${box_path}/rootfs/etc/hostname

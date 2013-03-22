@@ -4,13 +4,15 @@
 set -o nounset
 shopt -s nullglob
 
-lxc_root='/var/lib/lxc'
-
 box_id=${1}
 box_name=${2}
+container_template=${3}
+disk=${4}
 
-box_path=${lxc_root}/${box_name}
+container_path=${disk}/base_container_template
+box_path=${disk}/${box_name}
 box_delta_path=${box_path}_delta
+home_data_path=${disk}/${container_template}
 
 mkdir -p ${box_path} ${box_delta_path} ${box_delta_path}/rootfs/home/action
 
