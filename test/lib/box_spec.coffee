@@ -106,7 +106,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-setup-delta-container",
-                                                        [1, "rails-box-1", "ruby-container-template"],
+                                                        [1, "rails-box-1"],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -131,7 +131,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
-                                                        [1, 'rails-box-1', '256M', '768M', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001],
+                                                        [1, 'rails-box-1', 'ruby-container-template', '256M', '768M', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -266,3 +266,26 @@ describe Box, ->
       it 'should execute the command without the sudo prefixed', ->
         childProcess.exec.should.have.been.calledWith("#{scriptPath}foo", timeout: 0)
         cbSpy.should.have.been.called
+
+  describe 'when an error occurrs within _execShellCommand', ->
+    beforeEach (done) ->
+      notifyStub = sinon.stub().callsArg(1)
+
+      sinon.stub box, '_cleanupDeltaContainer', (cb) ->
+        done()
+
+      sinon.stub box, '_mountContainer', (cb) -> box._execShellCommand '../support/fail-script', [], sudo: true, cb
+
+      sinon.stub box, '_currentState', ->
+        { name: 'someState',   onAdvance: '_mountContainer', onRollback: '_cleanupDeltaContainer' }
+
+      box._advance()
+
+    afterEach ->
+      box.airbreakClient = null
+      box._currentState.restore()
+      box._cleanupDeltaContainer.restore()
+      box._mountContainer.restore()
+
+    it 'should invoke the rollback', () ->
+      box._cleanupDeltaContainer.should.have.been.called
