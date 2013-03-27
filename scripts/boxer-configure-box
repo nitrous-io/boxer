@@ -8,14 +8,14 @@ shopt -s nullglob
 lxc_root='/var/lib/lxc'
 id=${1}
 container_name=${2}
-memory=${3}
-total_memory=${4}
-ip=${5}
-gateway=${6}
-interface=${7}
-uid=${8}
-gid=${9}
-container_template=base_container_template
+container_template=${3}
+memory=${4}
+total_memory=${5}
+ip=${6}
+gateway=${7}
+interface=${8}
+uid=${9}
+gid=${10}
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
@@ -28,6 +28,12 @@ iface eth0 inet static
 EOF
 )
 etc_action=${lxc_root}/${container_name}/rootfs/etc/action
+
+home_data_path=${lxc_root}/${container_template}
+box_delta_path=${lxc_root}/${container_name}_delta
+
+# Untar the contents of the specific container template (ruby, python, etc.) into the box itself
+tar -xzSpf $home_data_path.tar.gz -C $box_delta_path/rootfs/home/action
 
 # http://www.funtoo.org/wiki/Linux_Containers
 # http://serverfault.com/questions/40712/what-range-of-mac-addresses-can-i-safely-use-for-my-virtual-machines
@@ -45,7 +51,7 @@ echo "lxc.cap.drop = audit_control audit_write mac_admin mac_override setpcap sy
 echo "lxc.cgroup.memory.limit_in_bytes = ${memory}" >> ${lxc_root}/${container_name}/config
 echo "lxc.cgroup.memory.memsw.limit_in_bytes = ${total_memory}" >> ${lxc_root}/${container_name}/config
 
-sed -i "s/${container_template}/${container_name}/g" ${lxc_root}/${container_name}/config
+sed -i "s/base_container_template/${container_name}/g" ${lxc_root}/${container_name}/config
 echo "${container_name}" > ${lxc_root}/${container_name}/rootfs/etc/hostname
 echo "${network_config}" > ${lxc_root}/${container_name}/rootfs/etc/network/interfaces
 

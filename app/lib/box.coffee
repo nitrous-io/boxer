@@ -7,6 +7,7 @@ redisClient = require('./utils').initRedisClientWith(redisStoreSettings, "localS
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
 logger = require './logger'
+initAirbrakeClient = require('./utils').initAirbrakeClient
 
 async = require 'async'
 _ = require 'underscore'
@@ -31,6 +32,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @name = @containerTemplate = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
     @boxerId = null
+    @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     super
 
   containerName: -> "#{@name}-#{@id}"
@@ -217,13 +219,13 @@ module.exports = class Box extends AutoAdvancingStateMachine
       port: @port
 
     ResourcePool.release resource, (err) ->
-      logger.info "Done Releasing Resources #{err}"
+      logger.info "Done Releasing Resources, error: #{err}"
       done(err)
 
   _setupDeltaContainer: (done) ->
     logger.info 'Setting Up Delta Container'
     this._execShellCommand 'boxer-setup-delta-container',
-                           [@id, this.containerName(), @containerTemplate],
+                           [@id, this.containerName()],
                            sudo: true,
                            done
 
@@ -251,7 +253,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _configureBox: (done) ->
     logger.info "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [@id, this.containerName(), @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid()],
+                           [@id, this.containerName(), @containerTemplate, @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid()],
                            sudo: true,
                            done
 
@@ -339,12 +341,13 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
     logger.info "Executing command #{command}"
     start = new Date()
-    childProcess.exec command, timeout: 0, (err, stdout, stderr) ->
+    childProcess.exec command, timeout: 0, (err, stdout, stderr) =>
       if err
         logger.info "boxer_exec_shell_command_err: #{stderr}"
-        throw err
-      logger.info "command: #{command} took: #{+(new Date() - start)} ms"
-      done(err)
+        done(err)
+      else
+        logger.info "command: #{command} took: #{+(new Date() - start)} ms"
+        done(err)
 
   _uid: ->
     Box.UID_BASE + parseInt(@id)
