@@ -25,6 +25,8 @@ iface eth0 inet static
     address ${ip}
     netmask 255.255.255.0
     gateway ${gateway}
+    pre-up iptables-restore < /etc/iptables.rules
+    post-down iptables-save > /etc/iptables.rules
 EOF
 )
 etc_action=${lxc_root}/${container_name}/rootfs/etc/action
