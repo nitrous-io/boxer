@@ -39,6 +39,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
     @disk = null
     @boxerId = null
+    # basic authentication for box
+    @authUsername = @authPassword = null
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     @aufs = false
     @mount = null
@@ -248,6 +250,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     swappiness: @swappiness
                     cpuShares: @cpuShares
                     mount: this.mountMethod()
+                    authUsername: @authUsername
+                    authPassword: @authPassword
                   })
 
   @find: (containerName, cb) ->
