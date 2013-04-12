@@ -586,7 +586,7 @@ describe 'Boxer', ->
             waitForMessage 'aio:configured', assertMessage
             publishSettings
               type: "aio:configure"
-              dataType: "aio:configure:change_auth",
+              dataType: "aio:configure:update_auth",
               name: "mclovins-container-1"
               data: {
                 "auth_username": "admin",

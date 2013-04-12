@@ -9,7 +9,7 @@ module.exports = class ConfigureMessage extends BaseMessage
     'aio:configure:set_env_variables': 'aio:configured:set_env_variables'
     'aio:configure:remove_env_variables': 'aio:configured:remove_env_variables'
     'aio:configure:change_specs': 'aio:configured:change_specs'
-    'aio:configure:change_auth': 'aio:configured:change_auth'
+    'aio:configure:update_auth': 'aio:configured:update_auth'
 
   constructor: (attributes) ->
     @id = attributes.id

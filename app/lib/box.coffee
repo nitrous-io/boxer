@@ -155,7 +155,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                   return done(new Error('Cannot start the container')) if err
                   this.updateAttributes containerState: 'running', done
 
-    else if dataType == 'aio:configure:change_auth'
+    else if dataType == 'aio:configure:update_auth'
       this.updateAttributes { authUsername: data.auth_username, authPassword: data.auth_password }, done
 
   stop: (cb) ->
