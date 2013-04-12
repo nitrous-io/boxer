@@ -24,7 +24,7 @@ If your box is provisioned with bombay ( which it should ) , then just run
 - `./script/setup`
 
 - change test environment in your `config/runtimes.coffee` to contain `test:
-  "test_container_template"`. 
+  "test_container_template"`.
 
 - `make`
 

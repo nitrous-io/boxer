@@ -113,7 +113,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
   configure: (dataType, data, done) ->
     if dataType == 'aio:configure:add_public_key'
       publicKey = data
-
       @_execShellCommand "boxer-add-public-keys",
                           [this.containerName(), publicKey],
                           sudo: true,
@@ -155,6 +154,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
                 this._startContainer (err) =>
                   return done(new Error('Cannot start the container')) if err
                   this.updateAttributes containerState: 'running', done
+
+    else if dataType == 'aio:configure:change_auth'
+      this.updateAttributes { authUsername: data.auth_username, authPassword: data.auth_password }, done
 
   stop: (cb) ->
     if this.valid()
