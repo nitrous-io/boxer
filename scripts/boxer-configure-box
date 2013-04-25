@@ -41,13 +41,11 @@ mac_address=`printf "02:00:%x:%x:%x:%x" ${ip//./ }`
 
 sed -i "/lxc.network.link/d" ${lxc_root}/${container_name}/config
 sed -i "/lxc.network.hwaddr/d" ${lxc_root}/${container_name}/config
-sed -i "/lxc.cap.drop/d" ${lxc_root}/${container_name}/config
 sed -i "/lxc.cgroup.memory.limit_in_bytes/d" ${lxc_root}/${container_name}/config
 sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" ${lxc_root}/${container_name}/config
 
 echo "lxc.network.link = ${interface}" >> ${lxc_root}/${container_name}/config
 echo "lxc.network.hwaddr = ${mac_address}" >> ${lxc_root}/${container_name}/config
-echo "lxc.cap.drop = audit_control audit_write mac_admin mac_override setpcap sys_boot sys_module sys_rawio sys_time setfcap sys_nice sys_pacct sys_ptrace" >> ${lxc_root}/${container_name}/config
 echo "lxc.cgroup.memory.limit_in_bytes = ${memory}" >> ${lxc_root}/${container_name}/config
 echo "lxc.cgroup.memory.memsw.limit_in_bytes = ${total_memory}" >> ${lxc_root}/${container_name}/config
 
