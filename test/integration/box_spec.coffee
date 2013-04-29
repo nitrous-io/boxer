@@ -7,11 +7,11 @@ initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
 describe Box, ->
   describe '.startAll', ->
     beforeEach (done) ->
-      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container-1 192.168.254.2 10000 dont-start", timeout:5000, (err, stdout, stderr) ->
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container-1 192.168.254.2 10000 dont-start", (err, stdout, stderr) ->
         done(err) if err
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 2 mclovins-container-2 192.168.254.3 10001 dont-start", timeout:5000, (err, stdout, stderr) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 2 mclovins-container-2 192.168.254.3 10001 dont-start", (err, stdout, stderr) ->
           done(err) if err
-          childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 3 mclovins-container-3 192.168.254.4 10002 dont-start", timeout:5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 3 mclovins-container-3 192.168.254.4 10002 dont-start", (err, stdout, stderr) ->
             done(err) if err
 
             cleanDB ->
@@ -30,13 +30,13 @@ describe Box, ->
             done()
 
     it 'should start all boxes which have its containerState set to running', (done) ->
-      childProcess.exec "sudo lxc-info -n mclovins-container-1-1", timeout: 5000, (err, stdout, stderr) ->
+      childProcess.exec "sudo lxc-info -n mclovins-container-1-1", (err, stdout, stderr) ->
         expect(stdout).to.match /RUNNING/
 
-        childProcess.exec "sudo lxc-info -n mclovins-container-2-2", timeout: 5000, (err, stdout, stderr) ->
+        childProcess.exec "sudo lxc-info -n mclovins-container-2-2", (err, stdout, stderr) ->
           expect(stdout).to.match /STOPPED/
 
-          childProcess.exec "sudo lxc-info -n mclovins-container-3-3", timeout: 5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo lxc-info -n mclovins-container-3-3", (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
             done()
 
