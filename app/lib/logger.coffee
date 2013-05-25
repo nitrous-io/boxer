@@ -28,7 +28,6 @@ else
                             filename: "log/boxer.log"
                             json: false
                             timestamp: true
-                            handleExceptions: true
   ]
 
 logger = module.exports = new winston.Logger
