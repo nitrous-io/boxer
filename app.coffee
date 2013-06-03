@@ -4,7 +4,6 @@ process.title = "boxer"
 _ = require 'underscore'
 settings = require './config/settings'
 Boxer = require './app/lib/boxer'
-logger = require './app/lib/logger'
 
 initAirbrakeClient = require('./app/lib/utils').initAirbrakeClient
 
@@ -19,6 +18,6 @@ Repoman = require('repoman')
 boxer = new Boxer(settings)
 boxer.run()
 
-logger.info "Started Boxer"
+console.log "Started Boxer"
 
 module.exports = boxer

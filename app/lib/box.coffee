@@ -6,7 +6,6 @@ redisStoreSettings = require('../../config/settings').redisStore
 redisClient = require('./utils').initRedisClientWith(redisStoreSettings, "localStore")
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
-logger = require './logger'
 initAirbrakeClient = require('./utils').initAirbrakeClient
 
 async = require 'async'
@@ -203,7 +202,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   # "Private" Methods
   _acquireResources: (done) ->
-    logger.info 'Acquiring Resources'
+    console.log 'Acquiring Resources'
     ResourcePool.acquire (err, resources) =>
       if !err
         @ip = resources.ip
@@ -214,7 +213,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       done(err)
 
   _releaseResources: (done) ->
-    logger.info 'Releasing Resources'
+    console.log 'Releasing Resources'
     resource =
       ip: @ip
       gateway: @gateway
@@ -222,39 +221,39 @@ module.exports = class Box extends AutoAdvancingStateMachine
       port: @port
 
     ResourcePool.release resource, (err) ->
-      logger.info "Done Releasing Resources, error: #{err}"
+      console.log "Done Releasing Resources, error: #{err}"
       done(err)
 
   _setupDeltaContainer: (done) ->
-    logger.info 'Setting Up Delta Container'
+    console.log 'Setting Up Delta Container'
     this._execShellCommand 'boxer-setup-delta-container',
                            [@id, this.containerName(), @containerTemplate, @disk],
                            sudo: true,
                            done
 
   _mountContainer: (done) ->
-    logger.info 'Mounting Container'
+    console.log 'Mounting Container'
     this._execShellCommand 'boxer-mount-container',
                            [@id, this.containerName(), @containerTemplate, @diskSpace, @disk],
                            sudo: true,
                            done
 
   _unmountContainer: (done) ->
-    logger.info 'Unmounting Container'
+    console.log 'Unmounting Container'
     this._execShellCommand 'boxer-unmount-container',
                            [this.containerName(), @disk],
                            sudo: true,
                            done
 
   _cleanupDeltaContainer: (done) ->
-    logger.info 'Cleaning Up Delta Container'
+    console.log 'Cleaning Up Delta Container'
     this._execShellCommand 'boxer-cleanup-delta-container',
                            [this.containerName(), @disk],
                            sudo: true,
                            done
 
   _configureBox: (done) ->
-    logger.info "Configuring Box: #{this._uid()} #{this._gid()}"
+    console.log "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
                            [@id, this.containerName(), @containerTemplate, @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid(), @disk],
                            sudo: true,
@@ -264,42 +263,42 @@ module.exports = class Box extends AutoAdvancingStateMachine
     done()
 
   _setUpPortForwarding: (done) ->
-    logger.info 'Port Forwarding Set Up'
+    console.log 'Port Forwarding Set Up'
     this._execShellCommand 'boxer-setup-portforwarding',
                            [@ip, @port],
                            sudo: true,
                            done
 
   _releasePortForwarding: (done) ->
-    logger.info 'Port Forwarding Released'
+    console.log 'Port Forwarding Released'
     this._execShellCommand 'boxer-release-portforwarding',
                            [@ip, @port],
                            sudo: true,
                            done
 
   _setDefaultKeyPair: (done) ->
-    logger.info 'Setting default ssh key-pair'
+    console.log 'Setting default ssh key-pair'
     this._execShellCommand 'boxer-set-default-key-pair',
                             [this.containerName(), @disk],
                             sudo: true
                             done
 
   _removeDefaultKeyPair: (done) ->
-    logger.info 'Remove default ssh key pair'
+    console.log 'Remove default ssh key pair'
     this._execShellCommand 'boxer-remove-default-key-pair',
                            [this.containerName()],
                            sudo: true
                            done
 
   _startContainer: (done) ->
-    logger.info 'Start Container'
+    console.log 'Start Container'
     this._execShellCommand 'boxer-start-container',
                            [this.containerName(), @ip],
                            sudo: true,
                            done
 
   _stopContainer: (done) ->
-    logger.info 'Stop Container'
+    console.log 'Stop Container'
     this._execShellCommand 'boxer-stop-container',
                            [this.containerName()],
                            sudo: true,
@@ -342,14 +341,14 @@ module.exports = class Box extends AutoAdvancingStateMachine
                           _.map(args, (x) -> escapeShellArg(x))
                         ]).join(' ').trim()
 
-    logger.info "Executing command #{command}"
+    console.log "Executing command #{command}"
     start = new Date()
     childProcess.exec command, timeout: 0, (err, stdout, stderr) =>
       if err
-        logger.info "boxer_exec_shell_command_err: #{stderr}"
+        console.log "boxer_exec_shell_command_err: #{stderr}"
         done(err)
       else
-        logger.info "command: #{command} took: #{+(new Date() - start)} ms"
+        console.log "command: #{command} took: #{+(new Date() - start)} ms"
         done(err)
 
   _uid: ->

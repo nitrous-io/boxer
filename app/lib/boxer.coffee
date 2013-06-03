@@ -2,8 +2,6 @@ MessageParser = require './message_parser'
 Box = require './box'
 protocol = require '../protocol'
 initRedisClientWith = require('./utils').initRedisClientWith
-logger = require './logger'
-
 module.exports = class Boxer
   @ADVERTISE_INTERVAL = 5 # seconds
   @CONTAINER_IDLE_TIME = 5 * 60 # seconds
@@ -54,7 +52,7 @@ module.exports = class Boxer
     boxer = this
     returnVars = message.returnVars
 
-    logger.info "Received Message: #{message.type} | id: #{message.id}"
+    console.log "Received Message: #{message.type} | id: #{message.id}"
 
     if message.type == protocol.LocateMessage.type
       @publisher.publish @coachChannel,
