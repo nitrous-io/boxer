@@ -2,6 +2,7 @@ Box                 = require '../../app/lib/box'
 ResourcePool        = require '../../app/lib/resource_pool'
 childProcess        = require 'child_process'
 scriptPath          = __dirname.replace('test/lib', 'scripts/')
+settings            = require '../../config/settings'
 initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
 
 describe Box, ->
@@ -13,7 +14,7 @@ describe Box, ->
     box.containerTemplate = 'ruby-container-template'
     box.memory = '256M'
     box.diskSpace = '1G'
-
+    box.disk = '/lxc/disk1'
     cbSpy = sinon.spy()
 
   describe '#valid', ->
@@ -21,36 +22,24 @@ describe Box, ->
 
     context 'onCreate is true', ->
       context 'valid box', ->
-        beforeEach ->
-          box = new Box(1)
-          box.name = 'mclovin'
-          box.containerTemplate = 'ruby'
-          box.memory = '256M'
-          box.diskSpace = '1G'
-
         it 'should be true', ->
           expect(box.valid(onCreate: true)).to.be.true
 
       context 'invalid box', ->
         beforeEach ->
-          box = new Box(1)
-          box.name = 'mclovin'
+          box.name = null
 
         it 'should be false', ->
           expect(box.valid(onCreate: true)).to.be.false
 
     context 'onCreate is false', ->
       context 'valid box', ->
-        beforeEach ->
-          box = new Box(1)
-          box.name = 'mclovin'
-
         it 'should be true', ->
           expect(box.valid()).to.be.true
 
       context 'invalid box', ->
         beforeEach ->
-          box = new Box()
+          box.name = null
 
         it 'should be false', ->
           expect(box.valid()).to.be.false
@@ -84,7 +73,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-mount-container",
-                                                        [1, "rails-box-1", "ruby-container-template", '1G'],
+                                                        [1, "rails-box-1", "ruby-container-template", '1G', '/lxc/disk1'],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -95,7 +84,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-unmount-container",
-                                                        ['rails-box-1'],
+                                                        ['rails-box-1', '/lxc/disk1'],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -106,7 +95,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-setup-delta-container",
-                                                        [1, "rails-box-1"],
+                                                        [1, "rails-box-1", "ruby-container-template", "/lxc/disk1"],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -117,7 +106,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-cleanup-delta-container",
-                                                        ['rails-box-1'],
+                                                        ['rails-box-1', '/lxc/disk1'],
                                                         sudo: true,
                                                         cbSpy)
 
@@ -131,7 +120,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
-                                                        [1, 'rails-box-1', 'ruby-container-template', '256M', '768M', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001],
+                                                        [1, 'rails-box-1', 'ruby-container-template', '256M', '768M', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001, "/lxc/disk1"],
                                                         sudo: true,
                                                         cbSpy)
 

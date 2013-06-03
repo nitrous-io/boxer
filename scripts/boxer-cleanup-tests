@@ -7,11 +7,14 @@ shopt -s nullglob
 
 name=${1}
 ip=${2}
+disk=${3}
 lxc_root='/var/lib/lxc'
 quoted_lxc_root='\/var\/lib\/lxc\/'
-box_path=${lxc_root}/${name}
-box_delta_path=${lxc_root}/${name}_delta
+box_path=${disk}/${name}
+box_delta_path=${disk}/${name}_delta
 
+# use % as delimiter for sed so we dont have to escape /
+# we umount twice to remove the mount in /var/lib/lxc and /etc/fstab
 if [ -d ${box_path} ]; then
   echo "Stopping the container ${name} ${ip}"
   lxc-stop -n ${name}
@@ -19,22 +22,24 @@ if [ -d ${box_path} ]; then
 
   if [[ `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
     echo 'Unmounting the container in cleanup tests'
+    umount ${lxc_root}/${name}
     umount ${box_path}
   fi
 
   if [ -f /etc/projects ]; then
     echo 'Removing line from /etc/projects'
-    sed -i "/:${quoted_lxc_root}${name}_delta\/rootfs\/home\/action/d" /etc/projects
+    sed -i "\%:${disk}/${name}_delta/rootfs/home/action%d" /etc/projects
   fi
 
   if [ -f /etc/projid ]; then
     echo 'Removing line from /etc/projid'
-    sed -i "/${name}:/d" /etc/projid
+    sed -i "\%${name}:%d" /etc/projid
   fi
 
   echo 'Deleting all remnants of the container'
   rm -rf ${box_path}
   rm -rf ${box_delta_path}
+  rm -rf ${lxc_root}/${name}
 
   echo 'Flushing IPTables'
   iptables -t nat -F
