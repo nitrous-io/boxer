@@ -6,9 +6,12 @@ childProcess        = require 'child_process'
 fs                  = require 'fs'
 _                   = require 'underscore'
 scriptPath          = __dirname.replace('test/integration', 'scripts')
+settings            = require('../../config/settings')
+redisMQSettings     = settings.redisMQ
+redisStoreSettings  = settings.redisStore
 
 describe 'Boxer', ->
-  boxer = coach = publisher = settings = redisMQSettings = redisStoreSettings = null
+  boxer = coach = publisher = null
 
   ip = '192.168.254.2'
 
@@ -82,16 +85,16 @@ describe 'Boxer', ->
 
       it 'returns aio:created with the requisite properties when successfully provisioned', (done) ->
         assertMessage = (message) ->
-          containerRoot = "/var/lib/lxc/mclovins-container-1"
+          # check true container root in selected disk instead of /var/lib/lxc
+          containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
           root = "#{containerRoot}/rootfs"
           lxcConfigFile = "#{containerRoot}/config"
 
           networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
           name = fs.readFileSync("#{root}/etc/hostname")
           publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
-          stats = fs.statSync("/#{root}/home/action")
-          etcActionBoxId = fs.readFileSync("#{root}/etc/action/box_id").toString().trim()
 
+          # check message data
           expect(message.port).to.eql 10000
           expect(message.boxId).to.eql 1
           expect(message.id).to.eql 'test.action.io'
@@ -99,28 +102,39 @@ describe 'Boxer', ->
           expect(networkConfig).to.match /address 192.168.254.2/
           expect(name).to.match /mclovins-container-1/
           expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
+
+          # check that home content
           expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/workspace")).to.be.true
-
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
           expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
+
+          # check lxc config
           expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.network.hwaddr = 02:00/
           expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
           expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 768M/
 
+          # check mount configs
           expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+          expect(fs.readFileSync("/etc/projects", 'utf8')).to.include "1:#{settings.selectedDisk}/mclovins-container-1_delta/rootfs/home/action"
+
+          # check /etc settings
+          etcActionBoxId = fs.readFileSync("#{root}/etc/action/box_id").toString().trim()
           expect(etcActionBoxId).to.eql '1'
 
+          # check uid and gid
+          stats = fs.statSync("/#{root}/home/action")
           expect(stats.uid).to.eql 15001
           expect(stats.gid).to.eql 15001
           expect(fs.statSync("/#{root}/home/action/workspace").uid).to.eql 15001
           expect(fs.statSync("/#{root}/home/action/workspace").gid).to.eql 15001
 
-          childProcess.exec "sudo iptables -L -t nat", (err, stdout, stderr) ->
+          # check ip of the created container
+          childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
             expect(stdout).to.match /192\.168\.254\.2:22/
 
+            # check redis settings
             publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
               msg = JSON.parse(res)
               expect(msg.id).to.eql 1
@@ -128,6 +142,7 @@ describe 'Boxer', ->
               expect(msg.ip).to.eql '192.168.254.2'
               expect(msg.port).to.eql 10000
               expect(msg.memory).to.eql '256M'
+              expect(msg.disk).to.eql '/lxc/disk1'
               expect(msg.diskSpace).to.eql '1G'
               expect(msg.boxerId).to.eql 'test.action.io'
               expect(msg.containerState).to.eql 'stopped'
@@ -280,7 +295,17 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","state":"running"}'
+            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+              state: "running"
+              disk: "/lxc/disk1"
+            })
             runBox done
 
       it 'should restart an already created container', (done) ->
@@ -288,7 +313,7 @@ describe 'Boxer', ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
           expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+          expect(fs.readFileSync("/etc/projects", 'utf8')).to.include "1:#{settings.selectedDisk}/mclovins-container-1_delta/rootfs/home/action"
 
           childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
@@ -309,7 +334,17 @@ describe 'Boxer', ->
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running"}'
+            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+              state: "running"
+              disk: "/lxc/disk1"
+            })
             runBox done
 
       it 'should return an aio:stopped message with the box\'s id present', (done) ->
@@ -318,7 +353,7 @@ describe 'Boxer', ->
           expect(message.boxId).to.eql 1
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1/rootfs")).to.be.false
           expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+          expect(fs.readFileSync("/etc/projects", 'utf8')).to.not.include "1:#{settings.selectedDisk}/mclovins-container-1_delta/rootfs/home/action"
 
           childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
             expect(stdout).to.match /STOPPED/
@@ -339,7 +374,17 @@ describe 'Boxer', ->
           done(err) if err
 
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped"}'
+            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+              state: "stopped"
+              disk: "/lxc/disk1"
+            })
             runBox done
 
       it 'should start an already created container', (done) ->
@@ -362,14 +407,24 @@ describe 'Boxer', ->
 
 
     describe 'aio:configure', ->
-      publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
+      publicKeysFile = null
       publicKey = null
 
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+        publicKeysFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
           done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
+            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+              disk: "/lxc/disk1"
+            })
             runBox done
 
       context 'adding public keys', ->
@@ -410,7 +465,7 @@ describe 'Boxer', ->
             expect(message.id).to.eql 'test.action.io'
             expect(message.boxId).to.eql 1
 
-            publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
+            publicKeysFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
             output = fs.readFileSync(publicKeysFile).toString().trim()
 
             expect(fs.existsSync(publicKeysFile)).to.be.true
@@ -424,7 +479,7 @@ describe 'Boxer', ->
       context 'setting env variables', ->
         it 'sets the variables to /etc/profile', (done) ->
           assertMessage = (message) ->
-            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
+            environmentFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/environment"
             env = fs.readFileSync(environmentFile).toString()
             expect(env).to.contain 'RDS_HOST=mysql://insecure'
             expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
@@ -444,7 +499,7 @@ describe 'Boxer', ->
       context 'setting env variables (with returnVars)', ->
         it 'sets the variables to /etc/profile', (done) ->
           assertMessage = (message) ->
-            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
+            environmentFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/environment"
             env = fs.readFileSync(environmentFile).toString()
             expect(env).to.contain 'RDS_HOST=mysql://insecure'
             expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
@@ -473,7 +528,7 @@ describe 'Boxer', ->
 
         it 'remove the variables from /etc/profile', (done) ->
           assertMessage = (message) ->
-            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
+            environmentFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/environment"
             env = fs.readFileSync(environmentFile).toString()
             expect(env).to.not.contain 'RDS_HOST=123'
             done()
@@ -493,7 +548,17 @@ describe 'Boxer', ->
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container-1", (err, stdout, stderr) ->
             childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container-1'", (err, stdout, stderr) ->
               cleanDB ->
-                publisher.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template"}'
+                publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+                  id: 1
+                  name: "mclovins-container"
+                  ip: "192.168.254.2"
+                  port: 10000
+                  diskSpace: "1G"
+                  memory: "256M"
+                  containerTemplate: "test_container_template"
+                  state: "stopped"
+                  disk: "/lxc/disk1"
+                })
                 runBox done
 
       it 'should destroy the container and remove all remnants', (done) ->
@@ -501,8 +566,8 @@ describe 'Boxer', ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
 
-          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
-          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
+          expect(fs.existsSync("#{settings.selectedDisk}/mclovins-container-1")).to.be.false
+          expect(fs.existsSync("#{settings.selectedDisk}/mclovins-container-1_delta")).to.be.false
           expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
           expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
 

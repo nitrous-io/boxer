@@ -31,6 +31,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @containerState = 'stopped'
     @name = @containerTemplate = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
+    @disk = null
     @boxerId = null
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     super
@@ -42,7 +43,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     self = this
 
     if opts?.onCreate?
-      attributesToValidate = ['id', 'name', 'containerTemplate', 'memory', 'diskSpace']
+      attributesToValidate = ['id', 'name', 'containerTemplate', 'memory', 'diskSpace', 'disk']
     else
       attributesToValidate = ['id', 'name']
 
@@ -156,6 +157,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     interface: @interface
                     port: @port
                     memory: @memory
+                    disk: @disk
                     diskSpace: @diskSpace
                     snapshotURL: @snapshotURL
                     containerTemplate: @containerTemplate
@@ -177,6 +179,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box.diskSpace = parsedBox.diskSpace
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
+        box.disk = parsedBox.disk
 
         cb(err, box)
       else
@@ -225,35 +228,35 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setupDeltaContainer: (done) ->
     logger.info 'Setting Up Delta Container'
     this._execShellCommand 'boxer-setup-delta-container',
-                           [@id, this.containerName()],
+                           [@id, this.containerName(), @containerTemplate, @disk],
                            sudo: true,
                            done
 
   _mountContainer: (done) ->
     logger.info 'Mounting Container'
     this._execShellCommand 'boxer-mount-container',
-                           [@id, this.containerName(), @containerTemplate, @diskSpace],
+                           [@id, this.containerName(), @containerTemplate, @diskSpace, @disk],
                            sudo: true,
                            done
 
   _unmountContainer: (done) ->
     logger.info 'Unmounting Container'
     this._execShellCommand 'boxer-unmount-container',
-                           [this.containerName()],
+                           [this.containerName(), @disk],
                            sudo: true,
                            done
 
   _cleanupDeltaContainer: (done) ->
     logger.info 'Cleaning Up Delta Container'
     this._execShellCommand 'boxer-cleanup-delta-container',
-                           [this.containerName()],
+                           [this.containerName(), @disk],
                            sudo: true,
                            done
 
   _configureBox: (done) ->
     logger.info "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [@id, this.containerName(), @containerTemplate, @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid()],
+                           [@id, this.containerName(), @containerTemplate, @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid(), @disk],
                            sudo: true,
                            done
 
@@ -277,7 +280,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setDefaultKeyPair: (done) ->
     logger.info 'Setting default ssh key-pair'
     this._execShellCommand 'boxer-set-default-key-pair',
-                            [this.containerName()],
+                            [this.containerName(), @disk],
                             sudo: true
                             done
 
