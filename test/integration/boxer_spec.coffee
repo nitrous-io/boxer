@@ -131,7 +131,7 @@ describe 'Boxer', ->
           expect(fs.statSync("/#{root}/home/action/workspace").gid).to.eql 15001
 
           # check ip of the created container
-          childProcess.exec "sudo iptables -L -t nat", timeout: 5000, (err, stdout, stderr) ->
+          childProcess.exec "sudo iptables -L -t nat", (err, stdout, stderr) ->
             expect(stdout).to.match /192\.168\.254\.2:22/
 
             # check redis settings
@@ -412,7 +412,7 @@ describe 'Boxer', ->
 
       beforeEach (done) ->
         publicKeysFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
           done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
