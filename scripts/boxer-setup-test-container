@@ -10,6 +10,7 @@ box_id=${1}
 box_name=${2}
 ip=${3}
 port=${4}
+disk_limit="1G"
 
 container_name=${box_name}-${box_id}
 container_template='base_container_template'
@@ -50,6 +51,13 @@ echo "${container_name}:${box_id}" >> /etc/projid
 
 xfs_quota -x -c "project -s ${container_name}" ${disk}
 xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk}
+
+# Set Memory and Swap
+sed -i "/lxc.cgroup.memory.limit_in_bytes/d" ${box_path}/config
+sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" ${box_path}/config
+
+echo "lxc.cgroup.memory.limit_in_bytes = 256M" >> ${box_path}/config
+echo "lxc.cgroup.memory.memsw.limit_in_bytes = 768M" >> ${box_path}/config
 
 sed -i "s/${container_template}/${container_name}/g" ${box_path}/config
 echo "${container_name}" > ${box_path}/rootfs/etc/hostname

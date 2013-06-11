@@ -46,6 +46,7 @@ describe 'Boxer', ->
   waitForMessage = (messageType, callback, done) ->
     coach.on 'message', (channel, rawMessage) ->
       message = MessageParser.decode(rawMessage)
+
       if message.type == messageType
         callback(message, done)
 
@@ -424,6 +425,7 @@ describe 'Boxer', ->
               memory: "256M"
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
+              containerState: "running"
             })
             runBox done
 
@@ -540,6 +542,125 @@ describe 'Boxer', ->
               dataType: "aio:configure:remove_env_variables",
               data: ['RDS_HOST', 'RDS_PASSWORD'],
               name: "mclovins-container-1"
+
+      context 'upgrading box specs', ->
+        context 'unsuccessful upgrade (disk space used is more than the new limit)', ->
+          before ->
+            sinon.stub Box.prototype, 'quota', (cb) ->
+              cb null, used: (512 * 1024), limit: (1024 * 1024 * 1024)
+
+          after ->
+            Box.prototype.quota.restore()
+
+          it 'returns an aio:invalid:params message', (done) ->
+            assertMessage = (message) ->
+              # check true container root in selected disk instead of /var/lib/lxc
+              containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
+              lxcConfigFile = "#{containerRoot}/config"
+
+              lxcConfigFileContents = fs.readFileSync(lxcConfigFile).toString()
+
+              # check lxc config
+              expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
+              expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 768M/
+
+              # check current quota limit
+              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
+                # The Disk Space Quota stays the same
+                expect(stdout).to.match /.*?-1G/
+
+                # check redis settings
+                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                  msg = JSON.parse(res)
+                  expect(msg.memory).to.eql '256M'
+                  expect(msg.diskSpace).to.eql '1G'
+                  expect(msg.containerState).to.eql 'running'
+                  done()
+
+            subscribeAndDo ->
+              waitForMessage 'aio:invalid:params', assertMessage
+              publishSettings
+                type: "aio:configure"
+                dataType: "aio:configure:change_specs"
+                data:
+                  memory: "256M"
+                  diskSpace: "0.2G"
+                name: "mclovins-container-1"
+
+        context 'successful upgrade', ->
+          it "upgrades the box's memory and disk space limit", (done) ->
+            assertMessage = (message) ->
+              # check true container root in selected disk instead of /var/lib/lxc
+              containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
+              lxcConfigFile = "#{containerRoot}/config"
+
+              # check lxc config
+              expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.limit_in_bytes = 512M/
+              expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 1536M/
+
+              # check current quota limit
+              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
+                expect(stdout).to.eql '0-2G\n'
+
+                # check redis settings
+                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                  msg = JSON.parse(res)
+                  expect(msg.memory).to.eql '512M'
+                  expect(msg.diskSpace).to.eql '2048M'
+                  expect(msg.containerState).to.eql 'running'
+                  done()
+
+            subscribeAndDo ->
+              waitForMessage 'aio:configured', assertMessage
+              publishSettings
+                type: "aio:configure"
+                dataType: "aio:configure:change_specs"
+                data:
+                  memory: "512M"
+                  diskSpace: "2G"
+                name: "mclovins-container-1"
+
+          it "accepts float gigabyte unit for disk space", (done) ->
+            assertMessage = (message) ->
+              # check current quota limit
+              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
+                expect(stdout).to.match /.*?-204M/
+
+                # check redis settings
+                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                  msg = JSON.parse(res)
+                  expect(msg.diskSpace).to.eql '204M'
+                  done()
+
+            subscribeAndDo ->
+              waitForMessage 'aio:configured', assertMessage
+              publishSettings
+                type: "aio:configure"
+                dataType: "aio:configure:change_specs"
+                data:
+                  diskSpace: "0.2G"
+                name: "mclovins-container-1"
+
+          it "accepts megabyte unit for disk space", (done) ->
+            assertMessage = (message) ->
+              # check current quota limit
+              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
+                expect(stdout).to.match /.*?-2G/
+
+                # check redis settings
+                publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                  msg = JSON.parse(res)
+                  expect(msg.diskSpace).to.eql '2048M'
+                  done()
+
+            subscribeAndDo ->
+              waitForMessage 'aio:configured', assertMessage
+              publishSettings
+                type: "aio:configure"
+                dataType: "aio:configure:change_specs"
+                data:
+                  diskSpace: "2048M"
+                name: "mclovins-container-1"
 
     describe 'aio:destroy', ->
       beforeEach (done) ->

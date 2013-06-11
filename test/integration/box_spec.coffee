@@ -40,3 +40,36 @@ describe Box, ->
             expect(stdout).to.match /RUNNING/
             done()
 
+  describe '#quota', ->
+    box = null
+
+    beforeEach (done) ->
+      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", (err, stdout, stderr) ->
+        return done(err) if err
+        cleanDB ->
+          settings = require('../../config/settings')
+          redisStoreSettings = settings.redisStore
+          redis = initRedisClientWith(redisStoreSettings)
+          redis.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+            id: 1
+            name: "mclovins-container"
+            ip: "192.168.254.2"
+            port: 10000
+            diskSpace: "1G"
+            memory: "256M"
+            containerTemplate: "test_container_template"
+            state: "stopped"
+            disk: "/lxc/disk1"
+          }), ->
+            Box.find "mclovins-container-1", (err, b) ->
+              box = b
+              done()
+
+    afterEach (andDone) ->
+      cleanupContainer 'mclovins-container-1', "192.168.254.2", andDone
+
+    it 'return current used and the box limit in megabytes', (done) ->
+      box.quota (err, stats) ->
+        expect(stats.used).to.equal 0
+        expect(stats.limit).to.equal 1024 * 1024
+        done()

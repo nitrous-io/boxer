@@ -1,0 +1,13 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+disk=${1}
+id=${2}
+
+# get current quota limit of project
+# id - box id or full container name
+echo $(xfs_quota -x -c "quota -pvhN ${id}" ${disk} | awk '{printf "%s-%s",$2,$4}')

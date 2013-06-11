@@ -8,6 +8,7 @@ module.exports = class ConfigureMessage extends BaseMessage
     'aio:configure:remove_public_key': 'aio:configured:remove_public_key'
     'aio:configure:set_env_variables': 'aio:configured:set_env_variables'
     'aio:configure:remove_env_variables': 'aio:configured:remove_env_variables'
+    'aio:configure:change_specs': 'aio:configured:change_specs'
 
   constructor: (attributes) ->
     @id = attributes.id
