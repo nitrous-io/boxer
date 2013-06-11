@@ -1,0 +1,19 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root='/var/lib/lxc'
+container_name=${1}
+memory=${2}
+total_memory=${3}
+
+# remove old limit
+sed -i "/lxc.cgroup.memory.limit_in_bytes/d" ${lxc_root}/${container_name}/config
+sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" ${lxc_root}/${container_name}/config
+
+# add new limit
+echo "lxc.cgroup.memory.limit_in_bytes = ${memory}" >> ${lxc_root}/${container_name}/config
+echo "lxc.cgroup.memory.memsw.limit_in_bytes = ${total_memory}" >> ${lxc_root}/${container_name}/config

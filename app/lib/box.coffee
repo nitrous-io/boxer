@@ -1,4 +1,5 @@
 AutoAdvancingStateMachine = require './auto_advancing_state_machine'
+ConvertSize = require './convert_size'
 ResourcePool = require './resource_pool'
 settings = require '../../config/settings'
 escapeShellArg = require('./utils').escapeShellArg
@@ -66,10 +67,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       cb(new Error('Invalid Params'))
 
   memoryUnit: ->
-    if ! (memoryUnit = @memory?.match(/\d+([A-Z])/)?[1])
-      ''
-    else
-      memoryUnit
+    ConvertSize.unit @memory
 
   totalMemory: ->
     if @memory
@@ -107,7 +105,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
                           done
     else if dataType == 'aio:configure:remove_public_key'
       publicKey = data.replace(/\//g, "\\/")
-
       @_execShellCommand "boxer-remove-public-key",
                           [this.containerName(), publicKey],
                           sudo: true,
@@ -123,6 +120,22 @@ module.exports = class Box extends AutoAdvancingStateMachine
                           [this.containerName()].concat(data),
                           sudo: true,
                           done
+    else if dataType == 'aio:configure:change_specs'
+      this.quota (err, quota) =>
+        return done(new Error('Cannot retrieve box quota')) if err
+        return done(new Error('Current Disk Usage Exceeds New Disk Quota')) if quota.used > ConvertSize.convert(data.diskSpace)
+
+        @memory = data.memory if data.memory
+        @diskSpace = ConvertSize.convertUnit(data.diskSpace, "M") if data.diskSpace
+        this._stopContainer (err) =>
+          return done(new Error('Cannot stop the current container')) if err
+          this._changeMemoryLimit (err) =>
+            return done(new Error('Cannot change the memory limit')) if err
+            this._changeDiskQuota (err) =>
+              return done(new Error('Cannot change the disk limit')) if err
+              this._startContainer (err) =>
+                return done(new Error('Cannot start the container')) if err
+                this.updateAttributes containerState: 'running', done
 
   stop: (cb) ->
     if this.valid()
@@ -146,6 +159,12 @@ module.exports = class Box extends AutoAdvancingStateMachine
       this.rollbackStateMachine()
     else
       cb(new Error('Invalid Params'))
+
+  quota: (cb) ->
+    this._execShellCommand "boxer-report-current-limit", [@disk, this.containerName()], sudo: true, (err, stdout, stderr) =>
+      return cb(err) if err
+      [used, limit] = stdout.split("-")
+      cb null, used: ConvertSize.convert(used), limit: ConvertSize.convert(limit)
 
   encode: ->
     JSON.stringify({
@@ -346,13 +365,25 @@ module.exports = class Box extends AutoAdvancingStateMachine
     childProcess.exec command, timeout: 0, (err, stdout, stderr) =>
       if err
         console.log "boxer_exec_shell_command_err: #{stderr}"
-        done(err)
+        done(err, stdout, stderr)
       else
         console.log "command: #{command} took: #{+(new Date() - start)} ms"
-        done(err)
+        done(err, stdout, stderr)
 
   _uid: ->
     Box.UID_BASE + parseInt(@id)
 
   _gid: ->
     Box.UID_BASE + parseInt(@id)
+
+  _changeMemoryLimit: (done) ->
+    this._execShellCommand "boxer-change-memory-limit",
+      [this.containerName(), @memory, this.totalMemory()],
+      sudo: true,
+      done
+
+  _changeDiskQuota: (done) ->
+    this._execShellCommand "boxer-change-disk-limit",
+      [@disk, this.containerName(), @diskSpace],
+      sudo: true,
+      done

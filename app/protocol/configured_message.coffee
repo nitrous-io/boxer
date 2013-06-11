@@ -7,4 +7,5 @@ module.exports = class ConfiguredMessage extends BaseMessage
     @id = attributes.id
     @name = attributes.name
     @boxId = attributes.boxId
+    @success = attributes.success
     super
