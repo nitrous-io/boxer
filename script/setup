@@ -1,14 +1,14 @@
 #!/bin/bash
 templates=( base_container_template )
 for template in "${templates[@]}"; do
-  if [[ ! -d /var/lib/lxc/${template} ]]; then
+  if [[ ! -d /lxc/disk1/${template} ]]; then
     sudo lxc-create -n ${template} -t ubuntu -f $PWD/script/lxc_default.conf -- -r precise
-    sudo chroot /var/lib/lxc/${template}/rootfs useradd action -m -s /bin/bash -d /home/action
+    sudo chroot /lxc/disk1/${template}/rootfs useradd action -m -s /bin/bash -d /home/action
   fi
 
   echo "Done setting up ${template}"
 done
 
-rm -rf /var/lib/lxc/test_container_template.tar*
-tar cvf /var/lib/lxc/test_container_template.tar --files-from /dev/null
-gzip /var/lib/lxc/test_container_template.tar
+rm -rf /lxc/disk1/test_container_template.tar*
+tar cvf /lxc/disk1/test_container_template.tar --files-from /dev/null
+gzip /lxc/disk1/test_container_template.tar
