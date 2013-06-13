@@ -17,6 +17,8 @@ module.exports = class MessageParser
     'aio:configure'       : m.ConfigureMessage
     'aio:configured'      : m.ConfiguredMessage
     'aio:invalid:params'  : m.InvalidParamsMessage
+    'aio:info_request'    : m.InfoRequestMessage
+    'aio:info_response'   : m.InfoResponseMessage
 
   @decode: (messageJSON) ->
     parsedMessage = JSON.parse(messageJSON)

@@ -2,6 +2,7 @@ MessageParser = require './message_parser'
 Box = require './box'
 protocol = require '../protocol'
 initRedisClientWith = require('./utils').initRedisClientWith
+
 module.exports = class Boxer
   @ADVERTISE_INTERVAL = 5 # seconds
   @CONTAINER_IDLE_TIME = 5 * 60 # seconds
@@ -126,3 +127,14 @@ module.exports = class Boxer
           else
             boxer.publisher.publish boxer.coachChannel,
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
+    else if message.type == protocol.InfoRequestMessage.type && @id == message.id
+      Box.find message.name, (err, box) ->
+        box.info (err, info) ->
+          infoResponseMessage = new protocol.InfoResponseMessage({id: boxer.id, boxId: box.id, success: true, returnVars: returnVars})
+
+          if !err
+            infoResponseMessage.info = info
+          else
+            infoResponseMessage.success = false
+
+          boxer.publisher.publish boxer.coachChannel, infoResponseMessage.encode()

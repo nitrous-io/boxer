@@ -406,6 +406,34 @@ describe 'Boxer', ->
           waitForMessage 'aio:started', assertMessage
           publishSettings type: "aio:start", name: "mclovins-container-1"
 
+    describe 'aio:info_request', ->
+      beforeEach (done) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+          done(err) if err
+          cleanDB ->
+            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+              disk: "/lxc/disk1"
+              containerState: "running"
+            })
+            runBox done
+
+      it 'returns usage stats of the box', (done) ->
+        assertMessage = (message) ->
+          expect(message.info.diskUsage).to.match /([0-9]+\.*)?/
+          expect(message.info.memoryUsage).to.match /([0-9]+\.*)?/
+          expect(message.info.lxcStatus).to.eql "RUNNING"
+          done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:info_response', assertMessage
+          publishSettings type: "aio:info_request", name: "mclovins-container-1"
 
     describe 'aio:configure', ->
       publicKeysFile = null
