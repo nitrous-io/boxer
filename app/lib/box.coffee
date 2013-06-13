@@ -160,6 +160,17 @@ module.exports = class Box extends AutoAdvancingStateMachine
     else
       cb(new Error('Invalid Params'))
 
+  info: (cb) ->
+    this._execShellCommand "boxer-info", [@disk, this.containerName()], sudo: true, (err, stdout, stderr) =>
+      return cb(err) if err
+      [lxcStatus, memoryUsageInBytes, diskUsageInKB] = stdout.split("-")
+
+      # Returns size in MB
+      cb null,
+          diskUsage: parseFloat(diskUsageInKB) / 1024
+          memoryUsage: parseFloat(memoryUsageInBytes) / (1024 * 1024)
+          lxcStatus: lxcStatus
+
   quota: (cb) ->
     this._execShellCommand "boxer-report-current-limit", [@disk, this.containerName()], sudo: true, (err, stdout, stderr) =>
       return cb(err) if err

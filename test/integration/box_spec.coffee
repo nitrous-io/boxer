@@ -73,3 +73,73 @@ describe Box, ->
         expect(stats.used).to.equal 0
         expect(stats.limit).to.equal 1024 * 1024
         done()
+
+  describe '#info', ->
+    box = null
+
+    context 'when box is running', ->
+      beforeEach (done) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+          return done(err) if err
+          cleanDB ->
+            settings = require('../../config/settings')
+            redisStoreSettings = settings.redisStore
+            redis = initRedisClientWith(redisStoreSettings)
+            redis.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+              state: "running"
+              disk: "/lxc/disk1"
+            }), ->
+              Box.find "mclovins-container-1", (err, b) ->
+                box = b
+                done()
+
+      afterEach (andDone) ->
+        cleanupContainer 'mclovins-container-1', "192.168.254.2", andDone
+
+      it 'returns memory usage, disk usage and LXC status', (done) ->
+        box.info (err, info) ->
+          expect(info.diskUsage).to.match /([0-9]+\.*)?/
+          expect(info.memoryUsage).to.match /([0-9]+\.*)?/
+          expect(info.lxcStatus).to.eql "RUNNING"
+          done()
+
+    context 'when box is stopped', ->
+      beforeEach (done) ->
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", (err, stdout, stderr) ->
+          return done(err) if err
+          cleanDB ->
+            settings = require('../../config/settings')
+            redisStoreSettings = settings.redisStore
+            redis = initRedisClientWith(redisStoreSettings)
+            redis.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+              state: "stopped"
+              disk: "/lxc/disk1"
+            }), ->
+              Box.find "mclovins-container-1", (err, b) ->
+                box = b
+                done()
+
+      afterEach (andDone) ->
+        cleanupContainer 'mclovins-container-1', "192.168.254.2", andDone
+
+      it 'returns memory usage, disk usage and LXC status', (done) ->
+        box.info (err, info) ->
+          expect(info.diskUsage).to.match /([0-9]+\.*)?/
+          expect(info.memoryUsage).to.eql 0
+          expect(info.lxcStatus).to.eql "STOPPED"
+          done()
+

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+disk=${1}
+id=${2}
+
+# lxc-info
+lxc_status=`lxc-info -n ${id} | head -1 | awk '{print $2}'`
+
+memory_file=/sys/fs/cgroup/memory/lxc/${id}/memory.usage_in_bytes
+# memory
+if [ -f ${memory_file} ]; then
+  memory_usage_in_bytes=`cat /sys/fs/cgroup/memory/lxc/${id}/memory.usage_in_bytes`
+else
+  memory_usage_in_bytes=0
+fi
+
+# disk usage
+disk_usage_in_kb=`xfs_quota -x -c "quota -pvN ${id}" ${disk} | awk '{printf $2}'`
+
+echo "${lxc_status}-${memory_usage_in_bytes}-${disk_usage_in_kb}"
+
