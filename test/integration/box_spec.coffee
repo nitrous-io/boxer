@@ -105,7 +105,7 @@ describe Box, ->
 
       it 'returns memory usage, disk usage and LXC status', (done) ->
         box.info (err, info) ->
-          expect(info.diskUsage).to.match /([0-9]+\.*)?/
+          expect(info.storageUsage).to.match /([0-9]+\.*)?/
           expect(info.memoryUsage).to.match /([0-9]+\.*)?/
           expect(info.lxcStatus).to.eql "RUNNING"
           done()
@@ -138,7 +138,7 @@ describe Box, ->
 
       it 'returns memory usage, disk usage and LXC status', (done) ->
         box.info (err, info) ->
-          expect(info.diskUsage).to.match /([0-9]+\.*)?/
+          expect(info.storageUsage).to.match /([0-9]+\.*)?/
           expect(info.memoryUsage).to.eql 0
           expect(info.lxcStatus).to.eql "STOPPED"
           done()

@@ -426,7 +426,7 @@ describe 'Boxer', ->
 
       it 'returns usage stats of the box', (done) ->
         assertMessage = (message) ->
-          expect(message.info.diskUsage).to.match /([0-9]+\.*)?/
+          expect(message.info.storageUsage).to.match /([0-9]+\.*)?/
           expect(message.info.memoryUsage).to.match /([0-9]+\.*)?/
           expect(message.info.lxcStatus).to.eql "RUNNING"
           done()
