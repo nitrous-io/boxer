@@ -1,0 +1,16 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+box_name=${1}
+disk=${2}
+name=${3}
+email=${4}
+
+box_path=${disk}/${box_name}/rootfs
+
+chroot ${box_path} su action -c "/usr/bin/git config --global user.name \"$name\""
+chroot ${box_path} su action -c "/usr/bin/git config --global user.email \"$email\""

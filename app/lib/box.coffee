@@ -20,7 +20,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
     { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
     { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
     { name: 'portForwardingSetUp', onAdvance: '_setDefaultKeyPair',   onRollback: '_releasePortForwarding' }
-    { name: 'setupDefaultKeyPair', onAdvance: 'save',                 onRollback: '_removeDefaultKeyPair' }
+    { name: 'setupDefaultKeyPair', onAdvance: '_setGitIdentity',      onRollback: '_removeDefaultKeyPair' }
+    { name: 'setupGitIdentity',    onAdvance: 'save',                 onRollback: '_removeGitIdentity' }
     { name: 'boxSaved',            onAdvance: '_notifySuccess',       onRollback: 'delete' }
   ]
 
@@ -33,6 +34,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
     @disk = null
     @boxerId = null
+    @userName = null
+    @userEmail =null
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     super
 
@@ -317,6 +320,22 @@ module.exports = class Box extends AutoAdvancingStateMachine
     console.log 'Remove default ssh key pair'
     this._execShellCommand 'boxer-remove-default-key-pair',
                            [this.containerName()],
+                           sudo: true
+                           done
+
+  _setGitIdentity: (done) ->
+    console.log 'Setting Git identity'
+    unless @userName?.length && @userEmail?.length
+      return done()
+    this._execShellCommand 'boxer-set-git-identity',
+                            [this.containerName(), @disk, @userName, @userEmail],
+                            sudo: true
+                            done
+
+  _removeGitIdentity: (done) ->
+    console.log 'Removing Git identity'
+    this._execShellCommand 'boxer-remove-git-identity',
+                           [this.containerName(), @disk],
                            sudo: true
                            done
 
