@@ -324,9 +324,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            done
 
   _setGitIdentity: (done) ->
-    console.log 'Setting Git identity'
     unless @userName?.length && @userEmail?.length
       return done()
+    console.log 'Setting Git identity'
     this._execShellCommand 'boxer-set-git-identity',
                             [this.containerName(), @disk, @userName, @userEmail],
                             sudo: true
