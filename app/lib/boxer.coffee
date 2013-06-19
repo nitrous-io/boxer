@@ -68,6 +68,8 @@ module.exports = class Boxer
         box.diskSpace = message.diskSpace
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
+        box.userName = message.userName
+        box.userEmail = message.userEmail
         box.boxerId = @id
         box.disk = @selectedDisk
 

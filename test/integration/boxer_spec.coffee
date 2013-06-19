@@ -32,6 +32,8 @@ describe 'Boxer', ->
     attributes.runtime ?= "test"
     attributes.memory ?= "256M"
     attributes.diskSpace ?= '1G'
+    attributes.userName ?= 'foo'
+    attributes.userEmail ?= 'foo@example.com'
     attributes.publicKeys ?= []
     attributes.snapshotURL ?= null
     publishSettings attributes
@@ -110,6 +112,10 @@ describe 'Boxer', ->
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa.pub")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh/id_rsa")).to.be.true
           expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
+
+          # check gitconfig
+          expect(fs.readFileSync("/#{root}/home/action/.gitconfig")).to.match /email = foo@example.com/
+          expect(fs.readFileSync("/#{root}/home/action/.gitconfig")).to.match /name = foo/
 
           # check lxc config
           expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.network.hwaddr = 02:00/
@@ -241,6 +247,18 @@ describe 'Boxer', ->
 
           afterEach ->
             Box.prototype._setDefaultKeyPair.restore()
+
+          it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
+            subscribeAndDo ->
+              waitForMessage 'aio:created', assertCreateFailedMessage, done
+              createBox()
+
+        context 'setGitIdentity fails', ->
+          beforeEach ->
+            sinon.stub Box.prototype, '_setGitIdentity', (cb) -> box._execShellCommand '../support/fail-script', [], sudo: true, cb
+
+          afterEach ->
+            Box.prototype._setGitIdentity.restore()
 
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->

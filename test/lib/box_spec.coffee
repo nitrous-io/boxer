@@ -187,6 +187,46 @@ describe Box, ->
         cbSpy
       )
 
+  describe "#setGitIdentity", ->
+    beforeEach ->
+      sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
+
+
+    context 'when both username and email is provided', ->
+      beforeEach ->
+        box.userName = 'foo'
+        box.userEmail = 'foo@example.com'
+        box._setGitIdentity(cbSpy)
+
+      it 'should call _execShellCommand with the right options', ->
+        box._execShellCommand.should.have.been.calledWith("boxer-set-git-identity",
+                                                          ['rails-box-1', '/lxc/disk1', 'foo', 'foo@example.com'],
+                                                          sudo: true,
+                                                          cbSpy)
+
+    context 'when either username or email is empty', ->
+      beforeEach ->
+        box.userName = ''
+        box.userEmail = 'foo@example.com'
+        box._setGitIdentity(cbSpy)
+
+      it 'should not call _execShellCommand', ->
+        box._execShellCommand.should.not.have.been.called
+
+      it 'should invoke the calback', ->
+        cbSpy.should.have.been.called
+
+  describe "#removeGitIdentity", ->
+    beforeEach ->
+      sinon.stub box, '_execShellCommand', (cmd, args, opts, cb) ->
+      box._removeGitIdentity(cbSpy)
+
+    it 'should call _execShellCommand with the right options', ->
+      box._execShellCommand.should.have.been.calledWith("boxer-remove-git-identity",
+                                                        ['rails-box-1', '/lxc/disk1'],
+                                                        sudo: true,
+                                                        cbSpy)
+
   describe '#startContainer', ->
     beforeEach ->
       box.ip = '192.168.254.2'
