@@ -26,6 +26,11 @@ quoted_lxc_root='\/var\/lib\/lxc\/'
     mkdir -p ${lxc_root}/${container_name}
 
     mount -n -t overlayfs -o ${mount_options} none ${box_path}
+    # If the mount fails, then just exit and we should go back
+    if [[ $? != 0 ]]; then
+      exit 1
+    fi
+
     mount --bind ${box_path} ${lxc_root}/${container_name}
 
     # If the mount fails, then just exit and we should go back
