@@ -35,6 +35,7 @@ quoted_lxc_root='\/var\/lib\/lxc\/'
 
     # If the mount fails, then just exit and we should go back
     if [[ $? != 0 ]]; then
+      umount ${box_path}
       exit 1
     fi
 
