@@ -121,12 +121,17 @@ module.exports = class Boxer
     else if message.type == protocol.ConfigureMessage.type && @id == message.id
       Box.find message.name, (err, box) ->
         box.configure message.dataType, message.data, (err) ->
-          if !err
-            configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id, dataType: message.dataType, returnVars: returnVars})
-            boxer.publisher.publish boxer.coachChannel, configuredMessage.encode()
-          else
-            boxer.publisher.publish boxer.coachChannel,
-                             new protocol.InvalidParamsMessage(id: boxer.id).encode()
+          dataType = protocol.ConfigureMessage.dataTypes[message.dataType]
+          configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id, dataType: dataType, data: message.data, success: true, returnVars: returnVars})
+          if message.dataType == "aio:configure:change_specs"
+            data = configuredMessage.data
+            data.memory = parseInt box.memory, 10
+            data.diskSpace = parseInt box.diskSpace, 10
+
+          if err
+            configuredMessage.success = false
+
+          boxer.publisher.publish boxer.coachChannel, configuredMessage.encode()
     else if message.type == protocol.InfoRequestMessage.type && @id == message.id
       Box.find message.name, (err, box) ->
         box.info (err, info) ->

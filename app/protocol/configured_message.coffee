@@ -8,4 +8,6 @@ module.exports = class ConfiguredMessage extends BaseMessage
     @name = attributes.name
     @boxId = attributes.boxId
     @success = attributes.success
+    @data = attributes.data
+    @dataType = attributes.dataType
     super
