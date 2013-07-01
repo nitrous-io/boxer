@@ -121,11 +121,13 @@ module.exports = class Boxer
     else if message.type == protocol.ConfigureMessage.type && @id == message.id
       Box.find message.name, (err, box) ->
         box.configure message.dataType, message.data, (err) ->
-          configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id, dataType: ConfigureMessage.dataTypes[message.dataType], data: message.data, success: true, returnVars: returnVars})
+          dataType = protocol.ConfigureMessage.dataTypes[message.dataType]
+          configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id, dataType: dataType, data: message.data, success: true, returnVars: returnVars})
           if message.dataType == "aio:configure:change_specs"
             data = configuredMessage.data
-            data.memory = box.memory
-            data.diskSpace = box.diskSpace
+            data.memory = parseInt box.memory, 10
+            data.diskSpace = parseInt box.diskSpace, 10
+
           if err
             configuredMessage.success = false
 
