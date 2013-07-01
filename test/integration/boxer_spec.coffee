@@ -580,7 +580,7 @@ describe 'Boxer', ->
           after ->
             Box.prototype.quota.restore()
 
-          it 'returns an aio:invalid:params message', (done) ->
+          it 'returns a aio:configured message with success set to false', (done) ->
             assertMessage = (message) ->
               # check true container root in selected disk instead of /var/lib/lxc
               containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
@@ -606,7 +606,7 @@ describe 'Boxer', ->
                   done()
 
             subscribeAndDo ->
-              waitForMessage 'aio:invalid:params', assertMessage
+              waitForMessage 'aio:configured', assertMessage
               publishSettings
                 type: "aio:configure"
                 dataType: "aio:configure:change_specs"
