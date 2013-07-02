@@ -70,8 +70,8 @@ describe Box, ->
 
     it 'return current used and the box limit in megabytes', (done) ->
       box.quota (err, stats) ->
-        expect(stats.used).to.equal 0
-        expect(stats.limit).to.equal 1024 * 1024
+        expect(stats.used).to.match /\d+.*\d+/
+        expect(stats.limit).to.equal 2 * 1024 * 1024
         done()
 
   describe '#info', ->

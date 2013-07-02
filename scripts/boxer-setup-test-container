@@ -10,7 +10,7 @@ box_id=${1}
 box_name=${2}
 ip=${3}
 port=${4}
-disk_limit="1G"
+disk_limit="2G"
 
 container_name=${box_name}-${box_id}
 container_template='base_container_template'

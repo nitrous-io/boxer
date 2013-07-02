@@ -31,7 +31,7 @@ describe 'Boxer', ->
     attributes.boxId ?= 1
     attributes.runtime ?= "test"
     attributes.memory ?= "256M"
-    attributes.diskSpace ?= '1G'
+    attributes.diskSpace ?= '2000M'
     attributes.publicKeys ?= []
     attributes.snapshotURL ?= null
     publishSettings attributes
@@ -144,7 +144,7 @@ describe 'Boxer', ->
               expect(msg.port).to.eql 10000
               expect(msg.memory).to.eql '256M'
               expect(msg.disk).to.eql '/lxc/disk1'
-              expect(msg.diskSpace).to.eql '1G'
+              expect(msg.diskSpace).to.eql '2000M'
               expect(msg.boxerId).to.eql 'test.action.io'
               expect(msg.containerState).to.eql 'stopped'
               done(err)
@@ -301,7 +301,7 @@ describe 'Boxer', ->
               name: "mclovins-container"
               ip: "192.168.254.2"
               port: 10000
-              diskSpace: "1G"
+              diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
               state: "running"
@@ -340,7 +340,7 @@ describe 'Boxer', ->
               name: "mclovins-container"
               ip: "192.168.254.2"
               port: 10000
-              diskSpace: "1G"
+              diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
               state: "running"
@@ -380,7 +380,7 @@ describe 'Boxer', ->
               name: "mclovins-container"
               ip: "192.168.254.2"
               port: 10000
-              diskSpace: "1G"
+              diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
               state: "stopped"
@@ -416,7 +416,7 @@ describe 'Boxer', ->
               name: "mclovins-container"
               ip: "192.168.254.2"
               port: 10000
-              diskSpace: "1G"
+              diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
@@ -449,7 +449,7 @@ describe 'Boxer', ->
               name: "mclovins-container"
               ip: "192.168.254.2"
               port: 10000
-              diskSpace: "1G"
+              diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
@@ -595,13 +595,13 @@ describe 'Boxer', ->
               # check current quota limit
               childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
                 # The Disk Space Quota stays the same
-                expect(stdout).to.match /.*?-1G/
+                expect(stdout).to.match /.*?-2G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
                   msg = JSON.parse(res)
                   expect(msg.memory).to.eql '256M'
-                  expect(msg.diskSpace).to.eql '1G'
+                  expect(msg.diskSpace).to.eql '2000M'
                   expect(msg.containerState).to.eql 'running'
                   done()
 
@@ -628,13 +628,13 @@ describe 'Boxer', ->
 
               # check current quota limit
               childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
-                expect(stdout).to.eql '0-2G\n'
+                expect(stdout).to.match /.*?-3G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
                   msg = JSON.parse(res)
                   expect(msg.memory).to.eql '512M'
-                  expect(msg.diskSpace).to.eql '2048M'
+                  expect(msg.diskSpace).to.eql '3072M'
                   expect(msg.containerState).to.eql 'running'
                   done()
 
@@ -645,19 +645,19 @@ describe 'Boxer', ->
                 dataType: "aio:configure:change_specs"
                 data:
                   memory: "512M"
-                  diskSpace: "2G"
+                  diskSpace: "3G"
                 name: "mclovins-container-1"
 
           it "accepts float gigabyte unit for disk space", (done) ->
             assertMessage = (message) ->
               # check current quota limit
               childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
-                expect(stdout).to.match /.*?-204M/
+                expect(stdout).to.match /.*?-1\.5G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
                   msg = JSON.parse(res)
-                  expect(msg.diskSpace).to.eql '204M'
+                  expect(msg.diskSpace).to.eql '1536M'
                   done()
 
             subscribeAndDo ->
@@ -666,7 +666,7 @@ describe 'Boxer', ->
                 type: "aio:configure"
                 dataType: "aio:configure:change_specs"
                 data:
-                  diskSpace: "0.2G"
+                  diskSpace: "1.5G"
                 name: "mclovins-container-1"
 
           it "accepts megabyte unit for disk space", (done) ->
