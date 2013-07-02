@@ -582,6 +582,9 @@ describe 'Boxer', ->
 
           it 'returns a aio:configured message with success set to false', (done) ->
             assertMessage = (message) ->
+              # message set to false
+              expect(message.success).to.be.false
+
               # check true container root in selected disk instead of /var/lib/lxc
               containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
               lxcConfigFile = "#{containerRoot}/config"
@@ -618,6 +621,9 @@ describe 'Boxer', ->
         context 'successful upgrade', ->
           it "upgrades the box's memory and disk space limit", (done) ->
             assertMessage = (message) ->
+              # message set to true
+              expect(message.success).to.be.true
+
               # check true container root in selected disk instead of /var/lib/lxc
               containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
               lxcConfigFile = "#{containerRoot}/config"
@@ -650,6 +656,9 @@ describe 'Boxer', ->
 
           it "accepts float gigabyte unit for disk space", (done) ->
             assertMessage = (message) ->
+              # message set to true
+              expect(message.success).to.be.true
+
               # check current quota limit
               childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
                 expect(stdout).to.match /.*?-1\.5G/
@@ -671,6 +680,9 @@ describe 'Boxer', ->
 
           it "accepts megabyte unit for disk space", (done) ->
             assertMessage = (message) ->
+              # message set to true
+              expect(message.success).to.be.true
+
               # check current quota limit
               childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
                 expect(stdout).to.match /.*?-2G/
