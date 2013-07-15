@@ -8,6 +8,8 @@ redisClient = require('./utils').initRedisClientWith(redisStoreSettings, "localS
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
 initAirbrakeClient = require('./utils').initAirbrakeClient
+s3 = require './s3'
+fs = require 'fs'
 
 async = require 'async'
 _ = require 'underscore'
@@ -176,6 +178,27 @@ module.exports = class Box extends AutoAdvancingStateMachine
       return cb(err) if err
       [used, limit] = stdout.split("-")
       cb null, used: ConvertSize.convert(used), limit: ConvertSize.convert(limit)
+
+  snapshot: (cb) ->
+    if this.valid()
+      snapshotName = "#{this.containerName()}-#{+new Date()}.tar.gz"
+      snapshotUrl = "s3://#{settings.awsRegion}/#{settings.awsBucket}/#{snapshotName}"
+      snapshotPath =  @disk + "/" + snapshotName
+      this._stopContainer =>
+        finishCompress = =>
+          stream = fs.createReadStream snapshotPath
+          writeParams = { Bucket: settings.awsBucket, Key: snapshotName, Body: stream }
+          s3.client.putObject writeParams, =>
+            this._execShellCommand 'boxer-cleanup-local-tar',
+              [@disk, snapshotName],
+              sudo: true,
+              -> cb null, snapshotUrl
+        this._execShellCommand 'boxer-tar-delta-container',
+                                [@disk, this.containerName(), snapshotName],
+                                sudo: true,
+                                finishCompress
+    else
+      cb(new Error('Invalid Params'))
 
   encode: ->
     JSON.stringify({
