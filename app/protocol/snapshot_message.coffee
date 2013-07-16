@@ -1,11 +1,10 @@
 BaseMessage = require './base_message'
 
-module.exports = class ArchivedMessage extends BaseMessage
-  @type = 'aio:archived'
+module.exports = class SnapshotMessage extends BaseMessage
+  @type = 'aio:snapshot'
 
   constructor: (attributes) ->
     @id = attributes.id
     @boxId = attributes.boxId
     @name = attributes.name
-    @snapshotURL = attributes.snapshotURL
     super
