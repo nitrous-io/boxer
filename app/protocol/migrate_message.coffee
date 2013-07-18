@@ -19,6 +19,9 @@ module.exports = class MigrateMessage extends BaseMessage
     @diskSpace = attributes.diskSpace
     @publicKeys = attributes.publicKeys
     @sshKeyPair = attributes.sshKeyPair
+    @success = attributes.success
+    @host = attributes.host
+    @port = attributes.port
 
     @excludedHosts = attributes.excludedHosts
 
