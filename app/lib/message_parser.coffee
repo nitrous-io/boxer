@@ -19,8 +19,6 @@ module.exports = class MessageParser
     'aio:invalid:params'  : m.InvalidParamsMessage
     'aio:info_request'    : m.InfoRequestMessage
     'aio:info_response'   : m.InfoResponseMessage
-    'aio:snapshot'        : m.SnapshotMessage
-    'aio:snapshotted'     : m.SnapshottedMessage
     'aio:migrate'         : m.MigrateMessage
     'aio:migrated'        : m.MigratedMessage
 
