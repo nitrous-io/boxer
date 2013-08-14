@@ -12,12 +12,16 @@ username='root'
 box_path=${lxc_root}/${box_name}/rootfs
 ssh_path='/etc/ssh/univ_public_keys'
 
-if [ ! -f ${box_path}${ssh_path} ]; then
-  touch ${box_path}${ssh_path}
-fi
+(
+  flock -x 200
 
-for public_key in "${@:2}"; do
-  echo "${public_key}" >> ${box_path}${ssh_path}
-done
+  if [ ! -f ${box_path}${ssh_path} ]; then
+    touch ${box_path}${ssh_path}
+  fi
 
-chroot ${box_path} chown -R ${username}:${username} ${ssh_path}
+  for public_key in "${@:2}"; do
+    echo "${public_key}" >> ${box_path}${ssh_path}
+  done
+
+  chroot ${box_path} chown -R ${username}:${username} ${ssh_path}
+) 200>/var/lock/boxer.${box_name}.add_public_key

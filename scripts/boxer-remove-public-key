@@ -13,7 +13,10 @@ username='root'
 box_path=${lxc_root}/${box_name}/rootfs
 ssh_path='/etc/ssh/univ_public_keys'
 
-if [ -f ${box_path}${ssh_path} ]; then
-  sed -i "s|${public_key}$||g" ${box_path}/etc/ssh/univ_public_keys
-  chroot ${box_path} chown -R ${username}:${username} ${ssh_path}
-fi
+(
+  flock -x 200
+  if [ -f ${box_path}${ssh_path} ]; then
+    sed -i "s|${public_key}$||g" ${box_path}/etc/ssh/univ_public_keys
+    chroot ${box_path} chown -R ${username}:${username} ${ssh_path}
+  fi
+) 200>/var/lock/boxer.${box_name}.remove_public_key
