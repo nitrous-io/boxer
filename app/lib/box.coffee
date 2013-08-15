@@ -292,16 +292,38 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _removeBoxConfig: (done) ->
     done()
 
+  # TODO: So in development mode (if you're runnign in Vagrant)
+  # you need two iptables rules for port forwarding to work correctly,
+  # both of which are set in the boxer-setup-portforwarding-dev
+  # I didn't know of a clean way to make it work for existing iptables rules,
+  # which is why a separate script is invoked in development mode
+  #
+  # This needs to be ported to goboxer too
   _setUpPortForwarding: (done) ->
-    console.log 'Port Forwarding Set Up'
-    this._execShellCommand 'boxer-setup-portforwarding',
+    script = 'boxer-setup-portforwarding'
+    script = "#{script}-dev" if process.env.NODE_ENV == 'development'
+
+    console.log "Port Forwarding Set Up: #{script}"
+
+    this._execShellCommand script,
                            [@ip, @port],
                            sudo: true,
                            done
 
+  # TODO: So in development mode (if you're runnign in Vagrant)
+  # you need two iptables rules for port forwarding to work correctly,
+  # both of which are set in the boxer-setup-portforwarding-dev
+  # I didn't know of a clean way to make it work for existing iptables rules,
+  # which is why a separate script is invoked in development mode
+  #
+  # This needs to be ported to goboxer too
   _releasePortForwarding: (done) ->
-    console.log 'Port Forwarding Released'
-    this._execShellCommand 'boxer-release-portforwarding',
+    script = 'boxer-release-portforwarding'
+    script = "#{script}-dev" if process.env.NODE_ENV == 'development'
+
+    console.log "Port Forwarding Released: #{script}"
+
+    this._execShellCommand script,
                            [@ip, @port],
                            sudo: true,
                            done
