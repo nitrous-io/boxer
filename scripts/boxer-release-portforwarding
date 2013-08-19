@@ -10,5 +10,5 @@ port=${2}
 
 (
   flock -x 200
-  iptables -t nat -D PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
+  iptables -t nat -D PREROUTING ! -s 192.168.1.0/16 -p tcp --dport ${port} -j DNAT --to ${ip}:22
 ) 200>/var/lock/boxer.release_portforwarding
