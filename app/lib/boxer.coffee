@@ -55,6 +55,9 @@ module.exports = class Boxer
 
     console.log "Received Message: #{message.type} | id: #{message.id}"
 
+    # do not handle message meant for other box hosts
+    return if message.id && message.id != @id
+
     if message.type == protocol.LocateMessage.type
       @publisher.publish @coachChannel,
                          protocol.AdvertiseMessage.construct().encode()
