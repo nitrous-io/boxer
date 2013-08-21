@@ -93,6 +93,7 @@ describe 'Boxer', ->
 
           networkConfig = fs.readFileSync("#{root}/etc/network/interfaces")
           name = fs.readFileSync("#{root}/etc/hostname")
+          hostsfile = fs.readFileSync("#{root}/etc/hosts")
           publicKeys = fs.readFileSync("#{root}/etc/ssh/univ_public_keys").toString().trim().split("\n")
 
           # check message data
@@ -102,6 +103,7 @@ describe 'Boxer', ->
           expect(message.success).to.be.true
           expect(networkConfig).to.match /address 192.168.254.2/
           expect(name).to.match /mclovins-container-1/
+          expect(hostsfile).to.match /mclovins-container-1/
           expect(publicKeys).to.eql ['public-key-1', 'public-key-2']
 
           # check that home content

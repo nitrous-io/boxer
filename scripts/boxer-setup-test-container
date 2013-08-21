@@ -60,6 +60,8 @@ echo "lxc.cgroup.memory.limit_in_bytes = 256M" >> ${box_path}/config
 echo "lxc.cgroup.memory.memsw.limit_in_bytes = 768M" >> ${box_path}/config
 
 sed -i "s/${container_template}/${container_name}/g" ${box_path}/config
+sed -i "s/${container_template}/${container_name}/g" ${box_path}/rootfs/etc/hosts
+
 echo "${container_name}" > ${box_path}/rootfs/etc/hostname
 echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
 
