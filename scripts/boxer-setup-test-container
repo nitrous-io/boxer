@@ -65,7 +65,7 @@ sed -i "s/${container_template}/${container_name}/g" ${box_path}/rootfs/etc/host
 echo "${container_name}" > ${box_path}/rootfs/etc/hostname
 echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
 
-iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to ${ip}:22
+iptables -t nat -A PREROUTING ! -s 192.168.1.0/16 -p tcp --dport ${port} -j DNAT --to ${ip}:22
 
 if [[ $5 != 'dont-start' ]]; then
   lxc-start -n ${container_name} -d
