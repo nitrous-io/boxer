@@ -198,6 +198,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
     redisClient.hget 'aio:boxes', containerName, (err, res) ->
       if !err
         parsedBox = JSON.parse(res)
+        unless parsedBox
+          err = new Error("BoxNotFound: #{containerName}")
+          return cb(err, null)
         box = new Box(parsedBox.id, redisStoreSettings)
         box.name = parsedBox.name
         box.ip = parsedBox.ip

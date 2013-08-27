@@ -5,6 +5,13 @@ scriptPath          = __dirname.replace('test/integration', 'scripts')
 initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
 
 describe Box, ->
+  describe ".find", ->
+    it 'returns callback with error when we cant find the box', (done) ->
+      callback = (err, box) =>
+        expect(err).to.be.an.instanceof(Error)
+        done()
+      Box.find 'non-existent-box', callback
+
   describe '.startAll', ->
     beforeEach (done) ->
       childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container-1 192.168.254.2 10000 dont-start", (err, stdout, stderr) ->
