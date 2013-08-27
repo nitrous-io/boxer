@@ -49,7 +49,7 @@ module.exports = class Boxer
     @publisher.publish @coachChannel,
                        protocol.AdvertiseMessage.construct().encode()
 
-  _handle:(message) ->
+  _handle: (message) ->
     boxer = this
     returnVars = message.returnVars
 
@@ -143,3 +143,17 @@ module.exports = class Boxer
             infoResponseMessage.success = false
 
           boxer.publisher.publish boxer.coachChannel, infoResponseMessage.encode()
+    else if message.type == protocol.MigrateMessage.type && @id == message.id
+      return unless message.dataType == "aio:migrate:snapshot"
+      # because we want to conform with aio:create structure, we are sending
+      # name: `actual_name` instead of name: `actual_name-boxid`
+      Box.find message.name + "-" + message.boxId, (err, box) ->
+        box.snapshot (err, snapshotUrl) ->
+          message.dataType = "aio:migrate:snapshotted"
+          if !err
+            # repurpose the message as snapshotted with all the original data
+            message.snapshotURL = snapshotUrl
+            message.success = true
+          else
+            message.success = false
+          boxer.publisher.publish boxer.coachChannel, message.encode()

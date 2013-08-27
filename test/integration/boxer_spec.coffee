@@ -9,6 +9,7 @@ scriptPath          = __dirname.replace('test/integration', 'scripts')
 settings            = require('../../config/settings')
 redisMQSettings     = settings.redisMQ
 redisStoreSettings  = settings.redisStore
+nock                = require 'nock'
 
 describe 'Boxer', ->
   boxer = coach = publisher = null
@@ -747,3 +748,51 @@ describe 'Boxer', ->
         subscribeAndDo ->
           waitForMessage 'aio:destroyed', assertMessage
           publishSettings type: "aio:destroy", name: "mclovins-container-1"
+
+    describe 'aio:migrate:snapshot', ->
+      clock = null
+      uploadSnapshot = null
+      snapshotUrl = null
+
+      beforeEach (done) ->
+        clock = sinon.useFakeTimers()
+        snapshotUrl =  "s3://#{settings.awsRegion}/#{settings.awsBucket}/mclovins-container-1-0.tar.gz"
+
+        uploadSnapshot = nock("https://s3-#{settings.awsRegion}.amazonaws.com:443")
+          .put("/#{settings.awsBucket}/mclovins-container-1-#{+new Date()}.tar.gz")
+          .reply(200, new Buffer(""))
+
+        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", timeout:5000, (err, stdout, stderr) ->
+          done(err) if err
+          cleanDB ->
+            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+              state: "stopped"
+              disk: "/lxc/disk1"
+            })
+            runBox done
+
+      afterEach ->
+        clock.restore()
+
+      it 'creates a snapshot of container delta folder and stops the box', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.dataType).to.eql 'aio:migrate:snapshotted'
+          expect(message.snapshotURL).to.eql snapshotUrl
+          expect(uploadSnapshot.isDone()).to.be.true
+          expect(fs.existsSync("/lxc/disk1/mclovins-container-1-0.tar.gz")).to.be.false
+
+          childProcess.exec "sudo lxc-info -n mclovins-container-1", timeout: 5000, (err, stdout, stderr) ->
+            expect(stdout).to.match /STOPPED/
+            done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:migrate', assertMessage
+          publishSettings type: "aio:migrate", name: "mclovins-container-1", dataType: "aio:migrate:snapshot"

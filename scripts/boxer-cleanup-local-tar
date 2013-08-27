@@ -1,0 +1,11 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root=${1}
+snapshot_name=${2}
+
+rm -rf $lxc_root/$snapshot_name
