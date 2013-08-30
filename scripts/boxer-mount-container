@@ -12,11 +12,11 @@ container_name=${2}
 home_template=${3}
 disk_limit=${4}
 disk=${5}
+aufs=${6}
 
 box_path=${disk}/${container_name}
 box_delta_path=${box_path}_delta
 container_path=${disk}/${container_template}
-mount_options=rw,upperdir=${box_delta_path},lowerdir=${container_path}
 quoted_lxc_root='\/var\/lib\/lxc\/'
 
 (
@@ -25,7 +25,13 @@ quoted_lxc_root='\/var\/lib\/lxc\/'
   if [[ ! `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
     mkdir -p ${lxc_root}/${container_name}
 
-    mount -n -t overlayfs -o ${mount_options} none ${box_path}
+    if [[ "$aufs" == "true" ]]
+    then
+      mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
+    else
+      mount_options=rw,upperdir=${box_delta_path},lowerdir=${container_path}
+      mount -n -t overlayfs -o ${mount_options} none ${box_path}
+    fi
     # If the mount fails, then just exit and we should go back
     if [[ $? != 0 ]]; then
       exit 1

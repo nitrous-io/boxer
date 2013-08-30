@@ -72,10 +72,9 @@ describe Box, ->
       box._mountContainer(cbSpy)
 
     it 'should call _execShellCommand with the right options', ->
-      box._execShellCommand.should.have.been.calledWith("boxer-mount-container",
-                                                        [1, "rails-box-1", "ruby-container-template", '1G', '/lxc/disk1'],
-                                                        sudo: true,
-                                                        cbSpy)
+      args = [1, "rails-box-1", "ruby-container-template", '1G', '/lxc/disk1', "false"]
+      box._execShellCommand.should.have.been.calledWith(
+        "boxer-mount-container", args, sudo: true, cbSpy)
 
   describe '#unmountContainer', ->
     beforeEach ->

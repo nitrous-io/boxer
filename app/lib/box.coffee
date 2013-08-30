@@ -34,6 +34,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @disk = null
     @boxerId = null
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
+    @aufs = false
     super
 
   containerName: -> "#{@name}-#{@id}"
@@ -192,6 +193,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     containerTemplate: @containerTemplate
                     boxerId: @boxerId
                     containerState: @containerState
+                    aufs: @aufs
                   })
 
   @find: (containerName, cb) ->
@@ -212,7 +214,10 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
         box.disk = parsedBox.disk
-
+        if parsedBox.aufs != undefined
+          box.aufs = parsedBox.aufs
+        else
+          box.aufs = false
         cb(err, box)
       else
         cb(err, null)
@@ -265,11 +270,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            done
 
   _mountContainer: (done) ->
-    console.log 'Mounting Container'
-    this._execShellCommand 'boxer-mount-container',
-                           [@id, this.containerName(), @containerTemplate, @diskSpace, @disk],
-                           sudo: true,
-                           done
+    args = [@id, this.containerName(), @containerTemplate, @diskSpace, @disk]
+    args.push @aufs.toString()
+    this._execShellCommand 'boxer-mount-container', args, sudo: true, done
 
   _unmountContainer: (done) ->
     console.log 'Unmounting Container'
