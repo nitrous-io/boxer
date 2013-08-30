@@ -29,8 +29,6 @@ iface eth0 inet static
 EOF
 )
 
-mount_options=rw,upperdir=${box_delta_path},lowerdir=${container_path}
-
 mkdir -p ${box_path}
 mkdir -p ${box_delta_path}
 mkdir -p ${lxc_root}/${container_name}
@@ -42,7 +40,7 @@ mkdir -p ${box_delta_path}/rootfs/home/action
 chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
 
 # overlay in disk
-mount -n -t overlayfs -o ${mount_options} none ${box_path}
+mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
 # bind to lxc location so we can have lxc goodies
 mount --bind ${box_path} ${lxc_root}/${container_name}
 
