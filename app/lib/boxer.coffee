@@ -70,6 +70,7 @@ module.exports = class Boxer
         box.snapshotURL = message.snapshotURL
         box.boxerId = @id
         box.disk = @selectedDisk
+        box.aufs = true
 
         # These callbacks are called in the context of the Box instance, so @id, @ip, @port, etc. refer to instance variables
         # of the box instance
