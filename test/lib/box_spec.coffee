@@ -60,11 +60,11 @@ describe Box, ->
   describe '#totalMemory', ->
     it 'includes swap size of the box', ->
       box.memory = '256M'
-      expect(box.totalMemory()).to.equal('768M')
+      expect(box.totalMemory()).to.equal('512M')
       box.memory = '1G'
-      expect(box.totalMemory()).to.equal('3G')
+      expect(box.totalMemory()).to.equal('2G')
       box.memory = '1024'
-      expect(box.totalMemory()).to.equal('3072')
+      expect(box.totalMemory()).to.equal('2048')
 
   describe '#mountContainer', ->
     beforeEach ->

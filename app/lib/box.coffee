@@ -74,12 +74,12 @@ module.exports = class Box extends AutoAdvancingStateMachine
     if @memory
       memoryInteger = parseInt(@memory)
       # totalMemory is the sum of the memory allocated to the box,
-      # plus twice the memory allocated for swap, so for 256M, the swap
-      # memory allocated will be 512M, making the total memory allocated to the box
-      # 768M
+      # plus the memory allocated for swap, so for 256M, the swap
+      # memory allocated will be 256M, making the total memory allocated to the box
+      # 512M
       #
       # This is used for the lxc.cgroup.memory.memsw.limit_in_bytes setting in LXC
-      "#{(memoryInteger * 3)}#{this.memoryUnit()}"
+      "#{(memoryInteger * 2)}#{this.memoryUnit()}"
     else
       null
 
