@@ -119,7 +119,7 @@ describe Box, ->
 
     it 'should call _execShellCommand with the right options', ->
       box._execShellCommand.should.have.been.calledWith("boxer-configure-box",
-                                                        [1, 'rails-box-1', 'ruby-container-template', '256M', '768M', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001, "/lxc/disk1"],
+                                                        [1, 'rails-box-1', 'ruby-container-template', '256M', '512M', '60', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001, "/lxc/disk1"],
                                                         sudo: true,
                                                         cbSpy)
 

@@ -25,12 +25,14 @@ module.exports = class Box extends AutoAdvancingStateMachine
   ]
 
   @UID_BASE = 15000
+  @SWAPPINESS = 60
 
   constructor: (@id) ->
     @ip = @gateway = @interface = @port = @boxerCallback = null
     @containerState = 'stopped'
     @name = @containerTemplate = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
+    @swappiness = Box.SWAPPINESS
     @disk = null
     @boxerId = null
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
@@ -194,6 +196,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     boxerId: @boxerId
                     containerState: @containerState
                     aufs: @aufs
+                    swappiness: @swappiness
                   })
 
   @find: (containerName, cb) ->
@@ -218,6 +221,12 @@ module.exports = class Box extends AutoAdvancingStateMachine
           box.aufs = parsedBox.aufs
         else
           box.aufs = false
+
+        if parsedBox.swappiness != undefined
+          box.swappiness = parsedBox.swappiness
+        else
+          box.swappiness = Box.SWAPPINESS
+
         cb(err, box)
       else
         cb(err, null)
@@ -291,7 +300,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _configureBox: (done) ->
     console.log "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [@id, this.containerName(), @containerTemplate, @memory, this.totalMemory(), @ip, @gateway, @interface, this._uid(), this._gid(), @disk],
+                           [@id, this.containerName(), @containerTemplate, @memory, this.totalMemory(), "#{@swappiness}", @ip, @gateway, @interface, this._uid(), this._gid(), @disk],
                            sudo: true,
                            done
 

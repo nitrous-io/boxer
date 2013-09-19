@@ -11,12 +11,13 @@ container_name=${2}
 container_template=${3}
 memory=${4}
 total_memory=${5}
-ip=${6}
-gateway=${7}
-interface=${8}
-uid=${9}
-gid=${10}
-disk=${11}
+swappiness=${6}
+ip=${7}
+gateway=${8}
+interface=${9}
+uid=${10}
+gid=${11}
+disk=${12}
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
@@ -44,11 +45,13 @@ sed -i "/lxc.network.link/d" ${lxc_root}/${container_name}/config
 sed -i "/lxc.network.hwaddr/d" ${lxc_root}/${container_name}/config
 sed -i "/lxc.cgroup.memory.limit_in_bytes/d" ${lxc_root}/${container_name}/config
 sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" ${lxc_root}/${container_name}/config
+sed -i "/lxc.cgroup.memory.swappiness/d" ${lxc_root}/${container_name}/config
 
 echo "lxc.network.link = ${interface}" >> ${lxc_root}/${container_name}/config
 echo "lxc.network.hwaddr = ${mac_address}" >> ${lxc_root}/${container_name}/config
 echo "lxc.cgroup.memory.limit_in_bytes = ${memory}" >> ${lxc_root}/${container_name}/config
 echo "lxc.cgroup.memory.memsw.limit_in_bytes = ${total_memory}" >> ${lxc_root}/${container_name}/config
+echo "lxc.cgroup.memory.swappiness = ${swappiness}" >> ${lxc_root}/${container_name}/config
 
 sed -i "s/base_container_template/${container_name}/g" ${lxc_root}/${container_name}/config
 sed -i "s/base_container_template/${container_name}/g" ${lxc_root}/${container_name}/rootfs/etc/hosts
