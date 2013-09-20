@@ -32,6 +32,8 @@ describe 'Boxer', ->
     attributes.runtime ?= "test"
     attributes.memory ?= "256M"
     attributes.diskSpace ?= '2000M'
+    attributes.cpuShares ?= '2048'
+
     attributes.publicKeys ?= []
     attributes.snapshotURL ?= null
     publishSettings attributes
@@ -120,7 +122,7 @@ describe 'Boxer', ->
           expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
           expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
           expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.swappiness = 60/
-          expect(lxcConfigFileContent).to.match /lxc.cgroup.cpu.shares = 512/
+          expect(lxcConfigFileContent).to.match /lxc.cgroup.cpu.shares = 2048/
 
           # check mount configs
           expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/

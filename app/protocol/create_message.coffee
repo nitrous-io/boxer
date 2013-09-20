@@ -13,5 +13,6 @@ module.exports = class CreateMessage extends BaseMessage
     @publicKeys = attributes.publicKeys
     @name = attributes.name
     @sshKeyPair = attributes.sshKeyPair
+    @cpuShares = attributes.cpuShares
 
     super

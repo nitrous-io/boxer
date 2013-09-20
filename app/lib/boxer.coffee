@@ -68,6 +68,8 @@ module.exports = class Boxer
         box.diskSpace = message.diskSpace
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
+        box.cpuShares = message.cpuShares if message.cpuShares
+
         box.boxerId = @id
         box.disk = @selectedDisk
         box.aufs = true
