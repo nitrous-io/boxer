@@ -52,3 +52,6 @@ tramp
 
 # Redis
 *.rdb
+
+# Vagrant
+.vagrant
