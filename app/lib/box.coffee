@@ -26,13 +26,17 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   @UID_BASE = 15000
   @SWAPPINESS = 60
+  @CPU_SHARES = 512
 
   constructor: (@id) ->
     @ip = @gateway = @interface = @port = @boxerCallback = null
     @containerState = 'stopped'
     @name = @containerTemplate = null
     @memory = @diskSpace = @publicKeys = @snapshotURL = null
+
     @swappiness = Box.SWAPPINESS
+    @cpuShares = Box.CPU_SHARES
+
     @disk = null
     @boxerId = null
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
@@ -198,6 +202,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     containerState: @containerState
                     aufs: @aufs
                     swappiness: @swappiness
+                    cpuShares: @cpuShares
                   })
 
   @find: (containerName, cb) ->
@@ -218,6 +223,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
         box.disk = parsedBox.disk
+
         if parsedBox.aufs != undefined
           box.aufs = parsedBox.aufs
         else
@@ -227,6 +233,11 @@ module.exports = class Box extends AutoAdvancingStateMachine
           box.swappiness = parsedBox.swappiness
         else
           box.swappiness = Box.SWAPPINESS
+
+        if parsedBox.cpuShares != undefined
+          box.cpuShares = parsedBox.cpuShares
+        else
+          box.cpuShares = Box.CPU_SHARES
 
         cb(err, box)
       else
@@ -301,7 +312,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _configureBox: (done) ->
     console.log "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [@id, this.containerName(), @containerTemplate, @memory, this.totalMemory(), "#{@swappiness}", @ip, @gateway, @interface, this._uid(), this._gid(), @disk],
+                           [@id, this.containerName(), @containerTemplate, "#{@cpuShares}", @memory, this.totalMemory(), "#{@swappiness}", @ip, @gateway, @interface, this._uid(), this._gid(), @disk],
                            sudo: true,
                            done
 

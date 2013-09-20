@@ -114,10 +114,13 @@ describe 'Boxer', ->
           expect(fs.readFileSync("/#{root}/etc/passwd")).to.match /action:x:15001:15001/
 
           # check lxc config
-          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.network.hwaddr = 02:00/
-          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
-          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
-          expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.swappiness = 60/
+          lxcConfigFileContent = fs.readFileSync(lxcConfigFile).toString()
+
+          expect(lxcConfigFileContent).to.match /lxc.network.hwaddr = 02:00/
+          expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
+          expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
+          expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.swappiness = 60/
+          expect(lxcConfigFileContent).to.match /lxc.cgroup.cpu.shares = 512/
 
           # check mount configs
           expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
