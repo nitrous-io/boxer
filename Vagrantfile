@@ -7,7 +7,7 @@ $script = <<SCRIPT
   export HOME=/home/vagrant
 
   apt-get update
-  apt-get install -yy git-core lxc bridge-utils curl redis-server build-essential
+  apt-get install -yy git-core lxc bridge-utils curl redis-server build-essential xfsprogs
 
   cd $HOME
 
