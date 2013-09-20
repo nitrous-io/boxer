@@ -1,0 +1,77 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+IP = ENV['VAGRANT_INTERFACE'] || "33.33.33.10"
+
+$script = <<SCRIPT
+  export HOME=/home/vagrant
+
+  apt-get update
+  apt-get install -yy git-core lxc bridge-utils curl redis-server build-essential
+
+  cd $HOME
+
+  if [[ ! -d /home/vagrant/.nvm ]]; then
+    git clone https://github.com/creationix/nvm.git .nvm
+  fi
+
+  echo -e "if [ -s "${HOME}/.nvm/nvm.sh" ];\n then . ${HOME}/.nvm/nvm.sh; fi" > /etc/profile.d/nvm.sh
+
+  chmod a+x /etc/profile.d/nvm.sh
+
+  . $HOME/.nvm/nvm.sh
+  nvm install 0.8
+  nvm use 0.8
+  nvm alias default 0.8
+
+  if [[ ! `grep "br-lxc-254" /etc/network/interfaces` ]]; then
+    echo -e "auto br-lxc-254\niface br-lxc-254 inet static\n\taddress 192.168.254.1\n\tnetmask 255.255.255.0\n\tpost-up echo 1 > /proc/sys/net/ipv4/ip_forward\n\tpre-down echo 0 > /proc/sys/net/ipv4/ip_forward\n\tbridge_ports none\n\tbridge_stp on\n\tbridge_fd 0\n\tbridge_maxwait 0" >> /etc/network/interfaces
+  fi
+
+  /sbin/ifconfig br-lxc-254 || /sbin/ifup br-lxc-254
+  (/sbin/iptables -t nat --list | /bin/grep 192-168-254-0) || /sbin/iptables -t nat -A POSTROUTING -s 192.168.254.0/24 ! -d 192.168.254.0/24 -j MASQUERADE
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  # All Vagrant configuration is done here. The most common configuration
+  # options are documented and commented below. For a complete reference,
+  # please see the online documentation at vagrantup.com.
+
+  config.vm.hostname = "boxer"
+
+  # Every Vagrant virtual environment requires a box to build off of.
+  config.vm.box      = 'opscode_ubuntu-12.04_chef-11.2.0'
+
+  # The url from where the 'config.vm.box' box will be fetched if it
+  # doesn't already exist on the user's system.
+  config.vm.box_url  = "https://opscode-vm.s3.amazonaws.com/vagrant/opscode_ubuntu-12.04_chef-11.2.0.box"
+
+  # Assign this VM to a host-only network IP, allowing you to access it
+  # via the IP. Host-only networks can talk to the host machine as well as
+  # any other machines on the same network, but cannot be accessed (through this
+  # network interface) by any external networks.
+  config.vm.network :private_network, ip: IP
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  config.vm.synced_folder "./", "/home/vagrant/boxer"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  config.vm.provider :virtualbox do |v|
+    v.customize ["modifyvm", :id, "--cpus", "2"]
+    v.customize ["modifyvm", :id, "--memory", "2048"]
+    v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+  end
+
+  # View the documentation for the provider you're using for more
+  # information on available options.
+  config.ssh.max_tries = 40
+  config.ssh.timeout   = 120
+
+  config.vm.provision "shell", inline: $script
+end
