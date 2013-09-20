@@ -177,6 +177,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   quota: (cb) ->
     this._execShellCommand "boxer-report-current-limit", [@disk, this.containerName()], sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
+
       [used, limit] = stdout.split("-")
       cb null, used: ConvertSize.convert(used), limit: ConvertSize.convert(limit)
 

@@ -632,8 +632,8 @@ describe 'Boxer', ->
               lxcConfigFile = "#{containerRoot}/config"
 
               # check lxc config
-              expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.limit_in_bytes = 512M/
-              expect(fs.readFileSync(lxcConfigFile)).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 1536M/
+              expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.limit_in_bytes = 512M/
+              expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 1024M/
 
               # check current quota limit
               childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->

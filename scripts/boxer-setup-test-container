@@ -55,7 +55,7 @@ sed -i "/lxc.cgroup.memory.limit_in_bytes/d" ${box_path}/config
 sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" ${box_path}/config
 
 echo "lxc.cgroup.memory.limit_in_bytes = 256M" >> ${box_path}/config
-echo "lxc.cgroup.memory.memsw.limit_in_bytes = 768M" >> ${box_path}/config
+echo "lxc.cgroup.memory.memsw.limit_in_bytes = 512M" >> ${box_path}/config
 
 sed -i "s/${container_template}/${container_name}/g" ${box_path}/config
 sed -i "s/${container_template}/${container_name}/g" ${box_path}/rootfs/etc/hosts
