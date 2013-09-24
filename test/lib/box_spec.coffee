@@ -116,21 +116,21 @@ describe Box, ->
     beforeEach (done) ->
       notifyStub = sinon.stub().callsArg(1)
 
-      sinon.stub box, '_cleanupDeltaContainer', (cb) ->
+      sinon.stub box, '_removeVolume', (cb) ->
         done()
 
       sinon.stub box, '_mountContainer', (cb) -> box._execShellCommand '../support/fail-script', [], sudo: true, cb
 
       sinon.stub box, '_currentState', ->
-        { name: 'someState',   onAdvance: '_mountContainer', onRollback: '_cleanupDeltaContainer' }
+        { name: 'someState',   onAdvance: '_mountContainer', onRollback: '_removeVolume' }
 
       box._advance()
 
     afterEach ->
       box.airbreakClient = null
       box._currentState.restore()
-      box._cleanupDeltaContainer.restore()
+      box._removeVolume.restore()
       box._mountContainer.restore()
 
     it 'should invoke the rollback', () ->
-      box._cleanupDeltaContainer.should.have.been.called
+      box._removeVolume.should.have.been.called
