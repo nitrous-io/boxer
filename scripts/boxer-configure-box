@@ -18,7 +18,7 @@ gateway=${9}
 interface=${10}
 uid=${11}
 gid=${12}
-disk=${13}
+
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
@@ -30,50 +30,49 @@ iface eth0 inet static
     gateway ${gateway}
 EOF
 )
-etc_action=${disk}/${container_name}/rootfs/etc/action
-
-home_data_path=${disk}/${container_template}
-box_delta_path=${disk}/${container_name}_delta
+container_path=$lxc_root/$container_name
 
 # Untar the contents of the specific container template (ruby, python, etc.) into the box itself
-tar -xzSpf $home_data_path.tar.gz -C $box_delta_path/rootfs/home/action
+home_data_path=${lxc_root}/${container_template}
+tar -xzSpf $home_data_path.tar.gz -C $container_path/rootfs/home/action
 
 # http://www.funtoo.org/wiki/Linux_Containers
 # http://serverfault.com/questions/40712/what-range-of-mac-addresses-can-i-safely-use-for-my-virtual-machines
 mac_address=`printf "02:00:%x:%x:%x:%x" ${ip//./ }`
 
-sed -i "/lxc.network.link/d" ${lxc_root}/${container_name}/config
-sed -i "/lxc.network.hwaddr/d" ${lxc_root}/${container_name}/config
-sed -i "/lxc.cgroup.memory.limit_in_bytes/d" ${lxc_root}/${container_name}/config
-sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" ${lxc_root}/${container_name}/config
-sed -i "/lxc.cgroup.memory.swappiness/d" ${lxc_root}/${container_name}/config
-sed -i "/lxc.cgroup.cpu.shares/d" ${lxc_root}/${container_name}/config
+# Set lxc config
+lxc_config_path=$container_path/config
+sed -i "/lxc.network.link/d" $lxc_config_path
+sed -i "/lxc.network.hwaddr/d" $lxc_config_path
+sed -i "/lxc.cgroup.memory.limit_in_bytes/d" $lxc_config_path
+sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" $lxc_config_path
+sed -i "/lxc.cgroup.memory.swappiness/d" $lxc_config_path
+sed -i "/lxc.cgroup.cpu.shares/d" $lxc_config_path
 
-echo "lxc.network.link = ${interface}" >> ${lxc_root}/${container_name}/config
-echo "lxc.network.hwaddr = ${mac_address}" >> ${lxc_root}/${container_name}/config
-echo "lxc.cgroup.memory.limit_in_bytes = ${memory}" >> ${lxc_root}/${container_name}/config
-echo "lxc.cgroup.memory.memsw.limit_in_bytes = ${total_memory}" >> ${lxc_root}/${container_name}/config
-echo "lxc.cgroup.memory.swappiness = ${swappiness}" >> ${lxc_root}/${container_name}/config
-echo "lxc.cgroup.cpu.shares = ${cpu_shares}" >> ${lxc_root}/${container_name}/config
+echo "lxc.network.link = ${interface}" >> $lxc_config_path
+echo "lxc.network.hwaddr = ${mac_address}" >> $lxc_config_path
+echo "lxc.cgroup.memory.limit_in_bytes = ${memory}" >> $lxc_config_path
+echo "lxc.cgroup.memory.memsw.limit_in_bytes = ${total_memory}" >> $lxc_config_path
+echo "lxc.cgroup.memory.swappiness = ${swappiness}" >> $lxc_config_path
+echo "lxc.cgroup.cpu.shares = ${cpu_shares}" >> $lxc_config_path
 
-sed -i "s/base_container_template/${container_name}/g" ${lxc_root}/${container_name}/config
-sed -i "s/base_container_template/${container_name}/g" ${lxc_root}/${container_name}/rootfs/etc/hosts
+sed -i "s/base_container_template/${container_name}/g" $lxc_config_path
+sed -i "s/base_container_template/${container_name}/g" $container_path/rootfs/etc/hosts
 
-echo "${container_name}" > ${lxc_root}/${container_name}/rootfs/etc/hostname
-echo "${network_config}" > ${lxc_root}/${container_name}/rootfs/etc/network/interfaces
-
-# Set the UID and the GID
-if [[ ! `ls -la ${lxc_root}/${container_name}/rootfs/home/action | grep ${uid}` ]]; then
-  chroot ${lxc_root}/${container_name}/rootfs usermod -u ${uid} action
-  chroot ${lxc_root}/${container_name}/rootfs groupmod -g ${gid} action
-  chroot ${lxc_root}/${container_name}/rootfs chown -R ${uid}:${gid} /home/action
-fi
+echo "${container_name}" > $container_path/rootfs/etc/hostname
+echo "${network_config}" > $container_path/rootfs/etc/network/interfaces
 
 # Create the workspace directory
-mkdir -p ${lxc_root}/${container_name}/rootfs/home/action/workspace
-chroot ${lxc_root}/${container_name}/rootfs chown -R ${uid}:${gid} /home/action/workspace
+mkdir -p $container_path/rootfs/home/action/workspace
+
+# Set the UID and the GID
+if [[ ! `ls -la $container_path/rootfs/home/action | grep ${uid}` ]]; then
+  chroot $container_path/rootfs usermod -u ${uid} action
+  chroot $container_path/rootfs groupmod -g ${gid} action
+  chroot $container_path/rootfs chown -R ${uid}:${gid} /home/action
+fi
 
 # Add /etc/action/box_id
+etc_action=$container_path/rootfs/etc/action
 mkdir -p ${etc_action}
 echo "${id}" > ${etc_action}/box_id
-

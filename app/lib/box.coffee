@@ -15,8 +15,8 @@ _ = require 'underscore'
 module.exports = class Box extends AutoAdvancingStateMachine
   states: [
     { name: 'initialized',         onAdvance: '_acquireResources',    onRollback: '_notifyRollback' }
-    { name: 'resourcesAcquired',   onAdvance: '_setupDeltaContainer', onRollback: '_releaseResources' }
-    { name: 'containerPrepared',   onAdvance: '_mountContainer',      onRollback: '_cleanupDeltaContainer' }
+    { name: 'createVolume',        onAdvance: '_createVolume',        onRollback: '_releaseResources' }
+    { name: 'containerPrepared',   onAdvance: '_mountContainer',      onRollback: '_removeVolume' }
     { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
     { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
     { name: 'portForwardingSetUp', onAdvance: '_setDefaultKeyPair',   onRollback: '_releasePortForwarding' }
@@ -37,10 +37,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @swappiness = Box.SWAPPINESS
     @cpuShares = Box.CPU_SHARES
 
-    @disk = null
     @boxerId = null
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
-    @aufs = false
     super
 
   containerName: -> "#{@name}-#{@id}"
@@ -168,7 +166,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       cb(new Error('Invalid Params'))
 
   info: (cb) ->
-    this._execShellCommand "boxer-info", [@disk, this.containerName()], sudo: true, (err, stdout, stderr) =>
+    this._execShellCommand "boxer-info", [this.containerName()], sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
       [lxcStatus, memoryUsageInBytes, storageUsageInKB] = stdout.split("-")
 
@@ -179,7 +177,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
           lxcStatus: lxcStatus
 
   quota: (cb) ->
-    this._execShellCommand "boxer-report-current-limit", [@disk, this.containerName()], sudo: true, (err, stdout, stderr) =>
+    this._execShellCommand "boxer-report-current-limit", [this.containerName()], sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
 
       [used, limit] = stdout.split("-")
@@ -194,13 +192,11 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     interface: @interface
                     port: @port
                     memory: @memory
-                    disk: @disk
                     diskSpace: @diskSpace
                     snapshotURL: @snapshotURL
                     containerTemplate: @containerTemplate
                     boxerId: @boxerId
                     containerState: @containerState
-                    aufs: @aufs
                     swappiness: @swappiness
                     cpuShares: @cpuShares
                   })
@@ -222,12 +218,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box.diskSpace = parsedBox.diskSpace
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
-        box.disk = parsedBox.disk
-
-        if parsedBox.aufs != undefined
-          box.aufs = parsedBox.aufs
-        else
-          box.aufs = false
 
         if parsedBox.swappiness != undefined
           box.swappiness = parsedBox.swappiness
@@ -283,36 +273,35 @@ module.exports = class Box extends AutoAdvancingStateMachine
       console.log "Done Releasing Resources, error: #{err}"
       done(err)
 
-  _setupDeltaContainer: (done) ->
-    console.log 'Setting Up Delta Container'
-    this._execShellCommand 'boxer-setup-delta-container',
-                           [@id, this.containerName(), @containerTemplate, @disk],
+  _createVolume: (done) ->
+    console.log 'Create Volume'
+    this._execShellCommand 'boxer-create-volume',
+                           [this.containerName(), @diskSpace],
                            sudo: true,
                            done
 
   _mountContainer: (done) ->
-    args = [@id, this.containerName(), @containerTemplate, @diskSpace, @disk]
-    args.push @aufs.toString()
+    args = [@id, this.containerName()]
     this._execShellCommand 'boxer-mount-container', args, sudo: true, done
 
   _unmountContainer: (done) ->
     console.log 'Unmounting Container'
     this._execShellCommand 'boxer-unmount-container',
-                           [this.containerName(), @disk],
+                           [this.containerName()],
                            sudo: true,
                            done
 
-  _cleanupDeltaContainer: (done) ->
-    console.log 'Cleaning Up Delta Container'
-    this._execShellCommand 'boxer-cleanup-delta-container',
-                           [this.containerName(), @disk],
+  _removeVolume: (done) ->
+    console.log 'Remove Volume'
+    this._execShellCommand 'boxer-remove-volume',
+                           [this.containerName()],
                            sudo: true,
                            done
 
   _configureBox: (done) ->
     console.log "Configuring Box: #{this._uid()} #{this._gid()}"
     this._execShellCommand 'boxer-configure-box',
-                           [@id, this.containerName(), @containerTemplate, "#{@cpuShares}", @memory, this.totalMemory(), "#{@swappiness}", @ip, @gateway, @interface, this._uid(), this._gid(), @disk],
+                           [@id, this.containerName(), @containerTemplate, "#{@cpuShares}", @memory, this.totalMemory(), "#{@swappiness}", @ip, @gateway, @interface, this._uid(), this._gid()],
                            sudo: true,
                            done
 
@@ -358,7 +347,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setDefaultKeyPair: (done) ->
     console.log 'Setting default ssh key-pair'
     this._execShellCommand 'boxer-set-default-key-pair',
-                            [this.containerName(), @disk],
+                            [this.containerName()],
                             sudo: true
                             done
 
@@ -444,6 +433,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   _changeDiskQuota: (done) ->
     this._execShellCommand "boxer-change-disk-limit",
-      [@disk, this.containerName(), @diskSpace],
+      [this.containerName(), @diskSpace],
       sudo: true,
       done

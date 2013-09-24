@@ -5,8 +5,7 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
-disk=${1}
-id=${2}
+id=${1}
 
 # lxc-info
 lxc_status=`lxc-info -n ${id} | head -1 | awk '{print $2}'`
@@ -25,7 +24,7 @@ else
 fi
 
 # disk usage
-disk_usage_in_kb=`xfs_quota -x -c "quota -pvN ${id}" ${disk} | awk '{printf $2}'`
+mountpoint=/var/lib/lxc/${id}_delta
+disk_usage_in_kb=`df $mountpoint | tail -1 | awk '{printf $3}'`
 
 echo "${lxc_status}-${memory_usage_in_bytes}-${disk_usage_in_kb}"
-
