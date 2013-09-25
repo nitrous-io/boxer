@@ -457,6 +457,7 @@ describe 'Boxer', ->
               name: "mclovins-container"
               ip: "192.168.254.2"
               port: 10000
+              cpuShares: 512
               diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
@@ -639,6 +640,7 @@ describe 'Boxer', ->
               # check lxc config
               expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.limit_in_bytes = 512M/
               expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 1024M/
+              expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.cpu.shares = 2048/
 
               # check current quota limit
               childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
@@ -646,9 +648,11 @@ describe 'Boxer', ->
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+
                   msg = JSON.parse(res)
                   expect(msg.memory).to.eql '512M'
                   expect(msg.diskSpace).to.eql '3072M'
+                  expect(msg.cpuShares).to.eql '2048'
                   expect(msg.containerState).to.eql 'running'
                   done()
 
@@ -660,6 +664,7 @@ describe 'Boxer', ->
                 data:
                   memory: "512M"
                   diskSpace: "3G"
+                  cpuShares: "2048"
                 name: "mclovins-container-1"
 
           it "accepts float gigabyte unit for disk space", (done) ->

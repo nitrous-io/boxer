@@ -134,15 +134,19 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
         @memory = data.memory if data.memory
         @diskSpace = ConvertSize.convertUnit(data.diskSpace, "M") if data.diskSpace
+        @cpuShares = data.cpuShares if data.cpuShares
+
         this._stopContainer (err) =>
           return done(new Error('Cannot stop the current container')) if err
-          this._changeMemoryLimit (err) =>
-            return done(new Error('Cannot change the memory limit')) if err
-            this._changeDiskQuota (err) =>
-              return done(new Error('Cannot change the disk limit')) if err
-              this._startContainer (err) =>
-                return done(new Error('Cannot start the container')) if err
-                this.updateAttributes containerState: 'running', done
+          this._changeCPUShares (err) =>
+            return done(new Error('Cannot change CPU shares')) if err
+            this._changeMemoryLimit (err) =>
+              return done(new Error('Cannot change the memory limit')) if err
+              this._changeDiskQuota (err) =>
+                return done(new Error('Cannot change the disk limit')) if err
+                this._startContainer (err) =>
+                  return done(new Error('Cannot start the container')) if err
+                  this.updateAttributes containerState: 'running', done
 
   stop: (cb) ->
     if this.valid()
@@ -435,6 +439,12 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   _gid: ->
     Box.UID_BASE + parseInt(@id)
+
+  _changeCPUShares: (done) ->
+    this._execShellCommand "boxer-change-cpu-shares",
+      [this.containerName(), @cpuShares],
+      sudo: true,
+      done
 
   _changeMemoryLimit: (done) ->
     this._execShellCommand "boxer-change-memory-limit",

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root='/var/lib/lxc'
+container_name=${1}
+cpu_shares=${2}
+
+# remove old limit
+sed -i "/lxc.cgroup.cpu.shares/d" ${lxc_root}/${container_name}/config
+
+# add new limit
+echo "lxc.cgroup.cpu.shares = ${cpu_shares}" >> ${lxc_root}/${container_name}/config
+
