@@ -5,39 +5,62 @@ set -o nounset
 shopt -s nullglob
 
 lxc_root='/var/lib/lxc'
-container_template=base_container_template
 
+container_template=base_container_template
 box_id=${1}
 container_name=${2}
+home_template=${3}
+disk_limit=${4}
+disk=${5}
+aufs=${6}
 
-box_path=${lxc_root}/${container_name}
+box_path=${disk}/${container_name}
 box_delta_path=${box_path}_delta
-container_path=${lxc_root}/${container_template}
-
-vg=boxhost
-lv=/dev/$vg/$container_name
+container_path=${disk}/${container_template}
+quoted_lxc_root='\/var\/lib\/lxc\/'
 
 (
   flock -x 200
 
-  if [[ ! `cat /proc/mounts | grep "${box_delta_path}\s\+"` ]]; then
-    mkdir -p $box_delta_path
-    mount -t ext4 $lv $box_delta_path
-
-    # If the mount fails, then just exit and we should go back
-    if [[ $? != 0 ]]; then
-      exit 1
-    fi
-  fi
-
   if [[ ! `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
-    mkdir -p $box_path
-    mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
+    mkdir -p ${lxc_root}/${container_name}
 
+    if [[ "$aufs" == "true" ]]
+    then
+      mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
+    else
+      mount_options=rw,upperdir=${box_delta_path},lowerdir=${container_path}
+      mount -n -t overlayfs -o ${mount_options} none ${box_path}
+    fi
     # If the mount fails, then just exit and we should go back
     if [[ $? != 0 ]]; then
       exit 1
     fi
+
+    mount --bind ${box_path} ${lxc_root}/${container_name}
+
+    # If the mount fails, then just exit and we should go back
+    if [[ $? != 0 ]]; then
+      umount ${box_path}
+      exit 1
+    fi
+
+    echo "${box_id}:${box_delta_path}/rootfs/home/action" >> /etc/projects
+    etc_projects_result=$?
+    echo "${container_name}:${box_id}" >> /etc/projid
+    etc_projid_result=$?
+
+    if [[ $etc_projects_result != 0 || $etc_projid_result != 0 ]]; then
+      sed -i "\%:${box_path}_delta%d" /etc/projects
+      sed -i "\%${container_name}:%d" /etc/projid
+
+      umount ${lxc_root}/${container_name}
+      umount ${box_path}
+      exit 1
+    fi
+
+    xfs_quota -x -c "project -s ${container_name}" ${disk} || true
+    xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk} || true
   fi
 
 ) 200>/var/lock/boxer.mount_container

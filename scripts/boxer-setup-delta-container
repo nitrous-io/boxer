@@ -1,0 +1,24 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+shopt -s nullglob
+
+box_id=${1}
+box_name=${2}
+container_template=${3}
+disk=${4}
+
+container_path=${disk}/base_container_template
+box_path=${disk}/${box_name}
+box_delta_path=${box_path}_delta
+home_data_path=${disk}/${container_template}
+
+mkdir -p ${box_path} ${box_delta_path} ${box_delta_path}/rootfs/home/action
+
+if [[ $? != 0 ]]; then
+  rm -rf ${box_path}
+  rm -rf ${box_delta_path}
+
+  exit 1
+fi

@@ -17,6 +17,26 @@ describe Box, ->
     box.disk = '/lxc/disk1'
     cbSpy = sinon.spy()
 
+  describe '#mountMethod', ->
+    it 'returns lvm if box.mount is set to lvm', ->
+      box.mount = "lvm"
+      expect(box.mountMethod()).to.eql "lvm"
+
+    it 'returns aufs if box.mount is aufs', ->
+      box.mount = "aufs"
+      expect(box.mountMethod()).to.eql "aufs"
+
+    it 'returns overlayfs if box.mount is overlayfs', ->
+      box.mount = "overlayfs"
+      expect(box.mountMethod()).to.eql "overlayfs"
+
+    it 'returns aufs if box.aufs is true', ->
+      box.aufs = true
+      expect(box.mountMethod()).to.eql "aufs"
+
+    it 'returns overlayfs if box does not have aufs', ->
+      expect(box.mountMethod()).to.eql "overlayfs"
+
   describe '#valid', ->
     box = null
 
@@ -115,22 +135,17 @@ describe Box, ->
   describe 'when an error occurrs within _execShellCommand', ->
     beforeEach (done) ->
       notifyStub = sinon.stub().callsArg(1)
-
-      sinon.stub box, '_removeVolume', (cb) ->
-        done()
-
+      sinon.stub box, '_unmountContainer', (cb) -> done()
       sinon.stub box, '_mountContainer', (cb) -> box._execShellCommand '../support/fail-script', [], sudo: true, cb
-
       sinon.stub box, '_currentState', ->
-        { name: 'someState',   onAdvance: '_mountContainer', onRollback: '_removeVolume' }
-
+        { name: 'someState',   onAdvance: '_mountContainer', onRollback: '_unmountContainer' }
       box._advance()
 
     afterEach ->
       box.airbreakClient = null
       box._currentState.restore()
-      box._removeVolume.restore()
+      box._unmountContainer.restore()
       box._mountContainer.restore()
 
     it 'should invoke the rollback', () ->
-      box._removeVolume.should.have.been.called
+      box._unmountContainer.should.have.been.called

@@ -15,8 +15,8 @@ _ = require 'underscore'
 module.exports = class Box extends AutoAdvancingStateMachine
   states: [
     { name: 'initialized',         onAdvance: '_acquireResources',    onRollback: '_notifyRollback' }
-    { name: 'createVolume',        onAdvance: '_createVolume',        onRollback: '_releaseResources' }
-    { name: 'containerPrepared',   onAdvance: '_mountContainer',      onRollback: '_removeVolume' }
+    { name: 'prepareContainer',    onAdvance: '_prepareContainer',    onRollback: '_releaseResources' }
+    { name: 'containerPrepared',   onAdvance: '_mountContainer',      onRollback: '_removeContainer' }
     { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
     { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
     { name: 'portForwardingSetUp', onAdvance: '_setDefaultKeyPair',   onRollback: '_releasePortForwarding' }
@@ -37,11 +37,21 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @swappiness = Box.SWAPPINESS
     @cpuShares = Box.CPU_SHARES
 
+    @disk = null
     @boxerId = null
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
+    @aufs = false
+    @mount = null
     super
 
   containerName: -> "#{@name}-#{@id}"
+
+  # return the proper mount method of the box
+  # valid mount methods are lvm / aufs / overlayfs
+  mountMethod: ->
+    return "lvm" if @mount == "lvm"
+    return "aufs" if @aufs || @mount == "aufs"
+    "overlayfs"
 
   valid: (opts) ->
     attributesToValidate = []
@@ -166,7 +176,13 @@ module.exports = class Box extends AutoAdvancingStateMachine
       cb(new Error('Invalid Params'))
 
   info: (cb) ->
-    this._execShellCommand "boxer-info", [this.containerName()], sudo: true, (err, stdout, stderr) =>
+    if this.mountMethod() == "lvm"
+      script = "lvm/boxer-info"
+      args = [this.containerName()]
+    else
+      script = "boxer-info"
+      args = [@disk, this.containerName]
+    this._execShellCommand script, args, sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
       [lxcStatus, memoryUsageInBytes, storageUsageInKB] = stdout.split("-")
 
@@ -177,7 +193,13 @@ module.exports = class Box extends AutoAdvancingStateMachine
           lxcStatus: lxcStatus
 
   quota: (cb) ->
-    this._execShellCommand "boxer-report-current-limit", [this.containerName()], sudo: true, (err, stdout, stderr) =>
+    if this.mountMethod() == "lvm"
+      script = "lvm/boxer-report-current-limit"
+      args = [this.containerName()]
+    else
+      script = "boxer-report-current-limit"
+      args = [@disk, this.containerName]
+    this._execShellCommand script, args, sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
 
       [used, limit] = stdout.split("-")
@@ -192,13 +214,16 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     interface: @interface
                     port: @port
                     memory: @memory
+                    disk: @disk
                     diskSpace: @diskSpace
                     snapshotURL: @snapshotURL
                     containerTemplate: @containerTemplate
                     boxerId: @boxerId
                     containerState: @containerState
+                    aufs: @aufs
                     swappiness: @swappiness
                     cpuShares: @cpuShares
+                    mount: this.mountMethod()
                   })
 
   @find: (containerName, cb) ->
@@ -218,6 +243,17 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box.diskSpace = parsedBox.diskSpace
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
+        box.disk = parsedBox.disk
+
+        if parsedBox.mount != undefined
+          box.mount = parsedBox.mount
+        else
+          box.mount = box.mountMethod()
+
+        if parsedBox.aufs != undefined
+          box.aufs = parsedBox.aufs
+        else
+          box.aufs = false
 
         if parsedBox.swappiness != undefined
           box.swappiness = parsedBox.swappiness
@@ -273,37 +309,53 @@ module.exports = class Box extends AutoAdvancingStateMachine
       console.log "Done Releasing Resources, error: #{err}"
       done(err)
 
-  _createVolume: (done) ->
+  _prepareContainer: (done) ->
     console.log 'Create Volume'
-    this._execShellCommand 'boxer-create-volume',
-                           [this.containerName(), @diskSpace],
-                           sudo: true,
-                           done
+    if this.mountMethod() == "lvm"
+      this._execShellCommand 'lvm/boxer-create-volume',
+        [this.containerName(), @diskSpace], sudo: true, done
+    else
+      console.log 'Setting Up Delta Container'
+      this._execShellCommand 'boxer-setup-delta-container',
+        [@id, this.containerName(), @containerTemplate, @disk], sudo: true, done
 
   _mountContainer: (done) ->
     args = [@id, this.containerName()]
-    this._execShellCommand 'boxer-mount-container', args, sudo: true, done
+    if this.mountMethod() == "lvm"
+      this._execShellCommand 'lvm/boxer-mount-container', args, sudo: true, done
+    else
+      args.push @containerTemplate, @diskSpace, @disk, @aufs.toString()
+      this._execShellCommand 'boxer-mount-container', args, sudo: true, done
 
   _unmountContainer: (done) ->
     console.log 'Unmounting Container'
-    this._execShellCommand 'boxer-unmount-container',
-                           [this.containerName()],
-                           sudo: true,
-                           done
+    args = [this.containerName()]
+    if this.mountMethod() == "lvm"
+      this._execShellCommand 'lvm/boxer-unmount-container', args, sudo: true, done
+    else
+      args.push @disk
+      this._execShellCommand 'boxer-unmount-container', args, sudo: true, done
 
-  _removeVolume: (done) ->
-    console.log 'Remove Volume'
-    this._execShellCommand 'boxer-remove-volume',
-                           [this.containerName()],
-                           sudo: true,
-                           done
-
+  _removeContainer: (done) ->
+    console.log 'Remove Container'
+    args = [this.containerName()]
+    if this.mountMethod() == "lvm"
+      this._execShellCommand 'lvm/boxer-remove-volume', args, sudo: true, done
+    else
+      args.push @disk
+      this._execShellCommand 'boxer-cleanup-delta-container', args, sudo: true, done
+    
   _configureBox: (done) ->
     console.log "Configuring Box: #{this._uid()} #{this._gid()}"
-    this._execShellCommand 'boxer-configure-box',
-                           [@id, this.containerName(), @containerTemplate, "#{@cpuShares}", @memory, this.totalMemory(), "#{@swappiness}", @ip, @gateway, @interface, this._uid(), this._gid()],
-                           sudo: true,
-                           done
+    args = [@id, this.containerName(), @containerTemplate,
+      "#{@cpuShares}", @memory, this.totalMemory(),
+      "#{@swappiness}", @ip, @gateway, @interface, this._uid(), this._gid()]
+
+    if this.mountMethod() == "lvm"
+      this._execShellCommand 'lvm/boxer-configure-box', args, sudo: true, done
+    else
+      args.push @disk
+      this._execShellCommand 'boxer-configure-box', args, sudo: true, done
 
   _removeBoxConfig: (done) ->
     done()
@@ -346,10 +398,12 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   _setDefaultKeyPair: (done) ->
     console.log 'Setting default ssh key-pair'
-    this._execShellCommand 'boxer-set-default-key-pair',
-                            [this.containerName()],
-                            sudo: true
-                            done
+    args = [this.containerName()]
+    if this.mountMethod() == "lvm"
+      this._execShellCommand 'lvm/boxer-set-default-key-pair', args, sudo: true, done
+    else
+      args.push @disk
+      this._execShellCommand 'boxer-set-default-key-pair', args, sudo: true, done
 
   _removeDefaultKeyPair: (done) ->
     console.log 'Remove default ssh key pair'
@@ -432,7 +486,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
       done
 
   _changeDiskQuota: (done) ->
-    this._execShellCommand "boxer-change-disk-limit",
-      [this.containerName(), @diskSpace],
-      sudo: true,
-      done
+    if this.mountMethod() == "lvm"
+      args = [this.containerName(), @diskSpace]
+      this._execShellCommand "lvm/boxer-change-disk-limit", args, sudo: true, done
+    else
+      args = [@disk, this.containerName(), @diskSpace]
+      this._execShellCommand "boxer-change-disk-limit", args, sudo: true, done

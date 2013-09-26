@@ -5,28 +5,9 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
-container_name=${1}
-disk_limit=${2}
+disk=${1}
+container_name=${2}
+disk_limit=${3}
 
-vg=boxhost
-lxc_root='/var/lib/lxc'
-container_path=$lxc_root/base_container_template
-box_path=${lxc_root}/${container_name}
-box_delta_path=${lxc_root}/${container_name}_delta
-lv=/dev/$vg/$container_name
-
-# unmount before resize, otherwise, lvresize will wait for umount confirmation
-(
-  flock -x 200
-  if [[ `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
-    umount ${box_path}
-  fi
-  if [[ `cat /proc/mounts | grep "${box_delta_path}\s\+"` ]]; then
-    umount ${box_delta_path}
-  fi
-
-  lvresize $lv --size $disk_limit --resizefs
-
-  mount -t ext4 $lv $box_delta_path
-  mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
-) 200>/var/lock/boxer.unmount_container
+# update project limit
+xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk}

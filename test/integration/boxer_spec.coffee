@@ -33,6 +33,7 @@ describe 'Boxer', ->
     attributes.memory ?= "256M"
     attributes.diskSpace ?= '2000M'
     attributes.cpuShares ?= '2048'
+    attributes.mount ?= "lvm"
 
     attributes.publicKeys ?= []
     attributes.snapshotURL ?= null
@@ -150,6 +151,7 @@ describe 'Boxer', ->
               expect(msg.diskSpace).to.eql '2000M'
               expect(msg.boxerId).to.eql 'test.action.io'
               expect(msg.containerState).to.eql 'stopped'
+              expect(msg.mount).to.eql 'lvm'
               done(err)
 
         subscribeAndDo ->
@@ -184,13 +186,13 @@ describe 'Boxer', ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
               createBox()
 
-        context 'createVolume fails', ->
+        context 'prepareContainer fails', ->
           beforeEach ->
-            sinon.stub Box.prototype, '_createVolume', (cb) ->
+            sinon.stub Box.prototype, '_prepareContainer', (cb) ->
               Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-create-volume', ['mclovins-container-1', '1G'], sudo: true, cb
 
           afterEach ->
-            Box.prototype._createVolume.restore()
+            Box.prototype._prepareContainer.restore()
 
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->
@@ -309,6 +311,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "running"
               disk: "/lxc/disk1"
+              mount: "lvm"
             })
             runBox done
 
@@ -346,6 +349,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "running"
               disk: "/lxc/disk1"
+              mount: "lvm"
             })
             runBox done
 
@@ -384,6 +388,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "stopped"
               disk: "/lxc/disk1"
+              mount: "lvm"
             })
             runBox done
 
@@ -420,6 +425,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
               containerState: "running"
+              mount: "lvm"
             })
             runBox done
 
@@ -453,6 +459,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
               containerState: "running"
+              mount: "lvm"
             })
             runBox done
 
@@ -585,7 +592,7 @@ describe 'Boxer', ->
               expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 # The Disk Space Quota stays the same
                 expect(stdout).to.match /.*?-2.0G/
 
@@ -619,7 +626,7 @@ describe 'Boxer', ->
               expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 1024M/
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 # df doesnt report exact volume. lv/ext4 probably eats some
                 expect(stdout.trim()).to.match /.*?-2.9G/
 
@@ -647,7 +654,7 @@ describe 'Boxer', ->
               expect(message.success).to.be.true
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 expect(stdout).to.match /.*?-1\.5G/
 
                 # check redis settings
@@ -671,7 +678,7 @@ describe 'Boxer', ->
               expect(message.success).to.be.true
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 expect(stdout).to.match /.*?-2.0G/
 
                 # check redis settings
@@ -705,6 +712,7 @@ describe 'Boxer', ->
                   memory: "256M"
                   containerTemplate: "test_container_template"
                   state: "stopped"
+                  mount: "lvm"
                 })
                 runBox done
 

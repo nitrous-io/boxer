@@ -10,6 +10,7 @@ module.exports = class Boxer
   constructor: (settings)->
     @id = settings.id
     @runtimes = settings.runtimes
+    @mountMethod = settings.mountMethod
 
     @boxerChannel = settings.boxerChannel
     @coachChannel = settings.coachChannel
@@ -68,8 +69,9 @@ module.exports = class Boxer
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
         box.cpuShares = message.cpuShares if message.cpuShares
-
         box.boxerId = @id
+        box.aufs = true if @mountMethod == "aufs"
+        box.mount = @mountMethod
 
         # These callbacks are called in the context of the Box instance, so @id, @ip, @port, etc. refer to instance variables
         # of the box instance
