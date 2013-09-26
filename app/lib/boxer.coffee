@@ -10,6 +10,7 @@ module.exports = class Boxer
   constructor: (settings)->
     @id = settings.id
     @runtimes = settings.runtimes
+    @selectedDisk = settings.selectedDisk
     @mountMethod = settings.mountMethod
 
     @boxerChannel = settings.boxerChannel
@@ -70,6 +71,7 @@ module.exports = class Boxer
         box.snapshotURL = message.snapshotURL
         box.cpuShares = message.cpuShares if message.cpuShares
         box.boxerId = @id
+        box.disk = @selectedDisk
         box.aufs = true if @mountMethod == "aufs"
         box.mount = @mountMethod
 
