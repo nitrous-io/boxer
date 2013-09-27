@@ -738,3 +738,73 @@ describe 'Boxer', ->
         subscribeAndDo ->
           waitForMessage 'aio:destroyed', assertMessage
           publishSettings type: "aio:destroy", name: "mclovins-container-1"
+
+    describe 'aio:migrate', ->
+      box = null
+      boxId = 1
+      name = "mclovins-container"
+      boxName = name + "-" + boxId
+
+      beforeEach (done) ->
+        box = new Box boxId
+        box.name = name
+        box.ip = ip
+        box.port = resource.port
+        box.diskSpace = "1G"
+        box.memory = "256M"
+        box.containerTemplate = "test_container_template"
+        box.publicKeys = ["ssh-rsa AABBCC dqminh@local"]
+        box.aufs = true
+        box.mount = "aufs"
+        box.disk = "/lxc/disk1"
+        cleanDB ->
+          multi = publisher.multi()
+          multi.rpush 'aio:available_resources', ip
+          multi.hmset "aio:nwr:#{ip}", resource
+          multi.exec (err, replies) ->
+            return done(err) if err
+            finish = (err) ->
+              return done(err) if err
+              runBox done
+            box.create finish, finish
+
+      afterEach (done) ->
+        cleanupBox = (cb) ->
+          command = "sudo #{scriptPath}/boxer-cleanup-old-tests #{boxName} /lxc/disk1"
+          childProcess.exec command, timeout: 0, cb
+        cleanupBox (err) ->
+          return done() unless err
+          setTimeout(->
+            console.log "failed first time, try second time"
+            cleanupBox done
+          , 5000)
+
+      it 'should migrate the container to new lvm format', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql boxId
+          expect(message.success).to.be.true
+
+          root = "/var/lib/lxc/#{boxName}/rootfs"
+          expect(fs.existsSync(root)).to.be.true
+          expect(fs.existsSync("/var/lib/lxc/#{boxName}_delta")).to.be.true
+          expect(fs.existsSync("/dev/boxhost/#{boxName}")).to.be.true
+          expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
+          expect(fs.existsSync("/#{root}/home/action/workspace")).to.be.true
+
+          # check lxc config
+          lxcConfigFile = "/var/lib/lxc/#{boxName}/config"
+          lxcConfigFileContent = fs.readFileSync(lxcConfigFile).toString()
+          expect(lxcConfigFileContent).to.contain boxName
+
+          childProcess.exec "sudo lxc-info -n #{boxName}", (err, stdout, stderr) ->
+            expect(stdout).to.match /STOPPED/
+            publisher.hget 'aio:boxes', boxName, (err, res) ->
+              msg = JSON.parse res
+              expect(msg.aufs).to.be.false
+              expect(msg.mount).to.eql "lvm"
+              done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:migrated', assertMessage
+          publishSettings type: "aio:migrate", name: boxName

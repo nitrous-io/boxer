@@ -147,3 +147,10 @@ module.exports = class Boxer
             infoResponseMessage.success = false
 
           boxer.publisher.publish boxer.coachChannel, infoResponseMessage.encode()
+    else if message.type == protocol.MigrateMessage.type && @id == message.id
+      Box.find message.name, (err, box) ->
+        box.migrate (err) ->
+          migratedMessage = new protocol.MigratedMessage({id: boxer.id, boxId: box.id, success: true, returnVars: returnVars})
+          migratedMessage.success = false if err
+          boxer.publisher.publish boxer.coachChannel, migratedMessage.encode()
+
