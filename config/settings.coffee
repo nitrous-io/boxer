@@ -18,7 +18,7 @@ settings =
       password: null
       database: 0
     airbrakeAPIKey: process.env.AIRBRAKE_API_KEY
-    mountMethod: "lvm"
+    mountMethod: process.env.MOUNT_METHOD
   development: {}
   test:
     id: 'test.action.io'
