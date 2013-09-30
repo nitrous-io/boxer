@@ -1,0 +1,62 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+shopt -s nullglob
+
+container_name=$1
+disk_limit=$2
+disk=$3
+aufs=$4
+
+base_template_path=/var/lib/lxc/base_container_template
+lvm_mount=/dev/boxhost/$container_name
+new_path=/var/lib/lxc/$container_name
+new_delta_path=${new_path}_delta
+
+# umount all required paths in /var/lib/lxc
+if [[ `cat /proc/mounts | grep "${new_path}\s\+"` ]]; then
+  umount $new_path
+fi
+if [[ `cat /proc/mounts | grep "${new_delta_path}\s\+"` ]]; then
+  umount $new_delta_path
+fi
+
+# create the lvm volume if it doesnt exist
+if [[ ! -e "/dev/boxhost/$container_name" ]]; then
+  lvcreate -T boxhost/boxes -V $disk_limit -n $container_name
+  mkfs -t ext4 /dev/boxhost/$container_name
+fi
+
+# mount the volume to /var/lib/lxc
+mkdir -p $new_delta_path $new_path
+mount -t ext4 /dev/boxhost/$container_name $new_delta_path
+
+# overlay base_container_template so we have an actual image
+mount -n -t aufs -o br=${new_delta_path}:${base_template_path} none ${new_path}
+
+# ====> New LVM image is ready now at ${new_path}
+
+# mount the aufs/overlayfs image
+old_base_template_path=$disk/base_container_template
+old_path=$disk/$container_name
+old_delta_path=${old_path}_delta
+
+# umount all required paths in /var/lib/lxc
+if [[ `cat /proc/mounts | grep "${old_path}\s\+"` ]]; then
+  umount $old_path
+fi
+
+if [[ "$aufs" == "true" ]]; then
+  mount -n -t aufs -o br=${old_delta_path}:${old_base_template_path} none ${old_path}
+else
+  mount_options=rw,upperdir=${old_delta_path},lowerdir=${old_base_template_path}
+  mount -n -t overlayfs -o ${mount_options} none ${old_path}
+fi
+
+# ====> Old image is ready now at ${old_path}
+
+rsync -a ${old_path}/ ${new_path}/
+
+# ====> Finished rsync the contents from $old_path to $new_path
+umount $old_path

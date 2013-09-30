@@ -11,6 +11,7 @@ module.exports = class Boxer
     @id = settings.id
     @runtimes = settings.runtimes
     @selectedDisk = settings.selectedDisk
+    @mountMethod = settings.mountMethod
 
     @boxerChannel = settings.boxerChannel
     @coachChannel = settings.coachChannel
@@ -69,10 +70,10 @@ module.exports = class Boxer
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
         box.cpuShares = message.cpuShares if message.cpuShares
-
         box.boxerId = @id
         box.disk = @selectedDisk
-        box.aufs = true
+        box.aufs = true if @mountMethod == "aufs"
+        box.mount = @mountMethod
 
         # These callbacks are called in the context of the Box instance, so @id, @ip, @port, etc. refer to instance variables
         # of the box instance
@@ -146,3 +147,10 @@ module.exports = class Boxer
             infoResponseMessage.success = false
 
           boxer.publisher.publish boxer.coachChannel, infoResponseMessage.encode()
+    else if message.type == protocol.MigrateMessage.type && @id == message.id
+      Box.find message.name, (err, box) ->
+        box.migrate (err) ->
+          migratedMessage = new protocol.MigratedMessage({id: boxer.id, boxId: box.id, success: true, returnVars: returnVars})
+          migratedMessage.success = false if err
+          boxer.publisher.publish boxer.coachChannel, migratedMessage.encode()
+

@@ -25,9 +25,9 @@ describe Box, ->
               settings = require('../../config/settings')
               redisStoreSettings = settings.redisStore
               redis = initRedisClientWith(redisStoreSettings)
-              redis.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container-1","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running","disk":"/lxc/disk1"}', ->
-                redis.hset 'aio:boxes', "mclovins-container-2", '{"id":2,"name":"mclovins-container-2","ip":"192.168.254.3","port":10001,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped","disk":"lxc/disk1"}', ->
-                  redis.hset 'aio:boxes', "mclovins-container-3", '{"id":3,"name":"mclovins-container-3","ip":"192.168.254.4","port":10002,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running","disk": "/lxc/disk1"}', ->
+              redis.hset 'aio:boxes', "mclovins-container-1", '{"id":1,"name":"mclovins-container-1","mount":"lvm","ip":"192.168.254.2","port":10000,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running","disk":"/lxc/disk1"}', ->
+                redis.hset 'aio:boxes', "mclovins-container-2", '{"id":2,"name":"mclovins-container-2","mount":"lvm","ip":"192.168.254.3","port":10001,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"stopped","disk":"lxc/disk1"}', ->
+                  redis.hset 'aio:boxes', "mclovins-container-3", '{"id":3,"name":"mclovins-container-3","mount":"lvm","ip":"192.168.254.4","port":10002,"diskSpace":"1G","memory":"256M","containerTemplate":"test_container_template","containerState":"running","disk": "/lxc/disk1"}', ->
                     Box.startAll done
 
     afterEach (done) ->
@@ -67,6 +67,7 @@ describe Box, ->
             containerTemplate: "test_container_template"
             state: "stopped"
             disk: "/lxc/disk1"
+            mount: "lvm"
           }), ->
             Box.find "mclovins-container-1", (err, b) ->
               box = b
@@ -102,6 +103,7 @@ describe Box, ->
               containerTemplate: "test_container_template"
               state: "running"
               disk: "/lxc/disk1"
+              mount: "lvm"
             }), ->
               Box.find "mclovins-container-1", (err, b) ->
                 box = b
@@ -135,6 +137,7 @@ describe Box, ->
               containerTemplate: "test_container_template"
               state: "stopped"
               disk: "/lxc/disk1"
+              mount: "lvm"
             }), ->
               Box.find "mclovins-container-1", (err, b) ->
                 box = b
