@@ -206,7 +206,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       cb null, used: ConvertSize.convert(used), limit: ConvertSize.convert(limit)
 
   migrate: (cb) ->
-    cb null if this.mountMethod() == "lvm"
+    return cb(null) if this.mountMethod() == "lvm"
     args = [this.containerName(), @diskSpace, @disk, @aufs.toString()]
     start = new Date()
     async.waterfall [
