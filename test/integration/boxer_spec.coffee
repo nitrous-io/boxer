@@ -33,6 +33,7 @@ describe 'Boxer', ->
     attributes.memory ?= "256M"
     attributes.diskSpace ?= '2000M'
     attributes.cpuShares ?= '2048'
+    attributes.mount ?= "lvm"
 
     attributes.publicKeys ?= []
     attributes.snapshotURL ?= null
@@ -89,7 +90,7 @@ describe 'Boxer', ->
       it 'returns aio:created with the requisite properties when successfully provisioned', (done) ->
         assertMessage = (message) ->
           # check true container root in selected disk instead of /var/lib/lxc
-          containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
+          containerRoot = "/var/lib/lxc/mclovins-container-1"
           root = "#{containerRoot}/rootfs"
           lxcConfigFile = "#{containerRoot}/config"
 
@@ -124,10 +125,6 @@ describe 'Boxer', ->
           expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.swappiness = 60/
           expect(lxcConfigFileContent).to.match /lxc.cgroup.cpu.shares = 2048/
 
-          # check mount configs
-          expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects", 'utf8')).to.include "1:#{settings.selectedDisk}/mclovins-container-1_delta/rootfs/home/action"
-
           # check /etc settings
           etcActionBoxId = fs.readFileSync("#{root}/etc/action/box_id").toString().trim()
           expect(etcActionBoxId).to.eql '1'
@@ -151,10 +148,10 @@ describe 'Boxer', ->
               expect(msg.ip).to.eql '192.168.254.2'
               expect(msg.port).to.eql 10000
               expect(msg.memory).to.eql '256M'
-              expect(msg.disk).to.eql '/lxc/disk1'
               expect(msg.diskSpace).to.eql '2000M'
               expect(msg.boxerId).to.eql 'test.action.io'
               expect(msg.containerState).to.eql 'stopped'
+              expect(msg.mount).to.eql 'lvm'
               done(err)
 
         subscribeAndDo ->
@@ -168,8 +165,6 @@ describe 'Boxer', ->
 
           expect(fs.existsSync(containerRoot)).to.be.false
           expect(fs.existsSync(containerRootDelta)).to.be.false
-          expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
           expect(message.id).to.eql 'test.action.io'
           expect(message.success).to.eql false
 
@@ -191,13 +186,13 @@ describe 'Boxer', ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
               createBox()
 
-        context 'setupDeltaContainer fails', ->
+        context 'prepareContainer fails', ->
           beforeEach ->
-            sinon.stub Box.prototype, '_setupDeltaContainer', (cb) ->
-              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-setup-delta-container', ['1', 'mclovins-container-1', 'test_container_template'], sudo: true, cb
+            sinon.stub Box.prototype, '_prepareContainer', (cb) ->
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-create-volume', ['mclovins-container-1', '1G'], sudo: true, cb
 
           afterEach ->
-            Box.prototype._setupDeltaContainer.restore()
+            Box.prototype._prepareContainer.restore()
 
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->
@@ -207,7 +202,7 @@ describe 'Boxer', ->
         context 'mountContainer fails', ->
           beforeEach ->
             sinon.stub Box.prototype, '_mountContainer', (cb) ->
-              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-mount-container', [], sudo: true, cb
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-mount-container', ['mclovins-container-1'], sudo: true, cb
 
           afterEach ->
             Box.prototype._mountContainer.restore()
@@ -220,7 +215,9 @@ describe 'Boxer', ->
         context 'configureBox fails', ->
           beforeEach ->
             sinon.stub Box.prototype, '_configureBox', (cb) ->
-              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-configure-box', [], sudo: true, cb
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-configure-box',
+                [1, 'mclovins-container-1', 'test_container_template', '512', '256M', '512M', '60', '192.168.254.2', '192.168.254.1', 'br-lxc-254', 15001, 15001],
+                sudo: true, cb
 
           afterEach ->
             Box.prototype._configureBox.restore()
@@ -314,6 +311,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "running"
               disk: "/lxc/disk1"
+              mount: "lvm"
             })
             runBox done
 
@@ -321,8 +319,6 @@ describe 'Boxer', ->
         assertMessage = (message) ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
-          expect(fs.readFileSync("/etc/projid")).to.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects", 'utf8')).to.include "1:#{settings.selectedDisk}/mclovins-container-1_delta/rootfs/home/action"
 
           childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
@@ -353,6 +349,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "running"
               disk: "/lxc/disk1"
+              mount: "lvm"
             })
             runBox done
 
@@ -361,8 +358,6 @@ describe 'Boxer', ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1/rootfs")).to.be.false
-          expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects", 'utf8')).to.not.include "1:#{settings.selectedDisk}/mclovins-container-1_delta/rootfs/home/action"
 
           childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
             expect(stdout).to.match /STOPPED/
@@ -393,6 +388,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "stopped"
               disk: "/lxc/disk1"
+              mount: "lvm"
             })
             runBox done
 
@@ -429,6 +425,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
               containerState: "running"
+              mount: "lvm"
             })
             runBox done
 
@@ -448,7 +445,7 @@ describe 'Boxer', ->
       publicKey = null
 
       beforeEach (done) ->
-        publicKeysFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
+        publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
         childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
           done(err) if err
           cleanDB ->
@@ -463,22 +460,20 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
               containerState: "running"
+              mount: "lvm"
             })
             runBox done
 
       context 'adding public keys', ->
         beforeEach ->
-          publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
+          publicKey = "ssh-rsa AAAAB3NzaC1yc2== arun@iPhone"
 
         it 'should add a public key to the box', (done) ->
           assertMessage = (message) ->
             expect(message.id).to.eql 'test.action.io'
             expect(message.boxId).to.eql 1
-
-            output = fs.readFileSync(publicKeysFile).toString().trim()
-
             expect(fs.existsSync(publicKeysFile)).to.be.true
-            expect(output).to.eql publicKey
+            expect(fs.readFileSync(publicKeysFile).toString().trim()).to.eql publicKey
             done()
 
           subscribeAndDo ->
@@ -489,14 +484,14 @@ describe 'Boxer', ->
         publicKey1 = publicKey2 = null
 
         beforeEach (done) ->
-          publicKey1 = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone"
-          publicKey2 = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAp6hXfpITGpfV1pFsZu+om4aBiSnyPNfh+j/f815yOZ9tAbkYL7C5hw+1Vf6fpNy6Pj7nuleJpRHa5PVj49ObSij33quW+74di5YxfxhTTXfKCLso/YT0WnVBkS3wef7FkG71yx7WgL4zqm+65VXeL186zxCMEHNhn0LMb0T7Rqc8diHsbdYTa7KvtMNbunS196puZtthhp0TPi3VJKfJ94OYgECqbxEfdKsmwaxZzt1ECw8QKJG9xt8vzhw45t0W4073xBRYcMYa++QxZvqkQeoD2LiK9UDdjCGwku562oRjp4rbmQoznFw22zMmTdDuJx6pxpyaOi749CNzqwzV/Q== arun@iPhone.local"
+          publicKey1 = "ssh-rsa AAAAB3NzaC1y== arun@iPhone"
+          publicKey2 = "ssh-rsa AAAAB3NzaC1y== arun@iPhone.local"
 
-          childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container-1' '#{publicKey1}'", (err, stdout, stderr) ->
+          childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container-1' '#{publicKey1}'", (err) ->
             if err
               throw err
             else
-              childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container-1' '#{publicKey2}'", (err, stdout, stderr) ->
+              childProcess.exec "sudo scripts/boxer-add-public-keys 'mclovins-container-1' '#{publicKey2}'", (err) ->
                 if err then throw err else done()
 
         it 'should remove the public key from the box', (done) ->
@@ -504,11 +499,9 @@ describe 'Boxer', ->
             expect(message.id).to.eql 'test.action.io'
             expect(message.boxId).to.eql 1
 
-            publicKeysFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
-            output = fs.readFileSync(publicKeysFile).toString().trim()
-
+            publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
             expect(fs.existsSync(publicKeysFile)).to.be.true
-            expect(output).to.eql publicKey2
+            expect(fs.readFileSync(publicKeysFile).toString().trim()).to.eql publicKey2
             done()
 
           subscribeAndDo ->
@@ -518,7 +511,7 @@ describe 'Boxer', ->
       context 'setting env variables', ->
         it 'sets the variables to /etc/profile', (done) ->
           assertMessage = (message) ->
-            environmentFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/environment"
+            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
             env = fs.readFileSync(environmentFile).toString()
             expect(env).to.contain 'RDS_HOST=mysql://insecure'
             expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
@@ -538,11 +531,10 @@ describe 'Boxer', ->
       context 'setting env variables (with returnVars)', ->
         it 'sets the variables to /etc/profile', (done) ->
           assertMessage = (message) ->
-            environmentFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/environment"
+            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
             env = fs.readFileSync(environmentFile).toString()
             expect(env).to.contain 'RDS_HOST=mysql://insecure'
             expect(env).to.contain 'RDS_PASSWORD=mysql-insecure'
-
             expect(message.returnVars).to.eql { 'addon_id': 1 }
             done()
 
@@ -567,7 +559,7 @@ describe 'Boxer', ->
 
         it 'remove the variables from /etc/profile', (done) ->
           assertMessage = (message) ->
-            environmentFile = "#{settings.selectedDisk}/mclovins-container-1/rootfs/etc/environment"
+            environmentFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/environment"
             env = fs.readFileSync(environmentFile).toString()
             expect(env).to.not.contain 'RDS_HOST=123'
             done()
@@ -594,20 +586,16 @@ describe 'Boxer', ->
               # message set to false
               expect(message.success).to.be.false
 
-              # check true container root in selected disk instead of /var/lib/lxc
-              containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
-              lxcConfigFile = "#{containerRoot}/config"
-
-              lxcConfigFileContents = fs.readFileSync(lxcConfigFile).toString()
-
               # check lxc config
+              lxcConfigFile = "/var/lib/lxc/mclovins-container-1/config"
+              lxcConfigFileContents = fs.readFileSync(lxcConfigFile).toString()
               expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.limit_in_bytes = 256M/
               expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
+              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 # The Disk Space Quota stays the same
-                expect(stdout).to.match /.*?-2G/
+                expect(stdout).to.match /.*?-2.0G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -633,18 +621,16 @@ describe 'Boxer', ->
               # message set to true
               expect(message.success).to.be.true
 
-              # check true container root in selected disk instead of /var/lib/lxc
-              containerRoot = "#{settings.selectedDisk}/mclovins-container-1"
-              lxcConfigFile = "#{containerRoot}/config"
-
               # check lxc config
+              lxcConfigFile = "/var/lib/lxc/mclovins-container-1/config"
               expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.limit_in_bytes = 512M/
               expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 1024M/
               expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.cpu.shares = 2048/
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
-                expect(stdout).to.match /.*?-3G/
+              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+                # df doesnt report exact volume. lv/ext4 probably eats some
+                expect(stdout.trim()).to.match /.*?-2.9G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -673,7 +659,7 @@ describe 'Boxer', ->
               expect(message.success).to.be.true
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
+              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 expect(stdout).to.match /.*?-1\.5G/
 
                 # check redis settings
@@ -697,8 +683,8 @@ describe 'Boxer', ->
               expect(message.success).to.be.true
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/boxer-report-current-limit /lxc/disk1 mclovins-container-1", (err, stdout, stderr) ->
-                expect(stdout).to.match /.*?-2G/
+              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+                expect(stdout).to.match /.*?-2.0G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -731,7 +717,7 @@ describe 'Boxer', ->
                   memory: "256M"
                   containerTemplate: "test_container_template"
                   state: "stopped"
-                  disk: "/lxc/disk1"
+                  mount: "lvm"
                 })
                 runBox done
 
@@ -740,10 +726,9 @@ describe 'Boxer', ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
 
-          expect(fs.existsSync("#{settings.selectedDisk}/mclovins-container-1")).to.be.false
-          expect(fs.existsSync("#{settings.selectedDisk}/mclovins-container-1_delta")).to.be.false
-          expect(fs.readFileSync("/etc/projid")).to.not.match /mclovins-container-1:1/
-          expect(fs.readFileSync("/etc/projects")).to.not.match /1:\/var\/lib\/lxc\/mclovins-container-1_delta\/rootfs\/home\/action/
+          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
+          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
+          expect(fs.existsSync("/dev/boxhost/mclovins-container-1")).to.be.false
 
           childProcess.exec "sudo iptables -L -t nat", (err, stdout, stderr) ->
             expect(stdout).to.not.match /192\.168\.254\.254:22/
@@ -758,3 +743,73 @@ describe 'Boxer', ->
         subscribeAndDo ->
           waitForMessage 'aio:destroyed', assertMessage
           publishSettings type: "aio:destroy", name: "mclovins-container-1"
+
+    describe 'aio:migrate', ->
+      box = null
+      boxId = 1
+      name = "mclovins-container"
+      boxName = name + "-" + boxId
+
+      beforeEach (done) ->
+        box = new Box boxId
+        box.name = name
+        box.ip = ip
+        box.port = resource.port
+        box.diskSpace = "1G"
+        box.memory = "256M"
+        box.containerTemplate = "test_container_template"
+        box.publicKeys = ["ssh-rsa AABBCC dqminh@local"]
+        box.aufs = true
+        box.mount = "aufs"
+        box.disk = "/lxc/disk1"
+        cleanDB ->
+          multi = publisher.multi()
+          multi.rpush 'aio:available_resources', ip
+          multi.hmset "aio:nwr:#{ip}", resource
+          multi.exec (err, replies) ->
+            return done(err) if err
+            finish = (err) ->
+              return done(err) if err
+              runBox done
+            box.create finish, finish
+
+      afterEach (done) ->
+        cleanupBox = (cb) ->
+          command = "sudo #{scriptPath}/boxer-cleanup-old-tests #{boxName} /lxc/disk1"
+          childProcess.exec command, timeout: 0, cb
+        cleanupBox (err) ->
+          return done() unless err
+          setTimeout(->
+            console.log "failed first time, try second time"
+            cleanupBox done
+          , 5000)
+
+      it 'should migrate the container to new lvm format', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql boxId
+          expect(message.success).to.be.true
+
+          root = "/var/lib/lxc/#{boxName}/rootfs"
+          expect(fs.existsSync(root)).to.be.true
+          expect(fs.existsSync("/var/lib/lxc/#{boxName}_delta")).to.be.true
+          expect(fs.existsSync("/dev/boxhost/#{boxName}")).to.be.true
+          expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
+          expect(fs.existsSync("/#{root}/home/action/workspace")).to.be.true
+
+          # check lxc config
+          lxcConfigFile = "/var/lib/lxc/#{boxName}/config"
+          lxcConfigFileContent = fs.readFileSync(lxcConfigFile).toString()
+          expect(lxcConfigFileContent).to.contain boxName
+
+          childProcess.exec "sudo lxc-info -n #{boxName}", (err, stdout, stderr) ->
+            expect(stdout).to.match /STOPPED/
+            publisher.hget 'aio:boxes', boxName, (err, res) ->
+              msg = JSON.parse res
+              expect(msg.aufs).to.be.false
+              expect(msg.mount).to.eql "lvm"
+              done()
+
+        subscribeAndDo ->
+          waitForMessage 'aio:migrated', assertMessage
+          publishSettings type: "aio:migrate", name: boxName

@@ -2,45 +2,45 @@
 
 [ -n "$DEBUG" ] && set -o xtrace
 set -o nounset
-set -o errexit
+# dont exit when there are some errors. Keep cleaning the test setup
+# set -o errexit
 shopt -s nullglob
 
 name=${1}
 ip=${2}
-disk=${3}
 lxc_root='/var/lib/lxc'
+vg=boxhost
 quoted_lxc_root='\/var\/lib\/lxc\/'
-box_path=${disk}/${name}
-box_delta_path=${disk}/${name}_delta
+box_path=${lxc_root}/${name}
+box_delta_path=${lxc_root}/${name}_delta
 
 # use % as delimiter for sed so we dont have to escape /
 # we umount twice to remove the mount in /var/lib/lxc and /etc/fstab
-if [ -d ${box_path} ]; then
+if [ -e "/dev/boxhost/$name" ]; then
   echo "Stopping the container ${name} ${ip}"
   lxc-stop -n ${name}
-  while nc -z ${ip} 22 ; do sleep 0.5; done
+  lxc-wait -n ${name} -s STOPPED
 
   if [[ `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
     echo 'Unmounting the container in cleanup tests'
-    umount ${lxc_root}/${name}
     umount ${box_path}
   fi
 
-  if [ -f /etc/projects ]; then
-    echo 'Removing line from /etc/projects'
-    sed -i "\%:${disk}/${name}_delta/rootfs/home/action%d" /etc/projects
-  fi
-
-  if [ -f /etc/projid ]; then
-    echo 'Removing line from /etc/projid'
-    sed -i "\%${name}:%d" /etc/projid
+  if [[ `cat /proc/mounts | grep "${box_delta_path}\s\+"` ]]; then
+    echo 'Unmounting the container in cleanup tests'
+    umount ${box_delta_path}
   fi
 
   echo 'Deleting all remnants of the container'
   rm -rf ${box_path}
   rm -rf ${box_delta_path}
-  rm -rf ${lxc_root}/${name}
 
   echo 'Flushing IPTables'
   iptables -t nat -F
+
+  # remove the logical volume
+  echo 'Removing the logical volume'
+  lvchange -a n /dev/$vg/$name
+  # it may be removed before, so we ignore the errors here
+  lvremove -f /dev/$vg/$name || true
 fi
