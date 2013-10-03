@@ -56,7 +56,7 @@ fi
 
 # ====> Old image is ready now at ${old_path}
 
-rsync -a ${old_path}/ ${new_path}/
+rsync -aH --exclude rootfs/home/action/.parts/archives/ ${old_path}/ ${new_path}/
 
 # ====> Finished rsync the contents from $old_path to $new_path
 umount $old_path
