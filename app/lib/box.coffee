@@ -211,14 +211,18 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   migrate: (cb) ->
     return cb(null) if this.mountMethod() == "lvm"
-    args = [this.containerName(), @diskSpace, @disk, @aufs.toString()]
+    # add 5% to storage space to take care of storage space
+    diskSpace = parseInt(parseInt(@diskSpace) * 1.05)
+    args = [this.containerName(), diskSpace + "M", @disk, @aufs.toString()]
     start = new Date()
     async.waterfall [
       (cb) => this._stopContainer cb
       (stdout, stderr, cb) => this._execShellCommand "boxer-migrate-to-lvm", args, sudo: true, cb
     ], (err, stdout, stderr) =>
-      console.log "===> Migrate finished in: #{new Date() - start}, err: #{err}"
-      return cb(err) if err
+      console.log "===> Migrate finished in: #{new Date() - start}"
+      if err
+        console.log "====> ERR: #{err}, stdout: #{stdout}, stderr: #{stderr}"
+        return cb(err)
       this.aufs = false
       this.mount = "lvm"
       this.save cb
