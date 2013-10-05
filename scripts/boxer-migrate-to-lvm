@@ -14,6 +14,8 @@ lvm_mount=/dev/boxhost/$container_name
 new_path=/var/lib/lxc/$container_name
 new_delta_path=${new_path}_delta
 
+lxc-stop -n ${container_name}
+
 # umount all required paths in /var/lib/lxc
 if [[ `cat /proc/mounts | grep "${new_path}\s\+"` ]]; then
   umount $new_path
