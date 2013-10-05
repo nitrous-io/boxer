@@ -4,12 +4,26 @@
 IP = ENV['VAGRANT_INTERFACE'] || "33.33.33.10"
 
 $script = <<SCRIPT
+  apt-get update
   export HOME=/home/vagrant
 
+  apt-get install -yy python-software-properties
+  add-apt-repository http://ppa.launchpad.net/brightbox/experimental/ubuntu
+
   apt-get update
-  apt-get install -yy git-core lxc bridge-utils curl redis-server build-essential xfsprogs
+  apt-get install -yy git-core lxc bridge-utils curl redis-server build-essential xfsprogs lvm2
 
   cd $HOME
+
+  if [[ ! `losetup /dev/loop0` ]]; then
+    dd if=/dev/zero of=$HOME/lxc_disk.img bs=1024 count=5000000
+    losetup /dev/loop0 $HOME/lxc_disk.img
+    mkfs.ext4 /dev/loop0
+  fi
+
+  pvcreate /dev/loop0
+  vgcreate boxhost /dev/loop0
+  lvcreate -L 4G --poolmetadatasize 200M --type thin-pool --thinpool boxes boxhost
 
   if [[ ! -d /home/vagrant/.nvm ]]; then
     git clone https://github.com/creationix/nvm.git .nvm
