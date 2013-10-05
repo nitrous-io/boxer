@@ -743,7 +743,8 @@ describe 'Boxer', ->
                   memory: "256M"
                   containerTemplate: "test_container_template"
                   state: "stopped"
-                  mount: "lvm"
+                  mount: "lvm",
+                  selectedVG: settings.selectedVG
                 })
                 runBox done
 

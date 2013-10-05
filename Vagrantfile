@@ -4,12 +4,29 @@
 IP = ENV['VAGRANT_INTERFACE'] || "33.33.33.10"
 
 $script = <<SCRIPT
+  apt-get update
   export HOME=/home/vagrant
 
+  apt-get install -yy python-software-properties
+  add-apt-repository http://ppa.launchpad.net/brightbox/experimental/ubuntu
+
   apt-get update
-  apt-get install -yy git-core lxc bridge-utils curl redis-server build-essential xfsprogs
+  apt-get install -yy git-core lxc bridge-utils curl redis-server build-essential xfsprogs lvm2
 
   cd $HOME
+
+  if [[ ! -f $HOME/lxc_disk.img ]]; then
+    dd if=/dev/zero of=$HOME/lxc_disk.img bs=1024 count=5000000
+  fi
+
+  if [[ ! `losetup /dev/loop0` ]]; then
+    losetup /dev/loop0 $HOME/lxc_disk.img
+    mkfs.ext4 -i 8192 /dev/loop0
+  fi
+
+  pvcreate /dev/loop0
+  vgcreate aio_boxhost /dev/loop0
+  lvcreate -L 4G --poolmetadatasize 200M --type thin-pool --thinpool boxes aio_boxhost
 
   if [[ ! -d /home/vagrant/.nvm ]]; then
     git clone https://github.com/creationix/nvm.git .nvm
@@ -30,6 +47,15 @@ $script = <<SCRIPT
 
   /sbin/ifconfig br-lxc-254 || /sbin/ifup br-lxc-254
   (/sbin/iptables -t nat --list | /bin/grep 192-168-254-0) || /sbin/iptables -t nat -A POSTROUTING -s 192.168.254.0/24 ! -d 192.168.254.0/24 -j MASQUERADE
+
+  cd $HOME/boxer
+  ./script/setup
+
+  chroot /var/lib/lxc/base_container_template/rootfs rm -rf /dev/null
+  chroot /var/lib/lxc/base_container_template/rootfs mknod -m 666 /dev/null c 1 3
+
+  mkdir -p /lxc/disk1
+  cp -rf /var/lib/lxc/* /lxc/disk1/
 SCRIPT
 
 Vagrant.configure("2") do |config|

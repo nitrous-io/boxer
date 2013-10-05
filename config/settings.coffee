@@ -33,8 +33,6 @@ settings =
       port: process.env.REDIS_STORE_PORT
       password: null
       database: 2
-    mountMethod: "lvm"
-    selectedVG: "boxhost"
   production: {}
 
 exportedSettings = _.extend(runtimes, _.extend(settings.common, settings[env]))
