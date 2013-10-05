@@ -60,6 +60,7 @@ fi
 
 rsync -aH --exclude action/.parts/archives/ ${old_path}/rootfs/home/ ${new_path}/rootfs/home/
 rsync -aH ${old_path}/rootfs/etc/ ${new_path}/rootfs/etc/
+cp ${old_path}/config ${new_path}/config
 
 # ====> Finished rsync the contents from $old_path to $new_path
 umount $old_path
