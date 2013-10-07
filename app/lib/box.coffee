@@ -366,7 +366,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     else
       args.push @disk
       this._execShellCommand 'boxer-cleanup-delta-container', args, sudo: true, done
-    
+
   _configureBox: (done) ->
     console.log "Configuring Box: #{this._uid()} #{this._gid()}"
     args = [@id, this.containerName(), @containerTemplate,
