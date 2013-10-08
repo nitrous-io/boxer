@@ -68,11 +68,23 @@ module.exports = class Box extends AutoAdvancingStateMachine
       memo && self[attribute]?
     , true
 
-  create: (@successCallback, @rollbackCallback) ->
+  create: (@successCallback, @failCallback) ->
     if this.valid()
-      this.startStateMachine()
+      async.waterfall [
+        (cb) => this._acquireResources cb
+        (cb) => this._prepareContainer cb
+        (cb) => this._mountContainer cb
+        (cb) => this._configureBox cb
+        (cb) => this._setUpPortForwarding cb
+        (cb) => this._setDefaultKeyPair cb
+        (cb) => this._savePublicKeys cb
+        (cb) => this.save cb
+      ], (err) =>
+        return @successCallback() unless err
+        this.destroy =>
+          @failCallback(new Error("fail to create #{this.containerName()}"))
     else
-      @rollbackCallback(new Error('Invalid Params'))
+      @failCallback(new Error('Invalid Params'))
 
   start: (cb) ->
     if this.valid()
@@ -177,11 +189,20 @@ module.exports = class Box extends AutoAdvancingStateMachine
     else
       cb(new Error('Invalid Params'))
 
-  destroy: (@rollbackCallback) ->
+  destroy: (@done) ->
     if this.valid()
-      this.rollbackStateMachine()
+      async.waterfall [
+        (cb) => this.delete cb
+        (cb) => this._removeDefaultKeyPair cb
+        (cb) => this._releasePortForwarding cb
+        (cb) => this._unmountContainer cb
+        (cb) => this._removeContainer cb
+        (cb) => this._releaseResources cb
+      ], (err) =>
+        console.log "Failed to remove #{this.containerName()} : #{err}" if err
+        @done(err)
     else
-      cb(new Error('Invalid Params'))
+      @done(new Error('Invalid Params'))
 
   info: (cb) ->
     if this.mountMethod() == "lvm"
@@ -454,24 +475,11 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            sudo: true,
                            done
 
-  _notifySuccess: (done) ->
-    if @publicKeys?
-      self = this
-      this._execShellCommand 'boxer-add-public-keys',
-                             [this.containerName()].concat(@publicKeys),
-                             sudo: true, ->
-                               self.successCallback?(null)
-                               delete self.successCallback
-                               done()
-    else
-      @successCallback?(null)
-      delete @successCallback
-      done()
-
-  _notifyRollback: (done) ->
-    @rollbackCallback?(null)
-    delete @rollbackCallback
-    done()
+  _savePublicKeys: (done) ->
+    return unless @publicKeys?
+    this._execShellCommand 'boxer-add-public-keys',
+      [this.containerName()].concat(@publicKeys),
+      sudo: true, done
 
   _execShellCommand: (cmd, args, opts, done) ->
     if _.isFunction(args)
@@ -496,10 +504,10 @@ module.exports = class Box extends AutoAdvancingStateMachine
     childProcess.exec command, timeout: 0, (err, stdout, stderr) =>
       if err
         console.log "boxer_exec_shell_command_err: #{stderr}"
-        done(err, stdout, stderr)
+        done(err)
       else
         console.log "command: #{command} took: #{+(new Date() - start)} ms"
-        done(err, stdout, stderr)
+        done(err)
 
   _uid: ->
     Box.UID_BASE + parseInt(@id)
