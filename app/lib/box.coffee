@@ -185,7 +185,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       args = [this.containerName()]
     else
       script = "boxer-info"
-      args = [@disk, this.containerName]
+      args = [@disk, this.containerName()]
     this._execShellCommand script, args, sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
       [lxcStatus, memoryUsageInBytes, storageUsageInKB] = stdout.split("-")
@@ -202,7 +202,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
       args = [this.containerName()]
     else
       script = "boxer-report-current-limit"
-      args = [@disk, this.containerName]
+      args = [@disk, this.containerName()]
     this._execShellCommand script, args, sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
 
