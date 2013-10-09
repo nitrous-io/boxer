@@ -14,12 +14,12 @@ describe Box, ->
 
   describe '.startAll', ->
     beforeEach (done) ->
-      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container-1 192.168.254.2 10000 dont-start", (err, stdout, stderr) ->
-        done(err) if err
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 2 mclovins-container-2 192.168.254.3 10001 dont-start", (err, stdout, stderr) ->
-          done(err) if err
-          childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 3 mclovins-container-3 192.168.254.4 10002 dont-start", (err, stdout, stderr) ->
-            done(err) if err
+      createContainer "1", "mclovins-container-1", "192.168.254.2", "10000", "dont-start", (err) ->
+        return done(err) if err
+        createContainer "2", "mclovins-container-2", "192.168.254.3", "10001", "dont-start", (err) ->
+          return done(err) if err
+          createContainer "3", "mclovins-container-3", "192.168.254.4", "10002", "dont-start", (err) ->
+            return done(err) if err
 
             cleanDB ->
               settings = require('../../config/settings')
@@ -51,7 +51,7 @@ describe Box, ->
     box = null
 
     beforeEach (done) ->
-      childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", (err, stdout, stderr) ->
+      createContainer "1", "mclovins-container", "192.168.254.2", "10000", "dont-start", (err) ->
         return done(err) if err
         cleanDB ->
           settings = require('../../config/settings')
@@ -87,7 +87,7 @@ describe Box, ->
 
     context 'when box is running', ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
           return done(err) if err
           cleanDB ->
             settings = require('../../config/settings')
@@ -121,7 +121,7 @@ describe Box, ->
 
     context 'when box is stopped', ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", (err, stdout, stderr) ->
+        createContainer "1", "mclovins-container", "192.168.254.2", "10000", "dont-start", (err) ->
           return done(err) if err
           cleanDB ->
             settings = require('../../config/settings')

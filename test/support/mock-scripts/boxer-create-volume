@@ -5,10 +5,10 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
-vg=boxhost
 pool=boxes
 container_name=${1}
 disk_limit=${2}
+vg=$3
 
 (
   flock -x 200
