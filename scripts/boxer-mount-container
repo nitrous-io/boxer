@@ -59,8 +59,8 @@ quoted_lxc_root='\/var\/lib\/lxc\/'
       exit 1
     fi
 
-    xfs_quota -x -c "project -s ${container_name}" ${disk} || true
-    xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk} || true
+    xfs_quota -x -c "project -s ${container_name}" ${disk} 2>/dev/null || true
+    xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk} 2>/dev/null || true
   fi
 
 ) 200>/var/lock/boxer.mount_container

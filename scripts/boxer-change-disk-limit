@@ -10,4 +10,4 @@ container_name=${2}
 disk_limit=${3}
 
 # update project limit
-xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk}
+xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk} 2>/dev/null
