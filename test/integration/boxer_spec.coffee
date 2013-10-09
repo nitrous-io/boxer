@@ -242,7 +242,8 @@ describe 'Boxer', ->
 
         context 'setDefaultKeyPair fails', ->
           beforeEach ->
-            sinon.stub Box.prototype, '_setDefaultKeyPair', (cb) -> box._execShellCommand '../support/fail-script', [], sudo: true, cb
+            sinon.stub Box.prototype, '_setDefaultKeyPair', (cb) ->
+              Box.prototype._execShellCommand '../support/fail-script', [], sudo: true, cb
 
           afterEach ->
             Box.prototype._setDefaultKeyPair.restore()
@@ -755,7 +756,7 @@ describe 'Boxer', ->
         box.name = name
         box.ip = ip
         box.port = resource.port
-        box.diskSpace = "1G"
+        box.diskSpace = "1000M"
         box.memory = "256M"
         box.containerTemplate = "test_container_template"
         box.publicKeys = ["ssh-rsa AABBCC dqminh@local"]
