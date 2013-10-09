@@ -72,13 +72,15 @@ module.exports = class Box extends AutoAdvancingStateMachine
     if this.valid()
       async.waterfall [
         (cb) => this._acquireResources cb
-        (cb) => this._prepareContainer cb
-        (cb) => this._mountContainer cb
-        (cb) => this._configureBox cb
-        (cb) => this._setUpPortForwarding cb
-        (cb) => this._setDefaultKeyPair cb
-        (cb) => this._savePublicKeys cb
-        (cb) => this.save cb
+        (cb) => this._prepareContainer (err) -> cb(err)
+        (cb) => this._mountContainer (err) -> cb(err)
+        (cb) => this._configureBox (err) -> cb(err)
+        (cb) => this._setUpPortForwarding (err) -> cb(err)
+        (cb) => this._setDefaultKeyPair (err) -> cb(err)
+        (cb) => this._savePublicKeys (err) -> cb(err)
+        (cb) =>
+          try this.save cb
+          catch e then cb(new Error("Failed to save #{this.containerName()}: #{e}"))
       ], (err) =>
         return @successCallback() unless err
         this.destroy =>
@@ -192,12 +194,14 @@ module.exports = class Box extends AutoAdvancingStateMachine
   destroy: (@done) ->
     if this.valid()
       async.waterfall [
-        (cb) => this.delete cb
-        (cb) => this._removeDefaultKeyPair cb
-        (cb) => this._releasePortForwarding cb
-        (cb) => this._unmountContainer cb
-        (cb) => this._removeContainer cb
-        (cb) => this._releaseResources cb
+        (cb) => this._removeDefaultKeyPair (err) -> cb(err)
+        (cb) => this._releasePortForwarding (err) -> cb(err)
+        (cb) => this._unmountContainer (err) -> cb(err)
+        (cb) => this._removeContainer (err) -> cb(err)
+        (cb) => this._releaseResources (err) -> cb(err)
+        (cb) =>
+          try this.delete cb
+          catch e then cb(new Error("failed to delete #{this.containerName()}: #{e}"))
       ], (err) =>
         console.log "Failed to remove #{this.containerName()} : #{err}" if err
         @done(err)
@@ -419,13 +423,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setUpPortForwarding: (done) ->
     script = 'boxer-setup-portforwarding'
     script = "#{script}-dev" if process.env.NODE_ENV == 'development'
-
     console.log "Port Forwarding Set Up: #{script}"
-
-    this._execShellCommand script,
-                           [@ip, @port],
-                           sudo: true,
-                           done
+    this._execShellCommand script, [@ip, @port], sudo: true, done
 
   # TODO: So in development mode (if you're runnign in Vagrant)
   # you need two iptables rules for port forwarding to work correctly,
@@ -437,13 +436,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _releasePortForwarding: (done) ->
     script = 'boxer-release-portforwarding'
     script = "#{script}-dev" if process.env.NODE_ENV == 'development'
-
     console.log "Port Forwarding Released: #{script}"
-
-    this._execShellCommand script,
-                           [@ip, @port],
-                           sudo: true,
-                           done
+    # ignore iptables error when the rule does not exist
+    this._execShellCommand script, [@ip, @port], sudo: true, (err) -> done()
 
   _setDefaultKeyPair: (done) ->
     console.log 'Setting default ssh key-pair'
@@ -476,7 +471,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            done
 
   _savePublicKeys: (done) ->
-    return unless @publicKeys?
+    return done() unless @publicKeys?
     this._execShellCommand 'boxer-add-public-keys',
       [this.containerName()].concat(@publicKeys),
       sudo: true, done
@@ -504,10 +499,10 @@ module.exports = class Box extends AutoAdvancingStateMachine
     childProcess.exec command, timeout: 0, (err, stdout, stderr) =>
       if err
         console.log "boxer_exec_shell_command_err: #{stderr}"
-        done(err)
+        done(err, stdout, stderr)
       else
         console.log "command: #{command} took: #{+(new Date() - start)} ms"
-        done(err)
+        done(err, stdout, stderr)
 
   _uid: ->
     Box.UID_BASE + parseInt(@id)
