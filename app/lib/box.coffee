@@ -1,4 +1,3 @@
-AutoAdvancingStateMachine = require './auto_advancing_state_machine'
 ConvertSize = require './convert_size'
 ResourcePool = require './resource_pool'
 settings = require '../../config/settings'
@@ -12,18 +11,7 @@ initAirbrakeClient = require('./utils').initAirbrakeClient
 async = require 'async'
 _ = require 'underscore'
 
-module.exports = class Box extends AutoAdvancingStateMachine
-  states: [
-    { name: 'initialized',         onAdvance: '_acquireResources',    onRollback: '_notifyRollback' }
-    { name: 'prepareContainer',    onAdvance: '_prepareContainer',    onRollback: '_releaseResources' }
-    { name: 'containerPrepared',   onAdvance: '_mountContainer',      onRollback: '_removeContainer' }
-    { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
-    { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
-    { name: 'portForwardingSetUp', onAdvance: '_setDefaultKeyPair',   onRollback: '_releasePortForwarding' }
-    { name: 'setupDefaultKeyPair', onAdvance: 'save',                 onRollback: '_removeDefaultKeyPair' }
-    { name: 'boxSaved',            onAdvance: '_notifySuccess',       onRollback: 'delete' }
-  ]
-
+module.exports = class Box
   @UID_BASE = 15000
   @SWAPPINESS = 60
   @CPU_SHARES = 512
@@ -42,7 +30,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     @aufs = false
     @mount = null
-    super
 
   containerName: -> "#{@name}-#{@id}"
 
