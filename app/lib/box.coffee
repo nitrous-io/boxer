@@ -30,6 +30,7 @@ module.exports = class Box
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     @aufs = false
     @mount = null
+    @selectedVG = null
 
   containerName: -> "#{@name}-#{@id}"
 
@@ -225,7 +226,8 @@ module.exports = class Box
     return cb(null) if this.mountMethod() == "lvm"
     # add 5% to storage space to take care of storage space
     diskSpace = parseInt(parseInt(@diskSpace) * 1.05)
-    args = [this.containerName(), diskSpace + "M", @disk, @aufs.toString()]
+    @selectedVG = settings.selectedVG
+    args = [this.containerName(), diskSpace + "M", @disk, @aufs.toString(), @selectedVG]
     start = new Date()
     async.waterfall [
       (cb) => this._stopContainer cb
@@ -235,7 +237,6 @@ module.exports = class Box
       if err
         console.log "====> ERR: #{err}, stdout: #{stdout}, stderr: #{stderr}"
         return cb(err)
-      this.aufs = false
       this.mount = "lvm"
       this.save cb
 
@@ -278,6 +279,13 @@ module.exports = class Box
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
         box.disk = parsedBox.disk
+
+        # if the box is an old lvm box i.e. created before selectedVG feature,
+        # we assume that the box lives in boxhost volume group
+        if parsedBox.selectedVG != undefined
+          box.selectedVG = parsedBox.selectedVG
+        else
+          box.selectedVG = "boxhost"
 
         if parsedBox.mount != undefined
           box.mount = parsedBox.mount
@@ -347,7 +355,7 @@ module.exports = class Box
     console.log 'Create Volume'
     if this.mountMethod() == "lvm"
       this._execShellCommand 'lvm/boxer-create-volume',
-        [this.containerName(), @diskSpace], sudo: true, done
+        [this.containerName(), @diskSpace, @selectedVG], sudo: true, done
     else
       console.log 'Setting Up Delta Container'
       this._execShellCommand 'boxer-setup-delta-container',
@@ -356,6 +364,7 @@ module.exports = class Box
   _mountContainer: (done) ->
     args = [@id, this.containerName()]
     if this.mountMethod() == "lvm"
+      args.push @selectedVG
       this._execShellCommand 'lvm/boxer-mount-container', args, sudo: true, done
     else
       args.push @containerTemplate, @diskSpace, @disk, @aufs.toString()
@@ -374,6 +383,7 @@ module.exports = class Box
     console.log 'Remove Container'
     args = [this.containerName()]
     if this.mountMethod() == "lvm"
+      args.push @selectedVG
       this._execShellCommand 'lvm/boxer-remove-volume', args, sudo: true, done
     else
       args.push @disk
@@ -505,7 +515,7 @@ module.exports = class Box
 
   _changeDiskQuota: (done) ->
     if this.mountMethod() == "lvm"
-      args = [this.containerName(), @diskSpace]
+      args = [this.containerName(), @diskSpace, @selectedVG]
       this._execShellCommand "lvm/boxer-change-disk-limit", args, sudo: true, done
     else
       args = [@disk, this.containerName(), @diskSpace]

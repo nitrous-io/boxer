@@ -34,6 +34,7 @@ describe 'Boxer', ->
     attributes.diskSpace ?= '2000M'
     attributes.cpuShares ?= '2048'
     attributes.mount ?= "lvm"
+    attributes.selectedVG ?= settings.selectedVG
 
     attributes.publicKeys ?= []
     attributes.snapshotURL ?= null
@@ -189,7 +190,8 @@ describe 'Boxer', ->
         context 'prepareContainer fails', ->
           beforeEach ->
             sinon.stub Box.prototype, '_prepareContainer', (cb) ->
-              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-create-volume', ['mclovins-container-1', '1G'], sudo: true, cb
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-create-volume',
+                ['mclovins-container-1', '1G', settings.selectedVG], sudo: true, cb
 
           afterEach ->
             Box.prototype._prepareContainer.restore()
@@ -202,7 +204,8 @@ describe 'Boxer', ->
         context 'mountContainer fails', ->
           beforeEach ->
             sinon.stub Box.prototype, '_mountContainer', (cb) ->
-              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-mount-container', ['mclovins-container-1'], sudo: true, cb
+              Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-mount-container',
+                ['1', 'mclovins-container-1', settings.selectedVG], sudo: true, cb
 
           afterEach ->
             Box.prototype._mountContainer.restore()
@@ -299,7 +302,7 @@ describe 'Boxer', ->
 
     describe 'aio:restart' , ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
           return done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
@@ -337,7 +340,7 @@ describe 'Boxer', ->
 
     describe 'aio:stop', ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
           return done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
@@ -375,7 +378,7 @@ describe 'Boxer', ->
 
     describe 'aio:start' , ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000 dont-start", (err, stdout, stderr) ->
+        createContainer "1", "mclovins-container", "192.168.254.2", "10000", "dont-start", (err) ->
           done(err) if err
 
           cleanDB ->
@@ -413,7 +416,7 @@ describe 'Boxer', ->
 
     describe 'aio:info_request', ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
           done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
@@ -447,7 +450,7 @@ describe 'Boxer', ->
 
       beforeEach (done) ->
         publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
           done(err) if err
           cleanDB ->
             publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
@@ -704,7 +707,7 @@ describe 'Boxer', ->
 
     describe 'aio:destroy', ->
       beforeEach (done) ->
-        childProcess.exec "sudo #{scriptPath}/boxer-setup-test-container 1 mclovins-container 192.168.254.2 10000", (err, stdout, stderr) ->
+        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
           return done(err) if err
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container-1", (err, stdout, stderr) ->
             childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container-1'", (err, stdout, stderr) ->
@@ -729,7 +732,7 @@ describe 'Boxer', ->
 
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
-          expect(fs.existsSync("/dev/boxhost/mclovins-container-1")).to.be.false
+          expect(fs.existsSync("/dev/#{settings.selectedVG}/mclovins-container-1")).to.be.false
 
           childProcess.exec "sudo iptables -L -t nat", (err, stdout, stderr) ->
             expect(stdout).to.not.match /192\.168\.254\.254:22/
@@ -794,7 +797,7 @@ describe 'Boxer', ->
           root = "/var/lib/lxc/#{boxName}/rootfs"
           expect(fs.existsSync(root)).to.be.true
           expect(fs.existsSync("/var/lib/lxc/#{boxName}_delta")).to.be.true
-          expect(fs.existsSync("/dev/boxhost/#{boxName}")).to.be.true
+          expect(fs.existsSync("/dev/#{settings.selectedVG}/#{boxName}")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/.ssh")).to.be.true
           expect(fs.existsSync("/#{root}/home/action/workspace")).to.be.true
 
@@ -807,7 +810,6 @@ describe 'Boxer', ->
             expect(stdout).to.match /STOPPED/
             publisher.hget 'aio:boxes', boxName, (err, res) ->
               msg = JSON.parse res
-              expect(msg.aufs).to.be.false
               expect(msg.mount).to.eql "lvm"
               done()
 

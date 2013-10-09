@@ -5,8 +5,8 @@ set -o nounset
 set -o errexit
 shopt -s nullglob
 
-vg=boxhost
 container_name=${1}
+vg=$2
 lv=/dev/$vg/$container_name
 box_path=/var/lib/lxc/$container_name
 box_delta_path=/var/lib/lxc/${container_name}_delta

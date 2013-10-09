@@ -7,7 +7,8 @@ etc.) to setup a working dev environment
 
 ## Requirements for lvm
 
-- a volume group named boxhost
+- a volume group named boxhost ( can be customized with SELECTED_VG env
+  variable)
 - a thin pool named boxes
 
 You can use the following steps to create the pool
