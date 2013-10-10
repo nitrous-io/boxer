@@ -28,7 +28,7 @@ fi
 # create the lvm volume if it doesnt exist
 if [[ ! -e "/dev/$vg/$container_name" ]]; then
   lvcreate -T $vg/boxes -V $disk_limit -n $container_name
-  mkfs -t ext4 /dev/$vg/$container_name
+  mkfs.ext4 -i 8192 /dev/$vg/$container_name
 fi
 
 # mount the volume to /var/lib/lxc

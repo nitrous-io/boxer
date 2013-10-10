@@ -37,7 +37,7 @@ EOF
 
 # create a logical volume with size=disk_limit
 lvcreate -T $vg/boxes -V $disk_limit -n $container_name
-mkfs -t ext4 /dev/$vg/$container_name
+mkfs.ext4 -i 8192 /dev/$vg/$container_name
 
 # mount the volume in disk
 mkdir -p $box_delta_path
