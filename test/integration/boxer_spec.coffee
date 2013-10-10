@@ -153,6 +153,7 @@ describe 'Boxer', ->
               expect(msg.boxerId).to.eql 'test.action.io'
               expect(msg.containerState).to.eql 'stopped'
               expect(msg.mount).to.eql 'lvm'
+              expect(msg.selectedVG).to.eql settings.selectedVG
               done(err)
 
         subscribeAndDo ->

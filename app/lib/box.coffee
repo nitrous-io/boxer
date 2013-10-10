@@ -259,6 +259,7 @@ module.exports = class Box
                     swappiness: @swappiness
                     cpuShares: @cpuShares
                     mount: this.mountMethod()
+                    selectedVG: @selectedVG
                   })
 
   @find: (containerName, cb) ->
