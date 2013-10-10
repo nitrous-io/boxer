@@ -19,6 +19,7 @@ settings =
       database: 0
     airbrakeAPIKey: process.env.AIRBRAKE_API_KEY
     mountMethod: process.env.MOUNT_METHOD
+    selectedVG: process.env.SELECTED_VG
   development: {}
   test:
     id: 'test.action.io'
@@ -32,6 +33,8 @@ settings =
       port: process.env.REDIS_STORE_PORT
       password: null
       database: 2
+    mountMethod: "lvm"
+    selectedVG: "boxhost"
   production: {}
 
 exportedSettings = _.extend(runtimes, _.extend(settings.common, settings[env]))

@@ -8,9 +8,10 @@ container_name=$1
 disk_limit=$2
 disk=$3
 aufs=$4
+vg=$5
 
 base_template_path=/var/lib/lxc/base_container_template
-lvm_mount=/dev/boxhost/$container_name
+lvm_mount=/dev/$vg/$container_name
 new_path=/var/lib/lxc/$container_name
 new_delta_path=${new_path}_delta
 
@@ -25,14 +26,14 @@ if [[ `cat /proc/mounts | grep "${new_delta_path}\s\+"` ]]; then
 fi
 
 # create the lvm volume if it doesnt exist
-if [[ ! -e "/dev/boxhost/$container_name" ]]; then
-  lvcreate -T boxhost/boxes -V $disk_limit -n $container_name
-  mkfs -t ext4 /dev/boxhost/$container_name
+if [[ ! -e "/dev/$vg/$container_name" ]]; then
+  lvcreate -T $vg/boxes -V $disk_limit -n $container_name
+  mkfs.ext4 -i 8192 /dev/$vg/$container_name
 fi
 
 # mount the volume to /var/lib/lxc
 mkdir -p $new_delta_path $new_path
-mount -t ext4 /dev/boxhost/$container_name $new_delta_path
+mount -t ext4 /dev/$vg/$container_name $new_delta_path
 
 # overlay base_container_template so we have an actual image
 mount -n -t aufs -o br=${new_delta_path}:${base_template_path} none ${new_path}

@@ -1,4 +1,3 @@
-AutoAdvancingStateMachine = require './auto_advancing_state_machine'
 ConvertSize = require './convert_size'
 ResourcePool = require './resource_pool'
 settings = require '../../config/settings'
@@ -12,18 +11,7 @@ initAirbrakeClient = require('./utils').initAirbrakeClient
 async = require 'async'
 _ = require 'underscore'
 
-module.exports = class Box extends AutoAdvancingStateMachine
-  states: [
-    { name: 'initialized',         onAdvance: '_acquireResources',    onRollback: '_notifyRollback' }
-    { name: 'prepareContainer',    onAdvance: '_prepareContainer',    onRollback: '_releaseResources' }
-    { name: 'containerPrepared',   onAdvance: '_mountContainer',      onRollback: '_removeContainer' }
-    { name: 'containerMounted',    onAdvance: '_configureBox',        onRollback: '_unmountContainer' }
-    { name: 'boxConfigured',       onAdvance: '_setUpPortForwarding', onRollback: '_removeBoxConfig' }
-    { name: 'portForwardingSetUp', onAdvance: '_setDefaultKeyPair',   onRollback: '_releasePortForwarding' }
-    { name: 'setupDefaultKeyPair', onAdvance: 'save',                 onRollback: '_removeDefaultKeyPair' }
-    { name: 'boxSaved',            onAdvance: '_notifySuccess',       onRollback: 'delete' }
-  ]
-
+module.exports = class Box
   @UID_BASE = 15000
   @SWAPPINESS = 60
   @CPU_SHARES = 512
@@ -42,7 +30,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     @aufs = false
     @mount = null
-    super
+    @selectedVG = null
 
   containerName: -> "#{@name}-#{@id}"
 
@@ -66,11 +54,25 @@ module.exports = class Box extends AutoAdvancingStateMachine
       memo && self[attribute]?
     , true
 
-  create: (@successCallback, @rollbackCallback) ->
+  create: (@successCallback, @failCallback) ->
     if this.valid()
-      this.startStateMachine()
+      async.waterfall [
+        (cb) => this._acquireResources cb
+        (cb) => this._prepareContainer (err) -> cb(err)
+        (cb) => this._mountContainer (err) -> cb(err)
+        (cb) => this._configureBox (err) -> cb(err)
+        (cb) => this._setUpPortForwarding (err) -> cb(err)
+        (cb) => this._setDefaultKeyPair (err) -> cb(err)
+        (cb) => this._savePublicKeys (err) -> cb(err)
+        (cb) =>
+          try this.save cb
+          catch e then cb(new Error("Failed to save #{this.containerName()}: #{e}"))
+      ], (err) =>
+        return @successCallback() unless err
+        this.destroy =>
+          @failCallback(new Error("fail to create #{this.containerName()}"))
     else
-      @rollbackCallback(new Error('Invalid Params'))
+      @failCallback(new Error('Invalid Params'))
 
   start: (cb) ->
     if this.valid()
@@ -173,11 +175,22 @@ module.exports = class Box extends AutoAdvancingStateMachine
     else
       cb(new Error('Invalid Params'))
 
-  destroy: (@rollbackCallback) ->
+  destroy: (@done) ->
     if this.valid()
-      this.rollbackStateMachine()
+      async.waterfall [
+        (cb) => this._removeDefaultKeyPair (err) -> cb(err)
+        (cb) => this._releasePortForwarding (err) -> cb(err)
+        (cb) => this._unmountContainer (err) -> cb(err)
+        (cb) => this._removeContainer (err) -> cb(err)
+        (cb) => this._releaseResources (err) -> cb(err)
+        (cb) =>
+          try this.delete cb
+          catch e then cb(new Error("failed to delete #{this.containerName()}: #{e}"))
+      ], (err) =>
+        console.log "Failed to remove #{this.containerName()} : #{err}" if err
+        @done(err)
     else
-      cb(new Error('Invalid Params'))
+      @done(new Error('Invalid Params'))
 
   info: (cb) ->
     if this.mountMethod() == "lvm"
@@ -213,7 +226,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
     return cb(null) if this.mountMethod() == "lvm"
     # add 5% to storage space to take care of storage space
     diskSpace = parseInt(parseInt(@diskSpace) * 1.05)
-    args = [this.containerName(), diskSpace + "M", @disk, @aufs.toString()]
+    @selectedVG = settings.selectedVG
+    args = [this.containerName(), diskSpace + "M", @disk, @aufs.toString(), @selectedVG]
     start = new Date()
     async.waterfall [
       (cb) => this._stopContainer cb
@@ -223,7 +237,6 @@ module.exports = class Box extends AutoAdvancingStateMachine
       if err
         console.log "====> ERR: #{err}, stdout: #{stdout}, stderr: #{stderr}"
         return cb(err)
-      this.aufs = false
       this.mount = "lvm"
       this.save cb
 
@@ -246,6 +259,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
                     swappiness: @swappiness
                     cpuShares: @cpuShares
                     mount: this.mountMethod()
+                    selectedVG: @selectedVG
                   })
 
   @find: (containerName, cb) ->
@@ -266,6 +280,13 @@ module.exports = class Box extends AutoAdvancingStateMachine
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
         box.disk = parsedBox.disk
+
+        # if the box is an old lvm box i.e. created before selectedVG feature,
+        # we assume that the box lives in boxhost volume group
+        if parsedBox.selectedVG != undefined
+          box.selectedVG = parsedBox.selectedVG
+        else
+          box.selectedVG = "boxhost"
 
         if parsedBox.mount != undefined
           box.mount = parsedBox.mount
@@ -335,7 +356,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     console.log 'Create Volume'
     if this.mountMethod() == "lvm"
       this._execShellCommand 'lvm/boxer-create-volume',
-        [this.containerName(), @diskSpace], sudo: true, done
+        [this.containerName(), @diskSpace, @selectedVG], sudo: true, done
     else
       console.log 'Setting Up Delta Container'
       this._execShellCommand 'boxer-setup-delta-container',
@@ -344,6 +365,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _mountContainer: (done) ->
     args = [@id, this.containerName()]
     if this.mountMethod() == "lvm"
+      args.push @selectedVG
       this._execShellCommand 'lvm/boxer-mount-container', args, sudo: true, done
     else
       args.push @containerTemplate, @diskSpace, @disk, @aufs.toString()
@@ -362,6 +384,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
     console.log 'Remove Container'
     args = [this.containerName()]
     if this.mountMethod() == "lvm"
+      args.push @selectedVG
       this._execShellCommand 'lvm/boxer-remove-volume', args, sudo: true, done
     else
       args.push @disk
@@ -392,13 +415,8 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _setUpPortForwarding: (done) ->
     script = 'boxer-setup-portforwarding'
     script = "#{script}-dev" if process.env.NODE_ENV == 'development'
-
     console.log "Port Forwarding Set Up: #{script}"
-
-    this._execShellCommand script,
-                           [@ip, @port],
-                           sudo: true,
-                           done
+    this._execShellCommand script, [@ip, @port], sudo: true, done
 
   # TODO: So in development mode (if you're runnign in Vagrant)
   # you need two iptables rules for port forwarding to work correctly,
@@ -410,13 +428,9 @@ module.exports = class Box extends AutoAdvancingStateMachine
   _releasePortForwarding: (done) ->
     script = 'boxer-release-portforwarding'
     script = "#{script}-dev" if process.env.NODE_ENV == 'development'
-
     console.log "Port Forwarding Released: #{script}"
-
-    this._execShellCommand script,
-                           [@ip, @port],
-                           sudo: true,
-                           done
+    # ignore iptables error when the rule does not exist
+    this._execShellCommand script, [@ip, @port], sudo: true, (err) -> done()
 
   _setDefaultKeyPair: (done) ->
     console.log 'Setting default ssh key-pair'
@@ -448,24 +462,11 @@ module.exports = class Box extends AutoAdvancingStateMachine
                            sudo: true,
                            done
 
-  _notifySuccess: (done) ->
-    if @publicKeys?
-      self = this
-      this._execShellCommand 'boxer-add-public-keys',
-                             [this.containerName()].concat(@publicKeys),
-                             sudo: true, ->
-                               self.successCallback?(null)
-                               delete self.successCallback
-                               done()
-    else
-      @successCallback?(null)
-      delete @successCallback
-      done()
-
-  _notifyRollback: (done) ->
-    @rollbackCallback?(null)
-    delete @rollbackCallback
-    done()
+  _savePublicKeys: (done) ->
+    return done() unless @publicKeys?
+    this._execShellCommand 'boxer-add-public-keys',
+      [this.containerName()].concat(@publicKeys),
+      sudo: true, done
 
   _execShellCommand: (cmd, args, opts, done) ->
     if _.isFunction(args)
@@ -515,7 +516,7 @@ module.exports = class Box extends AutoAdvancingStateMachine
 
   _changeDiskQuota: (done) ->
     if this.mountMethod() == "lvm"
-      args = [this.containerName(), @diskSpace]
+      args = [this.containerName(), @diskSpace, @selectedVG]
       this._execShellCommand "lvm/boxer-change-disk-limit", args, sudo: true, done
     else
       args = [@disk, this.containerName(), @diskSpace]

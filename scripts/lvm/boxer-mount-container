@@ -9,12 +9,12 @@ container_template=base_container_template
 
 box_id=$1
 container_name=$2
+vg=$3
 
 box_path=$lxc_root/$container_name
 box_delta_path=${box_path}_delta
 container_path=$lxc_root/$container_template
 
-vg=boxhost
 lv=/dev/$vg/$container_name
 
 (
