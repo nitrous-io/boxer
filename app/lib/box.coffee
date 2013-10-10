@@ -265,6 +265,7 @@ module.exports = class Box
                     mount: this.mountMethod()
                     authUsername: @authUsername
                     authPassword: @authPassword
+                    selectedVG: @selectedVG
                   })
 
   @find: (containerName, cb) ->
