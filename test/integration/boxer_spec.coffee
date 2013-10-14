@@ -572,6 +572,27 @@ describe 'Boxer', ->
               data: ['RDS_HOST', 'RDS_PASSWORD'],
               name: "mclovins-container-1"
 
+      context 'change auth username and password', ->
+        it 'changes the values stored in redis', (done) ->
+          assertMessage = (message) ->
+            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+              msg = JSON.parse(res)
+              expect(msg.id).to.eql 1
+              expect(msg.authUsername).to.eql 'admin'
+              expect(msg.authPassword).to.eql 'password'
+              done(err)
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:update_auth",
+              name: "mclovins-container-1"
+              data: {
+                "auth_username": "admin",
+                "auth_password": "password"
+              }
+
       context 'upgrading box specs', ->
         context 'unsuccessful upgrade (disk space used is more than the new limit)', ->
           before ->
