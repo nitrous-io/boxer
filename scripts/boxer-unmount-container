@@ -24,4 +24,4 @@ box_path=${disk}/${container_name}
     umount ${lxc_root}/${container_name}
     umount ${box_path}
   fi
-) 200>/var/lock/boxer.unmount_container
+) 200>/var/lock/boxer.${container_name}.unmount_container

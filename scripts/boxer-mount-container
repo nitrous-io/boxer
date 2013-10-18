@@ -63,4 +63,4 @@ quoted_lxc_root='\/var\/lib\/lxc\/'
     xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk} 2>/dev/null || true
   fi
 
-) 200>/var/lock/boxer.mount_container
+) 200>/var/lock/boxer.${container_name}.mount_container

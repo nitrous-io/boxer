@@ -39,4 +39,4 @@ lv=/dev/$vg/$container_name
     fi
   fi
 
-) 200>/var/lock/boxer.mount_container
+) 200>/var/lock/boxer.${container_name}.mount_container

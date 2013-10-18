@@ -29,4 +29,4 @@ lv=/dev/$vg/$container_name
 
   mount -t ext4 $lv $box_delta_path
   mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
-) 200>/var/lock/boxer.unmount_container
+) 200>/var/lock/boxer.${container_name}.unmount_container
