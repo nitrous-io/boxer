@@ -21,4 +21,4 @@ box_delta_path=${lxc_root}/${container_name}_delta
   fi
   rm -rf $box_path
   rm -rf $box_delta_path
-) 200>/var/lock/boxer.unmount_container
+) 200>/var/lock/boxer.${container_name}.unmount_container

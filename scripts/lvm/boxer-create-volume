@@ -24,4 +24,4 @@ vg=$3
     lvremove -f /dev/$vg/$container_name
     exit 1
   fi
-) 200>/var/lock/boxer.create_volume
+) 200>/var/lock/boxer.${container_name}.create_volume

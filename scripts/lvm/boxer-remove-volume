@@ -24,4 +24,4 @@ box_delta_path=/var/lib/lxc/${container_name}_delta
   rm -rf $box_delta_path
   lvchange -a n $lv
   lvremove -f $lv
-) 200>/var/lock/boxer.remove_volume
+) 200>/var/lock/boxer.${container_name}.remove_volume
