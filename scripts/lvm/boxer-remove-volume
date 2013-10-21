@@ -20,8 +20,13 @@ box_delta_path=/var/lib/lxc/${container_name}_delta
   if [[ `cat /proc/mounts | grep "${box_delta_path}\s\+"` ]]; then
     umount $box_delta_path
   fi
-  rm -rf $box_path
-  rm -rf $box_delta_path
+
+  # FIXME: See why sometimes this gives an error:
+  # rm: cannot remove device or resource busy (even tho its not mounted)
+  # or lsof +D #{path} gives nothing
+  rm -rf $box_path || true
+  rm -rf $box_delta_path || true
+
   lvchange -a n $lv
   lvremove -f $lv
 ) 200>/var/lock/boxer.${container_name}.remove_volume

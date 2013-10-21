@@ -11,6 +11,10 @@ disk=${2}
 box_path=${disk}/${box_name}
 box_delta_path=${box_path}_delta
 
-rm -rf ${lxc_root}/${box_name}
-rm -rf ${box_path}
-rm -rf ${box_delta_path}
+# FIXME: See why sometimes this gives an error:
+# rm: cannot remove device or resource busy (even tho its not mounted)
+# or lsof +D #{path} gives nothing
+rm -rf ${lxc_root}/${box_name} || true
+rm -rf ${box_path} || true
+rm -rf ${box_delta_path}/* || true
+rm -rf ${box_delta_path} || true
