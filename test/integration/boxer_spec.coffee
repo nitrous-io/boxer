@@ -9,6 +9,7 @@ scriptPath          = __dirname.replace('test/integration', 'scripts')
 settings            = require('../../config/settings')
 redisMQSettings     = settings.redisMQ
 redisStoreSettings  = settings.redisStore
+http                = require 'http'
 
 describe 'Boxer', ->
   boxer = coach = publisher = null
@@ -582,6 +583,13 @@ describe 'Boxer', ->
               name: "mclovins-container-1"
 
       context 'change auth username and password', ->
+        before ->
+          sinon.stub http, 'get', (opts, cb) ->
+              cb()
+
+        after ->
+          http.get.restore()
+
         it 'changes the values stored in redis', (done) ->
           assertMessage = (message) ->
             publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -590,6 +598,26 @@ describe 'Boxer', ->
               expect(msg.authUsername).to.eql 'admin'
               expect(msg.authPassword).to.eql 'password'
               done(err)
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:update_auth",
+              name: "mclovins-container-1"
+              data: {
+                "auth_username": "admin",
+                "auth_password": "password"
+              }
+
+        it 'pings Cartman to invalidate cache', (done) ->
+          assertMessage = (message) ->
+            options =
+              hostname: settings.cartmanHost
+              port: settings.cartmanPort
+              path: "/invalidate_cache?id=mclovins-container-1"
+            expect(http.get).to.have.been.calledWith options, sinon.match.func
+            done()
 
           subscribeAndDo ->
             waitForMessage 'aio:configured', assertMessage

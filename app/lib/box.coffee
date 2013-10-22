@@ -11,6 +11,8 @@ initAirbrakeClient = require('./utils').initAirbrakeClient
 async = require 'async'
 _ = require 'underscore'
 
+http = require 'http'
+
 module.exports = class Box
   @UID_BASE = 15000
   @SWAPPINESS = 60
@@ -160,7 +162,15 @@ module.exports = class Box
                   this.updateAttributes containerState: 'running', done
 
     else if dataType == 'aio:configure:update_auth'
-      this.updateAttributes { authUsername: data.auth_username, authPassword: data.auth_password }, done
+      this.updateAttributes { authUsername: data.auth_username, authPassword: data.auth_password }, =>
+        # ping to invalidate cache
+        options =
+          hostname: settings.cartmanHost
+          port: settings.cartmanPort
+          path: "/invalidate_cache?id=#{this.containerName()}"
+
+        http.get options, ->
+          done()
 
   stop: (cb) ->
     if this.valid()

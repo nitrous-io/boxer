@@ -20,6 +20,8 @@ settings =
     airbrakeAPIKey: process.env.AIRBRAKE_API_KEY
     mountMethod: process.env.MOUNT_METHOD
     selectedVG: process.env.SELECTED_VG
+    cartmanHost: process.env.CARTMAN_HOST
+    cartmanPort: process.env.CARTMAN_PORT
   development: {}
   test:
     id: 'test.action.io'
