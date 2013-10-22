@@ -72,7 +72,8 @@ if [[ ! `ls -la $container_path/rootfs/home/action | grep ${uid}` ]]; then
   exit 1
 fi
 
-# Add /etc/action/box_id
+# Add /etc/action/box_id and box_user
 etc_action=$container_path/rootfs/etc/action
 mkdir -p ${etc_action}
 echo "${id}" > ${etc_action}/box_id
+echo "action" > ${etc_action}/box_user

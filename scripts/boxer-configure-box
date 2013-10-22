@@ -73,7 +73,7 @@ fi
 mkdir -p ${lxc_root}/${container_name}/rootfs/home/action/workspace
 chroot ${lxc_root}/${container_name}/rootfs chown -R ${uid}:${gid} /home/action/workspace
 
-# Add /etc/action/box_id
+# Add /etc/action/box_id and box_user
 mkdir -p ${etc_action}
 echo "${id}" > ${etc_action}/box_id
-
+echo "action" > ${etc_action}/box_user
