@@ -129,6 +129,8 @@ describe 'Boxer', ->
           # check /etc settings
           etcActionBoxId = fs.readFileSync("#{root}/etc/action/box_id").toString().trim()
           expect(etcActionBoxId).to.eql '1'
+          etcActionBoxUser = fs.readFileSync("#{root}/etc/action/box_user").toString().trim()
+          expect(etcActionBoxUser).to.eql 'action'
 
           # check uid and gid
           stats = fs.statSync("/#{root}/home/action")
