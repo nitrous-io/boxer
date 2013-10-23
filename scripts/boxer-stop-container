@@ -7,5 +7,6 @@ shopt -s nullglob
 
 box_name=${1}
 
-lxc-stop -n ${box_name}
+# FIXME: This is an Ubuntu-specific command
+lxc-shutdown -n ${box_name} -t 30
 lxc-wait -n ${box_name} -s STOPPED
