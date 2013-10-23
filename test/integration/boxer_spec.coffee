@@ -317,6 +317,7 @@ describe 'Boxer', ->
               state: "running"
               disk: "/lxc/disk1"
               mount: "lvm"
+              selectedVG: 'aio_boxhost'
             })
             runBox done
 
@@ -466,6 +467,7 @@ describe 'Boxer', ->
               disk: "/lxc/disk1"
               containerState: "running"
               mount: "lvm"
+              selectedVG: "aio_boxhost"
             })
             runBox done
 
@@ -656,7 +658,7 @@ describe 'Boxer', ->
               # check current quota limit
               childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 # df doesnt report exact volume. lv/ext4 probably eats some
-                expect(stdout.trim()).to.match /.*?-2.9G/
+                expect(stdout.trim()).to.match /.*?-3.0G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->

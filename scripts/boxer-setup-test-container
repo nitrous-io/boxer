@@ -11,11 +11,11 @@ ip=${3}
 port=${4}
 if [ $# -eq 5 ]; then
   dont_start="false"
-  vg=$5
 else
   dont_start=$5
-  vg=$6
 fi
+vg=aio_boxhost
+
 disk_limit="2G"
 
 container_name=${box_name}-${box_id}
