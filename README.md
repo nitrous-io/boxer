@@ -19,5 +19,6 @@ Rails app, coach, etc. -- the one provided by dev-cookbook).
   `precise` LXC container and puts it in your Vagrant VM).
 * vagrant ssh
 * cd boxer
+* npm install
 * export $(cat .env)
 * make
