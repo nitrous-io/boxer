@@ -34,8 +34,8 @@ describe 'Boxer', ->
     attributes.memory ?= "256M"
     attributes.diskSpace ?= '2000M'
     attributes.cpuShares ?= '2048'
-    attributes.mount ?= "lvm"
-    attributes.selectedVG ?= settings.selectedVG
+    attributes.mount ?= "sparse"
+    attributes.disk ?= "/lxc/disk1"
 
     attributes.publicKeys ?= []
     attributes.snapshotURL ?= null
@@ -155,8 +155,7 @@ describe 'Boxer', ->
               expect(msg.diskSpace).to.eql '2000M'
               expect(msg.boxerId).to.eql 'test.action.io'
               expect(msg.containerState).to.eql 'stopped'
-              expect(msg.mount).to.eql 'lvm'
-              expect(msg.selectedVG).to.eql settings.selectedVG
+              expect(msg.mount).to.eql 'sparse'
               done(err)
 
         subscribeAndDo ->
@@ -195,7 +194,7 @@ describe 'Boxer', ->
           beforeEach ->
             sinon.stub Box.prototype, '_prepareContainer', (cb) ->
               Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-create-volume',
-                ['mclovins-container-1', '1G', settings.selectedVG], sudo: true, cb
+                ['mclovins-container-1', '1G', settings.selectedDisk], sudo: true, cb
 
           afterEach ->
             Box.prototype._prepareContainer.restore()
@@ -209,7 +208,7 @@ describe 'Boxer', ->
           beforeEach ->
             sinon.stub Box.prototype, '_mountContainer', (cb) ->
               Box.prototype._execShellCommand '../test/support/mock-scripts/boxer-mount-container',
-                ['1', 'mclovins-container-1', settings.selectedVG], sudo: true, cb
+                ['1', 'mclovins-container-1', settings.selectedDisk], sudo: true, cb
 
           afterEach ->
             Box.prototype._mountContainer.restore()
@@ -319,8 +318,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "running"
               disk: "/lxc/disk1"
-              mount: "lvm"
-              selectedVG: 'aio_boxhost'
+              mount: "sparse"
             })
             runBox done
 
@@ -358,7 +356,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "running"
               disk: "/lxc/disk1"
-              mount: "lvm"
+              mount: "sparse"
             })
             runBox done
 
@@ -397,7 +395,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               state: "stopped"
               disk: "/lxc/disk1"
-              mount: "lvm"
+              mount: "sparse"
             })
             runBox done
 
@@ -434,7 +432,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
               containerState: "running"
-              mount: "lvm"
+              mount: "sparse"
             })
             runBox done
 
@@ -469,8 +467,7 @@ describe 'Boxer', ->
               containerTemplate: "test_container_template"
               disk: "/lxc/disk1"
               containerState: "running"
-              mount: "lvm"
-              selectedVG: "aio_boxhost"
+              mount: "sparse"
             })
             runBox done
 
@@ -651,9 +648,9 @@ describe 'Boxer', ->
               expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+              childProcess.exec "sudo #{scriptPath}/sparse/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 # The Disk Space Quota stays the same
-                expect(stdout).to.match /.*?-2.0G/
+                expect(stdout).to.match /.*?-(2.0|1.9)G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -686,9 +683,9 @@ describe 'Boxer', ->
               expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.cpu.shares = 2048/
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+              childProcess.exec "sudo #{scriptPath}/sparse/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
                 # df doesnt report exact volume. lv/ext4 probably eats some
-                expect(stdout.trim()).to.match /.*?-3.0G/
+                expect(stdout.trim()).to.match /.*?-(3.0|2.9)G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -717,8 +714,8 @@ describe 'Boxer', ->
               expect(message.success).to.be.true
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
-                expect(stdout).to.match /.*?-1\.5G/
+              childProcess.exec "sudo #{scriptPath}/sparse/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+                expect(stdout).to.match /.*?-(1\.5|1\.4)G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -741,8 +738,8 @@ describe 'Boxer', ->
               expect(message.success).to.be.true
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
-                expect(stdout).to.match /.*?-2.0G/
+              childProcess.exec "sudo #{scriptPath}/sparse/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+                expect(stdout).to.match /.*?-(2.0|1.9)G/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -775,8 +772,8 @@ describe 'Boxer', ->
                   memory: "256M"
                   containerTemplate: "test_container_template"
                   state: "stopped"
-                  mount: "lvm",
-                  selectedVG: settings.selectedVG
+                  mount: "sparse"
+                  disk: "/lxc/disk1"
                 })
                 runBox done
 
@@ -787,7 +784,7 @@ describe 'Boxer', ->
 
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
-          expect(fs.existsSync("/dev/#{settings.selectedVG}/mclovins-container-1")).to.be.false
+          expect(fs.existsSync("/lxc/disk1/mclovins-container-1.img")).to.be.false
 
           childProcess.exec "sudo iptables -L -t nat", (err, stdout, stderr) ->
             expect(stdout).to.not.match /192\.168\.254\.254:22/
