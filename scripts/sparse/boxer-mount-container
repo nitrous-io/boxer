@@ -21,7 +21,7 @@ file=$disk/$container_name.img
   flock -x 200
   if [[ ! `cat /proc/mounts | grep "${box_delta_path}\s\+"` ]]; then
     mkdir -p $box_delta_path
-    mount -t ext4 $file $box_delta_path
+    mount -t ext4 -o discard $file $box_delta_path
 
     # If the mount fails, then just exit and we should go back
     if [[ $? != 0 ]]; then

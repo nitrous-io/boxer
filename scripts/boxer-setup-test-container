@@ -39,11 +39,11 @@ EOF
 
 # create a logical volume with size=disk_limit
 dd if=/dev/zero of=$file bs=1 count=0 seek=$disk_limit
-mkfs.ext4 -F -i 8192 $file
+mkfs.ext4 -F -i 8192 -E discard $file
 
 # mount the volume in disk
 mkdir -p $box_delta_path
-mount -t ext4 $file $box_delta_path
+mount -t ext4 -o discard $file $box_delta_path
 
 # overlay box and the base container template
 mkdir -p $box_path

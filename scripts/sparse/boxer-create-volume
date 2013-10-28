@@ -1,4 +1,8 @@
 #!/bin/bash
+# given a container name mclovins-1, disk /lxc/disk1 and size 1G
+# this create 
+# - a sparse image file at /lxc/disk1/mclovins-1.img
+# - a ext4 partition
 
 [ -n "$DEBUG" ] && set -o xtrace
 set -o nounset
@@ -16,13 +20,15 @@ file=$disk/$container_name.img
   # create the volume
   dd if=/dev/zero of=$file bs=1 count=0 seek=$disk_limit
   if [[ $? != 0 ]]; then
-    rm $file
+    rm -f $file
     exit 1
   fi
 
-  mkfs.ext4 -F -i 8192 $file
+
+  # discard: enable hold-punching for a sparse fs
+  mkfs.ext4 -F -i 8192 -E discard $device
   if [[ $? != 0 ]]; then
-    rm $file
+    rm -f $file
     exit 1
   fi
 ) 200>/var/lock/boxer.${container_name}.create_volume
