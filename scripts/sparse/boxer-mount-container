@@ -1,0 +1,42 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+shopt -s nullglob
+
+lxc_root='/var/lib/lxc'
+container_template=base_container_template
+
+box_id=$1
+container_name=$2
+disk=$3
+
+box_path=$lxc_root/$container_name
+box_delta_path=${box_path}_delta
+container_path=$lxc_root/$container_template
+
+file=$disk/$container_name.img
+
+(
+  flock -x 200
+  if [[ ! `cat /proc/mounts | grep "${box_delta_path}\s\+"` ]]; then
+    mkdir -p $box_delta_path
+    mount -t ext4 $file $box_delta_path
+
+    # If the mount fails, then just exit and we should go back
+    if [[ $? != 0 ]]; then
+      exit 1
+    fi
+  fi
+
+  if [[ ! `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
+    mkdir -p $box_path
+    mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
+
+    # If the mount fails, then just exit and we should go back
+    if [[ $? != 0 ]]; then
+      exit 1
+    fi
+  fi
+
+) 200>/var/lock/boxer.${container_name}.mount_container
