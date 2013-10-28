@@ -147,7 +147,6 @@ module.exports = class Box
         return done(new Error('Current Disk Usage Exceeds New Disk Quota')) if quota.used > ConvertSize.convert(data.diskSpace)
 
         @memory = data.memory if data.memory
-        @diskSpace = ConvertSize.convertUnit(data.diskSpace, "M") if data.diskSpace
         @cpuShares = data.cpuShares if data.cpuShares
 
         this._stopContainer (err) =>
@@ -156,7 +155,7 @@ module.exports = class Box
             return done(new Error('Cannot change CPU shares')) if err
             this._changeMemoryLimit (err) =>
               return done(new Error('Cannot change the memory limit')) if err
-              this._changeDiskQuota (err) =>
+              this._changeDiskQuota data.diskSpace, (err) =>
                 return done(new Error('Cannot change the disk limit')) if err
                 this._startContainer (err) =>
                   return done(new Error('Cannot start the container')) if err
@@ -552,12 +551,16 @@ module.exports = class Box
       sudo: true,
       done
 
-  _changeDiskQuota: (done) ->
+  _changeDiskQuota: (newQuota, done) ->
+    reserved = parseInt(parseInt(@diskSpace) * 0.05) # ext4 reserved space
+    @diskSpace = ConvertSize.convertUnit(newQuota, "M")
     if this.mountMethod() == "lvm"
       args = [this.containerName(), @diskSpace, @selectedVG]
       this._execShellCommand "lvm/boxer-change-disk-limit", args, sudo: true, done
     else if this.mountMethod() == "sparse"
-      args = [this.containerName(), @diskSpace, @disk]
+      # add 5% for old reserved root block
+      diskSpace = parseInt(parseInt(@diskSpace) + reserved )
+      args = [this.containerName(), diskSpace + "M", @disk]
       this._execShellCommand "sparse/boxer-change-disk-limit", args, sudo: true, done
     else
       args = [@disk, this.containerName(), @diskSpace]
