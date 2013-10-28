@@ -26,9 +26,10 @@ file=$disk/$container_name.img
   fi
 
   # resize the file system and the disk image
+  e2fsck -f -y $file
   resize2fs $file $disk_limit
   dd if=/dev/zero of=$file bs=1 count=0 seek=$disk_limit
 
-  mount -t ext4 $lv $box_delta_path
+  mount -t ext4 $file $box_delta_path
   mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
 ) 200>/var/lock/boxer.${container_name}.unmount_container

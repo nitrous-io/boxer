@@ -528,7 +528,7 @@ module.exports = class Box
     start = new Date()
     childProcess.exec command, timeout: 0, (err, stdout, stderr) =>
       if err
-        console.log "boxer_exec_shell_command_err: #{stderr}"
+        console.log "boxer_exec_shell_command_err: #{err}, #{stdout}, #{stderr}"
         done(err, stdout, stderr)
       else
         console.log "command: #{command} took: #{+(new Date() - start)} ms"
@@ -556,7 +556,7 @@ module.exports = class Box
     if this.mountMethod() == "lvm"
       args = [this.containerName(), @diskSpace, @selectedVG]
       this._execShellCommand "lvm/boxer-change-disk-limit", args, sudo: true, done
-    else if this.mountMethod() == "lvm"
+    else if this.mountMethod() == "sparse"
       args = [this.containerName(), @diskSpace, @disk]
       this._execShellCommand "sparse/boxer-change-disk-limit", args, sudo: true, done
     else
