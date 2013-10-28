@@ -1,0 +1,31 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+container_name=${1}
+disk=${2}
+file=$disk/$container_name.img
+box_path=/var/lib/lxc/$container_name
+box_delta_path=/var/lib/lxc/${container_name}_delta
+
+# double-check that the paths are all unmounted
+(
+  flock -x 200
+  if [[ `cat /proc/mounts | grep "${box_path}\s\+"` ]]; then
+    umount $box_path
+  fi
+  if [[ `cat /proc/mounts | grep "${box_delta_path}\s\+"` ]]; then
+    umount $box_delta_path
+  fi
+
+  # FIXME: See why sometimes this gives an error:
+  # rm: cannot remove device or resource busy (even tho its not mounted)
+  # or lsof +D #{path} gives nothing
+  rm -rf $box_path || true
+  rm -rf $box_delta_path || true
+
+  rm -f $file || true
+) 200>/var/lock/boxer.${container_name}.remove_volume

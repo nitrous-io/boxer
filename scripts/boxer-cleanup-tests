@@ -8,15 +8,16 @@ shopt -s nullglob
 
 name=${1}
 ip=${2}
-vg=$3
+disk=/lxc/disk1
 lxc_root='/var/lib/lxc'
 quoted_lxc_root='\/var\/lib\/lxc\/'
 box_path=${lxc_root}/${name}
 box_delta_path=${lxc_root}/${name}_delta
+file=$disk/$name.img
 
 # use % as delimiter for sed so we dont have to escape /
 # we umount twice to remove the mount in /var/lib/lxc and /etc/fstab
-if [ -e "/dev/$vg/$name" ]; then
+if [ -e "${file}" ]; then
   echo "Stopping the container ${name} ${ip}"
   lxc-stop -n ${name}
   lxc-wait -n ${name} -s STOPPED
@@ -38,9 +39,6 @@ if [ -e "/dev/$vg/$name" ]; then
   echo 'Flushing IPTables'
   iptables -t nat -F
 
-  # remove the logical volume
-  echo 'Removing the logical volume'
-  lvchange -a n /dev/$vg/$name
   # it may be removed before, so we ignore the errors here
-  lvremove -f /dev/$vg/$name || true
+  rm -rf $file || true
 fi

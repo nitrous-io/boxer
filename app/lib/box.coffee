@@ -41,6 +41,7 @@ module.exports = class Box
   # return the proper mount method of the box
   # valid mount methods are lvm / aufs / overlayfs
   mountMethod: ->
+    return "sparse" if @mount == "sparse"
     return "lvm" if @mount == "lvm"
     return "aufs" if @aufs || @mount == "aufs"
     "overlayfs"
@@ -146,7 +147,6 @@ module.exports = class Box
         return done(new Error('Current Disk Usage Exceeds New Disk Quota')) if quota.used > ConvertSize.convert(data.diskSpace)
 
         @memory = data.memory if data.memory
-        @diskSpace = ConvertSize.convertUnit(data.diskSpace, "M") if data.diskSpace
         @cpuShares = data.cpuShares if data.cpuShares
 
         this._stopContainer (err) =>
@@ -155,7 +155,7 @@ module.exports = class Box
             return done(new Error('Cannot change CPU shares')) if err
             this._changeMemoryLimit (err) =>
               return done(new Error('Cannot change the memory limit')) if err
-              this._changeDiskQuota (err) =>
+              this._changeDiskQuota data.diskSpace, (err) =>
                 return done(new Error('Cannot change the disk limit')) if err
                 this._startContainer (err) =>
                   return done(new Error('Cannot start the container')) if err
@@ -210,6 +210,9 @@ module.exports = class Box
     if this.mountMethod() == "lvm"
       script = "lvm/boxer-info"
       args = [this.containerName()]
+    else if this.mountMethod() == "sparse"
+      script = "sparse/boxer-info"
+      args = [this.containerName()]
     else
       script = "boxer-info"
       args = [@disk, this.containerName()]
@@ -226,6 +229,9 @@ module.exports = class Box
   quota: (cb) ->
     if this.mountMethod() == "lvm"
       script = "lvm/boxer-report-current-limit"
+      args = [this.containerName()]
+    else if this.mountMethod() == "sparse"
+      script = "sparse/boxer-report-current-limit"
       args = [this.containerName()]
     else
       script = "boxer-report-current-limit"
@@ -373,6 +379,9 @@ module.exports = class Box
     if this.mountMethod() == "lvm"
       this._execShellCommand 'lvm/boxer-create-volume',
         [this.containerName(), @diskSpace, @selectedVG], sudo: true, done
+    else if this.mountMethod() == "sparse"
+      this._execShellCommand 'sparse/boxer-create-volume',
+        [this.containerName(), @diskSpace, @disk], sudo: true, done
     else
       console.log 'Setting Up Delta Container'
       this._execShellCommand 'boxer-setup-delta-container',
@@ -383,6 +392,9 @@ module.exports = class Box
     if this.mountMethod() == "lvm"
       args.push @selectedVG
       this._execShellCommand 'lvm/boxer-mount-container', args, sudo: true, done
+    else if this.mountMethod() == "sparse"
+      args.push @disk
+      this._execShellCommand 'sparse/boxer-mount-container', args, sudo: true, done
     else
       args.push @containerTemplate, @diskSpace, @disk, @aufs.toString()
       this._execShellCommand 'boxer-mount-container', args, sudo: true, done
@@ -392,6 +404,8 @@ module.exports = class Box
     args = [this.containerName()]
     if this.mountMethod() == "lvm"
       this._execShellCommand 'lvm/boxer-unmount-container', args, sudo: true, done
+    else if this.mountMethod() == "sparse"
+      this._execShellCommand 'sparse/boxer-unmount-container', args, sudo: true, done
     else
       args.push @disk
       this._execShellCommand 'boxer-unmount-container', args, sudo: true, done
@@ -402,6 +416,9 @@ module.exports = class Box
     if this.mountMethod() == "lvm"
       args.push @selectedVG
       this._execShellCommand 'lvm/boxer-remove-volume', args, sudo: true, done
+    else if this.mountMethod() == "sparse"
+      args.push @disk
+      this._execShellCommand 'sparse/boxer-remove-volume', args, sudo: true, done
     else
       args.push @disk
       this._execShellCommand 'boxer-cleanup-delta-container', args, sudo: true, done
@@ -414,6 +431,8 @@ module.exports = class Box
 
     if this.mountMethod() == "lvm"
       this._execShellCommand 'lvm/boxer-configure-box', args, sudo: true, done
+    else if this.mountMethod() == "sparse"
+      this._execShellCommand 'sparse/boxer-configure-box', args, sudo: true, done
     else
       args.push @disk
       this._execShellCommand 'boxer-configure-box', args, sudo: true, done
@@ -453,6 +472,8 @@ module.exports = class Box
     args = [this.containerName()]
     if this.mountMethod() == "lvm"
       this._execShellCommand 'lvm/boxer-set-default-key-pair', args, sudo: true, done
+    else if this.mountMethod() == "sparse"
+      this._execShellCommand 'sparse/boxer-set-default-key-pair', args, sudo: true, done
     else
       args.push @disk
       this._execShellCommand 'boxer-set-default-key-pair', args, sudo: true, done
@@ -506,7 +527,7 @@ module.exports = class Box
     start = new Date()
     childProcess.exec command, timeout: 0, (err, stdout, stderr) =>
       if err
-        console.log "boxer_exec_shell_command_err: #{stderr}"
+        console.log "boxer_exec_shell_command_err: #{err}, #{stdout}, #{stderr}"
         done(err, stdout, stderr)
       else
         console.log "command: #{command} took: #{+(new Date() - start)} ms"
@@ -530,10 +551,17 @@ module.exports = class Box
       sudo: true,
       done
 
-  _changeDiskQuota: (done) ->
+  _changeDiskQuota: (newQuota, done) ->
+    reserved = parseInt(parseInt(@diskSpace) * 0.05) # ext4 reserved space
+    @diskSpace = ConvertSize.convertUnit(newQuota, "M")
     if this.mountMethod() == "lvm"
       args = [this.containerName(), @diskSpace, @selectedVG]
       this._execShellCommand "lvm/boxer-change-disk-limit", args, sudo: true, done
+    else if this.mountMethod() == "sparse"
+      # add 5% for old reserved root block
+      diskSpace = parseInt(parseInt(@diskSpace) + reserved )
+      args = [this.containerName(), diskSpace + "M", @disk]
+      this._execShellCommand "sparse/boxer-change-disk-limit", args, sudo: true, done
     else
       args = [@disk, this.containerName(), @diskSpace]
       this._execShellCommand "boxer-change-disk-limit", args, sudo: true, done

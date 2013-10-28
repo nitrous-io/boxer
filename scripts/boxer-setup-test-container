@@ -1,4 +1,5 @@
 #!/bin/bash
+# This now uses `sparse` mount method which expect a disk at /lxc/disk1
 
 set -o errexit
 set -o xtrace
@@ -14,11 +15,12 @@ if [ $# -eq 5 ]; then
 else
   dont_start=$5
 fi
-vg=aio_boxhost
+disk=/lxc/disk1
 
 disk_limit="2G"
 
 container_name=${box_name}-${box_id}
+file=$disk/$container_name.img
 container_template='base_container_template'
 box_path=${lxc_root}/${container_name}
 box_delta_path=${box_path}_delta
@@ -36,12 +38,12 @@ EOF
 )
 
 # create a logical volume with size=disk_limit
-lvcreate -T $vg/boxes -V $disk_limit -n $container_name
-mkfs.ext4 -i 8192 /dev/$vg/$container_name
+dd if=/dev/zero of=$file bs=1 count=0 seek=$disk_limit
+mkfs.ext4 -F -i 8192 -E discard $file
 
 # mount the volume in disk
 mkdir -p $box_delta_path
-mount -t ext4 /dev/$vg/$container_name $box_delta_path
+mount -t ext4 -o discard $file $box_delta_path
 
 # overlay box and the base container template
 mkdir -p $box_path

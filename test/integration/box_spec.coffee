@@ -79,7 +79,9 @@ describe Box, ->
     it 'return current used and the box limit in megabytes', (done) ->
       box.quota (err, stats) ->
         expect(stats.used).to.match /\d+.*\d+/
-        expect(stats.limit).to.equal 2 * 1024 * 1024
+        # since the value is not exact for ext4, we take the diff and if its
+        # not too much, accept it
+        expect(2 * 1024 * 1024 - stats.limit).to.lt 105 * 1024
         done()
 
   describe '#info', ->
