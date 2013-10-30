@@ -52,6 +52,14 @@ module.exports = class Box
     return "usrquota" if @quotaMethod == "usrquota"
     "projquota"
 
+  # block limit is the maximum number of block that @diskLimit can contain
+  # for linux, this is typically @diskLimit in KB as 1 block is 1024 bytes
+  #
+  # cat /usr/include/x86_64-linux-gnu/sys/mount.h | grep BLOCK_SIZE
+  # #define BLOCK_SIZE      1024
+  getBlockLimit: ->
+    parseInt(parseInt(@diskSpace) * 1024)
+
   valid: (opts) ->
     attributesToValidate = []
     self = this
@@ -218,8 +226,12 @@ module.exports = class Box
       script = "lvm/boxer-info"
       args = [this.containerName()]
     else
-      script = "boxer-info"
-      args = [@disk, this.containerName()]
+      if this.getQuotaMethod() == "usrquota"
+	args = [@disk, this.containerName(), this._uid()]
+	script = "usrquota/boxer-info"
+      else
+	args = [@disk, this.containerName()]
+	script = "boxer-info"
     this._execShellCommand script, args, sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
       [lxcStatus, memoryUsageInBytes, storageUsageInKB] = stdout.split("-")
@@ -235,8 +247,12 @@ module.exports = class Box
       script = "lvm/boxer-report-current-limit"
       args = [this.containerName()]
     else
-      script = "boxer-report-current-limit"
-      args = [@disk, this.containerName()]
+      if this.getQuotaMethod() == "usrquota"
+	args = [@disk, this._uid()]
+	script = "usrquota/boxer-report-current-limit"
+      else
+	args = [@disk, this.containerName()]
+	script = "boxer-report-current-limit"
     this._execShellCommand script, args, sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
 
@@ -397,8 +413,12 @@ module.exports = class Box
       args.push @selectedVG
       this._execShellCommand 'lvm/boxer-mount-container', args, sudo: true, done
     else
-      args.push @containerTemplate, @diskSpace, @disk, @aufs.toString()
-      this._execShellCommand 'boxer-mount-container', args, sudo: true, done
+      if this.getQuotaMethod() == "usrquota"
+	args.push @containerTemplate, this.getBlockLimit(), @disk, @aufs.toString(), this._uid()
+	this._execShellCommand 'usrquota/boxer-mount-container', args, sudo: true, done
+      else
+	args.push @containerTemplate, @diskSpace, @disk, @aufs.toString()
+	this._execShellCommand 'boxer-mount-container', args, sudo: true, done
 
   _unmountContainer: (done) ->
     console.log 'Unmounting Container'
@@ -548,5 +568,9 @@ module.exports = class Box
       args = [this.containerName(), @diskSpace, @selectedVG]
       this._execShellCommand "lvm/boxer-change-disk-limit", args, sudo: true, done
     else
-      args = [@disk, this.containerName(), @diskSpace]
-      this._execShellCommand "boxer-change-disk-limit", args, sudo: true, done
+      if this.getQuotaMethod() == "usrquota"
+	args = [@disk, this._uid(), this.getBlockLimit()]
+	this._execShellCommand "usrquota/boxer-change-disk-limit", args, sudo: true, done
+      else
+	args = [@disk, this.containerName(), @diskSpace]
+	this._execShellCommand "boxer-change-disk-limit", args, sudo: true, done

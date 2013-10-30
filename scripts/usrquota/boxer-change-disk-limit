@@ -1,0 +1,12 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+disk=${1}
+uid=${2}
+block_limit=${3}
+
+setquota -u $uid $block_limit $block_limit 0 0 $disk

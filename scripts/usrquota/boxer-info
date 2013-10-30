@@ -1,0 +1,31 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+disk=${1}
+id=${2}
+uid=${3}
+
+# lxc-info
+lxc_status=`lxc-info -n ${id} | head -1 | awk '{print $2}'`
+
+memory_file=/sys/fs/cgroup/memory/lxc/${id}/memory.usage_in_bytes
+memory_usage_in_bytes=0
+# memory
+if [ -f ${memory_file} ]; then
+  memory_usage_in_bytes=`cat ${memory_file}`
+else
+  # try a different memory file location for new kernel
+  memory_file=/sys/fs/cgroup/memory/sysdefault/lxc/${id}/memory.usage_in_bytes
+  if [ -f ${memory_file} ]; then
+    memory_usage_in_bytes=`cat ${memory_file}`
+  fi
+fi
+
+# disk usage
+disk_usage_in_kb=`repquota -n -v ${disk} | grep "#${uid}" | awk '{printf $3}'`
+
+echo "${lxc_status}-${memory_usage_in_bytes}-${disk_usage_in_kb}"
