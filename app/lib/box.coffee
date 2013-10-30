@@ -34,6 +34,7 @@ module.exports = class Box
     @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     @aufs = false
     @mount = null
+    @quotaMethod = null
     @selectedVG = null
 
   containerName: -> "#{@name}-#{@id}"
@@ -44,6 +45,12 @@ module.exports = class Box
     return "lvm" if @mount == "lvm"
     return "aufs" if @aufs || @mount == "aufs"
     "overlayfs"
+
+  # return the proper quota method of the box
+  # valid value are usrquota/projquota
+  getQuotaMethod: ->
+    return "usrquota" if @quotaMethod == "usrquota"
+    "projquota"
 
   valid: (opts) ->
     attributesToValidate = []
@@ -273,6 +280,7 @@ module.exports = class Box
                     swappiness: @swappiness
                     cpuShares: @cpuShares
                     mount: this.mountMethod()
+		    quotaMethod: this.getQuotaMethod()
                     authUsername: @authUsername
                     authPassword: @authPassword
                     selectedVG: @selectedVG
@@ -308,6 +316,11 @@ module.exports = class Box
           box.mount = parsedBox.mount
         else
           box.mount = box.mountMethod()
+
+	if parsedBox.quotaMethod != undefined
+	  box.quotaMethod = parsedBox.quotaMethod
+	else
+	  box.quotaMethod = box.getQuotaMethod()
 
         if parsedBox.aufs != undefined
           box.aufs = parsedBox.aufs

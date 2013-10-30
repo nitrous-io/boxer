@@ -12,6 +12,7 @@ module.exports = class Boxer
     @runtimes = settings.runtimes
     @selectedDisk = settings.selectedDisk
     @mountMethod = settings.mountMethod
+    @quotaMethod = settings.quotaMethod
     @selectedVG = settings.selectedVG
 
     @boxerChannel = settings.boxerChannel
@@ -75,6 +76,7 @@ module.exports = class Boxer
         box.disk = @selectedDisk
         box.aufs = true if @mountMethod == "aufs"
         box.mount = @mountMethod
+	box.quotaMethod = @quotaMethod
         box.selectedVG = @selectedVG
 
         # These callbacks are called in the context of the Box instance, so @id, @ip, @port, etc. refer to instance variables
