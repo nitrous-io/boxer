@@ -50,7 +50,7 @@ module.exports = class Box
   # valid value are usrquota/projquota
   getQuotaMethod: ->
     return "usrquota" if @quotaMethod == "usrquota"
-    "projquota"
+    "prjquota"
 
   # block limit is the maximum number of block that @diskLimit can contain
   # for linux, this is typically @diskLimit in KB as 1 block is 1024 bytes

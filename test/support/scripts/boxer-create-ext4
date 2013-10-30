@@ -1,0 +1,76 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root='/var/lib/lxc'
+box_id=${1}
+box_name=${2}
+ip=${3}
+port=${4}
+disk=${5}
+uid=${6}
+if [ $# -eq 6 ]; then
+  dont_start="false"
+else
+  dont_start=$7
+fi
+disk_limit=2097512 # 2G
+
+container_name=${box_name}-${box_id}
+container_template='base_container_template'
+box_path=${disk}/${container_name}
+box_delta_path=${box_path}_delta
+container_path=${disk}/${container_template}
+network_config=$(cat <<EOF
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address ${ip}
+    netmask 255.255.255.0
+    gateway 192.168.254.1
+EOF
+)
+
+mkdir -p ${box_path}
+mkdir -p ${box_delta_path}
+mkdir -p ${lxc_root}/${container_name}
+
+action_uid=`chroot ${container_path}/rootfs /usr/bin/id -u action`
+action_gid=`chroot ${container_path}/rootfs /usr/bin/id -g action`
+
+mkdir -p ${box_delta_path}/rootfs/home/action
+chown -R ${action_uid}:${action_gid} ${box_delta_path}/rootfs/home/action
+
+# overlay in disk
+mount -n -t aufs -o br=${box_delta_path}:${container_path} none ${box_path}
+# bind to lxc location so we can have lxc goodies
+mount --bind ${box_path} ${lxc_root}/${container_name}
+
+setquota -u $uid $disk_limit $disk_limit 0 0 $disk
+
+# Set Memory and Swap
+sed -i "/lxc.cgroup.memory.limit_in_bytes/d" ${box_path}/config
+sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" ${box_path}/config
+
+echo "lxc.cgroup.memory.limit_in_bytes = 256M" >> ${box_path}/config
+echo "lxc.cgroup.memory.memsw.limit_in_bytes = 512M" >> ${box_path}/config
+
+sed -i "s/${container_template}/${container_name}/g" ${box_path}/config
+sed -i "s/${container_template}/${container_name}/g" ${box_path}/rootfs/etc/hosts
+
+echo "${container_name}" > ${box_path}/rootfs/etc/hostname
+echo "${network_config}" > ${box_path}/rootfs/etc/network/interfaces
+
+iptables -t nat -A PREROUTING ! -s 192.168.1.0/16 -p tcp --dport ${port} -j DNAT --to ${ip}:22
+
+if [[ $dont_start != 'dont-start' ]]; then
+  lxc-start -n ${container_name} -d
+  while ! nc -z ${ip} 22 ; do sleep 0.5; done
+
+  echo "STARTING"
+fi

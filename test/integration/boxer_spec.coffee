@@ -5,6 +5,7 @@ initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
 childProcess        = require 'child_process'
 fs                  = require 'fs'
 _                   = require 'underscore'
+async               = require 'async'
 scriptPath          = __dirname.replace('test/integration', 'scripts')
 settings            = require('../../config/settings')
 redisMQSettings     = settings.redisMQ
@@ -21,6 +22,15 @@ describe 'Boxer', ->
     interface:'br-lxc-254',
     port:'10000'
 
+  # for each strategy, we are going to run a full suite of test to make sure
+  # that everything works. For each of the strategy, we requires a cleanup
+  # script with name boxer-create-#{stratName} and
+  # boxer-clean-#{stratName} in test/support/scripts
+  strategies =
+    xfs: { disk: '/lxc/disk1', mount: 'aufs', quotaMethod: 'prjquota' }
+    ext4: { disk: '/lxc/disk2', mount: 'aufs', quotaMethod: 'usrquota' }
+    lvm: { disk: '/lxc/disk1', mount: 'lvm', quotaMethod: 'prjquota', selectedVG: 'aio_boxhost' }
+
   publishSettings = (attributes) ->
     attributes.id ?= 'test.action.io'
     attributes.name ?= 'mclovins-container'
@@ -35,6 +45,7 @@ describe 'Boxer', ->
     attributes.diskSpace ?= '2000M'
     attributes.cpuShares ?= '2048'
     attributes.mount ?= "lvm"
+    attributes.quotaMethod ?= "projquota"
     attributes.selectedVG ?= settings.selectedVG
 
     attributes.publicKeys ?= []
@@ -51,7 +62,6 @@ describe 'Boxer', ->
   waitForMessage = (messageType, callback, done) ->
     coach.on 'message', (channel, rawMessage) ->
       message = MessageParser.decode(rawMessage)
-
       if message.type == messageType
         callback(message, done)
 
@@ -60,25 +70,29 @@ describe 'Boxer', ->
       throw err if err
       callback()
 
-  before ->
-    settings = require('../../config/settings')
-    redisMQSettings = settings.redisMQ
-    redisStoreSettings = settings.redisStore
+  testSuite = (stratValue, stratName, finished) -> describe "strategy: #{ stratName }", ->
+    beforeEach (done) ->
+      @timeout(10000)
+      settings = require('../../config/settings')
+      redisMQSettings = settings.redisMQ
+      redisStoreSettings = settings.redisStore
+      publisher = initRedisClientWith(redisMQSettings)
+      coach = initRedisClientWith(redisMQSettings)
+      cleanupContainer stratName, 'mclovins-container-1', stratValue.disk, '15001', stratValue.selectedVG, done
+      settings.mountMethod = stratValue.mount
+      settings.selectedDisk = stratValue.disk
+      settings.quotaMethod = stratValue.quotaMethod
+      settings.selectedVG = stratValue.selectedVG
 
-  beforeEach (andDone) ->
-    @timeout(10000)
-    publisher = initRedisClientWith(redisMQSettings)
-    coach = initRedisClientWith(redisMQSettings)
-    cleanupContainer 'mclovins-container-1', ip, andDone
+    afterEach (done) ->
+      boxer.cleanup() if boxer
+      coach.unsubscribe() if coach
+      publisher.unsubscribe() if publisher
+      boxer = coach = publisher = null
+      cleanupContainer stratName, 'mclovins-container-1', stratValue.disk, '15001', stratValue.selectedVG, ->
+	done()
+	finished()
 
-  afterEach (andDone) ->
-    boxer.cleanup() if boxer
-    coach.unsubscribe() if coach
-    publisher.unsubscribe() if publisher
-    boxer = coach = publisher = null
-    cleanupContainer 'mclovins-container-1', ip, andDone
-
-  describe 'run', ->
     describe 'aio:create', ->
       beforeEach (done) ->
         cleanDB ->
@@ -155,13 +169,15 @@ describe 'Boxer', ->
               expect(msg.diskSpace).to.eql '2000M'
               expect(msg.boxerId).to.eql 'test.action.io'
               expect(msg.containerState).to.eql 'stopped'
-              expect(msg.mount).to.eql 'lvm'
+	      expect(msg.disk).to.eql stratValue.disk
+	      expect(msg.mount).to.eql stratValue.mount
+	      expect(msg.quotaMethod).to.eql stratValue.quotaMethod
               expect(msg.selectedVG).to.eql settings.selectedVG
               done(err)
 
         subscribeAndDo ->
           waitForMessage 'aio:created', assertMessage
-          createBox publicKeys: ["public-key-1", "public-key-2"]
+	  createBox _.extend(stratValue, { publicKeys: ["public-key-1", "public-key-2"] })
 
       context 'unsuccessful provisioning', ->
         assertCreateFailedMessage = (message, done) ->
@@ -189,7 +205,7 @@ describe 'Boxer', ->
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
-              createBox()
+	      createBox stratValue
 
         context 'prepareContainer fails', ->
           beforeEach ->
@@ -203,7 +219,7 @@ describe 'Boxer', ->
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
-              createBox()
+	      createBox stratValue
 
         context 'mountContainer fails', ->
           beforeEach ->
@@ -217,7 +233,7 @@ describe 'Boxer', ->
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
-              createBox()
+	      createBox stratValue
 
         context 'configureBox fails', ->
           beforeEach ->
@@ -232,7 +248,7 @@ describe 'Boxer', ->
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
-              createBox()
+	      createBox stratValue
 
         context 'setupPortForwarding fails', ->
           beforeEach ->
@@ -245,7 +261,7 @@ describe 'Boxer', ->
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
-              createBox()
+	      createBox stratValue
 
         context 'setDefaultKeyPair fails', ->
           beforeEach ->
@@ -258,7 +274,7 @@ describe 'Boxer', ->
           it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
             subscribeAndDo ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
-              createBox()
+	      createBox stratValue
 
         context 'save fails', ->
           beforeEach ->
@@ -270,7 +286,7 @@ describe 'Boxer', ->
           it 'should return an aio:created message with the success flag set to false', (done) ->
             subscribeAndDo ->
               waitForMessage 'aio:created', assertCreateFailedMessage, done
-              createBox()
+	      createBox stratValue
 
       context 'invalid params', ->
         it 'should return an aio:created message (with the success flag set to false) and not create the container', (done) ->
@@ -306,10 +322,10 @@ describe 'Boxer', ->
 
     describe 'aio:restart' , ->
       beforeEach (done) ->
-        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
+	createContainer stratName, "1", "mclovins-container", "192.168.254.2", "10000", stratValue.disk, "15001", (err) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+	    boxJSON = _.extend stratValue, {
               id: 1
               name: "mclovins-container"
               ip: "192.168.254.2"
@@ -317,11 +333,9 @@ describe 'Boxer', ->
               diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
-              state: "running"
-              disk: "/lxc/disk1"
-              mount: "lvm"
-              selectedVG: 'aio_boxhost'
-            })
+	      containerState: "running"
+	    }
+	    publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify(boxJSON)
             runBox done
 
       it 'should restart an already created container', (done) ->
@@ -345,10 +359,10 @@ describe 'Boxer', ->
 
     describe 'aio:stop', ->
       beforeEach (done) ->
-        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
+	createContainer stratName, "1", "mclovins-container", "192.168.254.2", "10000", stratValue.disk, "15001", (err) ->
           return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+	    boxJSON = _.extend stratValue, {
               id: 1
               name: "mclovins-container"
               ip: "192.168.254.2"
@@ -356,10 +370,9 @@ describe 'Boxer', ->
               diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
-              state: "running"
-              disk: "/lxc/disk1"
-              mount: "lvm"
-            })
+	      containerState: "running"
+	    }
+	    publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify(boxJSON)
             runBox done
 
       it 'should return an aio:stopped message with the box\'s id present', (done) ->
@@ -383,11 +396,10 @@ describe 'Boxer', ->
 
     describe 'aio:start' , ->
       beforeEach (done) ->
-        createContainer "1", "mclovins-container", "192.168.254.2", "10000", "dont-start", (err) ->
+	createContainer stratName, "1", "mclovins-container", "192.168.254.2", "10000", stratValue.disk, "15001", "dont-start", (err) ->
           done(err) if err
-
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+	    boxJSON = _.extend stratValue, {
               id: 1
               name: "mclovins-container"
               ip: "192.168.254.2"
@@ -395,10 +407,9 @@ describe 'Boxer', ->
               diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
-              state: "stopped"
-              disk: "/lxc/disk1"
-              mount: "lvm"
-            })
+	      containerState: "stopped"
+	    }
+	    publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify(boxJSON)
             runBox done
 
       it 'should start an already created container', (done) ->
@@ -421,10 +432,10 @@ describe 'Boxer', ->
 
     describe 'aio:info_request', ->
       beforeEach (done) ->
-        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
-          done(err) if err
+	createContainer stratName, "1", "mclovins-container", "192.168.254.2", "10000", stratValue.disk, "15001", (err) ->
+	  return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+	    boxJSON = _.extend stratValue, {
               id: 1
               name: "mclovins-container"
               ip: "192.168.254.2"
@@ -432,10 +443,9 @@ describe 'Boxer', ->
               diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
-              disk: "/lxc/disk1"
               containerState: "running"
-              mount: "lvm"
-            })
+	    }
+	    publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify(boxJSON)
             runBox done
 
       it 'returns usage stats of the box', (done) ->
@@ -455,23 +465,20 @@ describe 'Boxer', ->
 
       beforeEach (done) ->
         publicKeysFile = "/var/lib/lxc/mclovins-container-1/rootfs/etc/ssh/univ_public_keys"
-        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
-          done(err) if err
+	createContainer stratName, "1", "mclovins-container", "192.168.254.2", "10000", stratValue.disk, "15001", (err) ->
+	  return done(err) if err
           cleanDB ->
-            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
+	    boxJSON = _.extend stratValue, {
               id: 1
               name: "mclovins-container"
               ip: "192.168.254.2"
               port: 10000
-              cpuShares: 512
               diskSpace: "2000M"
               memory: "256M"
               containerTemplate: "test_container_template"
-              disk: "/lxc/disk1"
               containerState: "running"
-              mount: "lvm"
-              selectedVG: "aio_boxhost"
-            })
+	    }
+	    publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify(boxJSON)
             runBox done
 
       context 'adding public keys', ->
@@ -651,9 +658,16 @@ describe 'Boxer', ->
               expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+	      reportContainerLimit stratName, "mclovins-container-1", "15001", stratValue.disk, (err, stdout, stderr) ->
                 # The Disk Space Quota stays the same
-                expect(stdout).to.match /.*?-2.0G/
+		switch stratName
+		  when "xfs"
+		    expect(stdout).to.match /.*?-(2|2.0)G/
+		  when "lvm"
+		    expect(stdout).to.match /.*?-(1.9|2.0)G/
+		  when "ext4"
+		    # FIXME: not sure why the usrquota returns 2049M here
+		    expect(stdout).to.match /.*?-(2048|2049)M/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -686,9 +700,15 @@ describe 'Boxer', ->
               expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.cpu.shares = 2048/
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
+	      reportContainerLimit stratName, "mclovins-container-1", "15001", stratValue.disk, (err, stdout, stderr) ->
                 # df doesnt report exact volume. lv/ext4 probably eats some
-                expect(stdout.trim()).to.match /.*?-3.0G/
+		switch stratName
+		  when "xfs"
+		    expect(stdout.trim()).to.match /.*?-(3|3.0)G/
+		  when "lvm"
+		    expect(stdout.trim()).to.match /.*?-(2.9|3.0)G/
+		  when "ext4"
+		    expect(stdout.trim()).to.match /.*?-3072M/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -717,8 +737,14 @@ describe 'Boxer', ->
               expect(message.success).to.be.true
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
-                expect(stdout).to.match /.*?-1\.5G/
+	      reportContainerLimit stratName, "mclovins-container-1", "15001", stratValue.disk, (err, stdout, stderr) ->
+		switch stratName
+		  when "xfs"
+		    expect(stdout).to.match /.*?-1\.5G/
+		  when "lvm"
+		    expect(stdout).to.match /.*?-(1.4|1.5)G/
+		  when "ext4"
+		    expect(stdout).to.match /.*?-1536M/
 
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
@@ -741,9 +767,14 @@ describe 'Boxer', ->
               expect(message.success).to.be.true
 
               # check current quota limit
-              childProcess.exec "sudo #{scriptPath}/lvm/boxer-report-current-limit mclovins-container-1", (err, stdout, stderr) ->
-                expect(stdout).to.match /.*?-2.0G/
-
+	      reportContainerLimit stratName, "mclovins-container-1", "15001", stratValue.disk, (err, stdout, stderr) ->
+		switch stratName
+		  when "xfs"
+		    expect(stdout).to.match /.*?-(2|2.0)G/
+		  when "lvm"
+		    expect(stdout).to.match /.*?-(1.9|2.0)G/
+		  when "ext4"
+		    expect(stdout).to.match /.*?-2048M/
                 # check redis settings
                 publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
                   msg = JSON.parse(res)
@@ -761,24 +792,22 @@ describe 'Boxer', ->
 
     describe 'aio:destroy', ->
       beforeEach (done) ->
-        createContainer "1", "mclovins-container", "192.168.254.2", "10000", (err) ->
+	createContainer stratName, "1", "mclovins-container", "192.168.254.2", "10000", stratValue.disk, "15001", (err) ->
           return done(err) if err
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container-1", (err, stdout, stderr) ->
-            childProcess.exec "sudo #{scriptPath}/boxer-unmount-container 'mclovins-container-1'", (err, stdout, stderr) ->
-              cleanDB ->
-                publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify({
-                  id: 1
-                  name: "mclovins-container"
-                  ip: "192.168.254.2"
-                  port: 10000
-                  diskSpace: "1G"
-                  memory: "256M"
-                  containerTemplate: "test_container_template"
-                  state: "stopped"
-                  mount: "lvm",
-                  selectedVG: settings.selectedVG
-                })
-                runBox done
+	    cleanDB ->
+	      boxJSON = _.extend stratValue, {
+		id: 1
+		name: "mclovins-container"
+		ip: "192.168.254.2"
+		port: 10000
+		diskSpace: "1G"
+		memory: "256M"
+		containerTemplate: "test_container_template"
+		containerState: "stopped"
+	      }
+	      publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify(boxJSON)
+	      runBox done
 
       it 'should destroy the container and remove all remnants', (done) ->
         assertMessage = (message) ->
@@ -787,7 +816,11 @@ describe 'Boxer', ->
 
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
           expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
-          expect(fs.existsSync("/dev/#{settings.selectedVG}/mclovins-container-1")).to.be.false
+	  switch stratName
+	    when "lvm"
+	      expect(fs.existsSync("/dev/#{settings.selectedVG}/mclovins-container-1")).to.be.false
+	    when "ext4", "xfs"
+	      expect(fs.existsSync("/#{stratValue.disk}/mclovins-container-1")).to.be.false
 
           childProcess.exec "sudo iptables -L -t nat", (err, stdout, stderr) ->
             expect(stdout).to.not.match /192\.168\.254\.254:22/
@@ -803,3 +836,6 @@ describe 'Boxer', ->
           waitForMessage 'aio:destroyed', assertMessage
           publishSettings type: "aio:destroy", name: "mclovins-container-1"
 
+  # start running tests sequentially here
+  tests = _.map strategies, (stratValue, stratName) -> (cb) -> testSuite(stratValue, stratName, cb)
+  async.series tests, (err) -> console.log(err) if err

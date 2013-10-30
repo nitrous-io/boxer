@@ -42,11 +42,11 @@ describe Box, ->
       box.quotaMethod = "usrquota"
       expect(box.getQuotaMethod()).to.eql "usrquota"
 
-    it 'returns projquota otherwise', ->
+    it 'returns prjquota otherwise', ->
       box.quotaMethod = "projquota"
-      expect(box.getQuotaMethod()).to.eql "projquota"
+      expect(box.getQuotaMethod()).to.eql "prjquota"
       box.quotaMethod = null
-      expect(box.getQuotaMethod()).to.eql "projquota"
+      expect(box.getQuotaMethod()).to.eql "prjquota"
 
   describe '#valid', ->
     box = null

@@ -1,7 +1,12 @@
 childProcess = require 'child_process'
 settings = require '../../config/settings'
 
-module.exports = (name, ip, done) ->
-  scriptPath = __dirname.replace('test/support', 'scripts')
-  command = "sudo #{scriptPath}/boxer-cleanup-tests #{name} #{ip} #{settings.selectedVG}"
-  childProcess.exec command, timeout: 0, (err) -> done(err)
+module.exports = () ->
+  args = Array.prototype.slice.call arguments
+  done = args.pop()
+  stratName = args.shift()
+  scriptPath = __dirname + "/scripts"
+  command = ["sudo", scriptPath + "/boxer-clean-" + stratName].concat args
+  commandStr = command.join(" ")
+  console.log "Executing command: #{commandStr}"
+  childProcess.exec commandStr, timeout: 0, (err) -> done(err)
