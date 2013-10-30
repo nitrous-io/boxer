@@ -19,6 +19,7 @@ settings =
       database: 0
     airbrakeAPIKey: process.env.AIRBRAKE_API_KEY
     mountMethod: process.env.MOUNT_METHOD
+    quotaMethod: process.env.QUOTA_METHOD
     selectedVG: process.env.SELECTED_VG
     cartmanHost: process.env.CARTMAN_HOST
     cartmanPort: process.env.CARTMAN_PORT
