@@ -2,6 +2,7 @@
 # the unit reported by xfs_quota when not used -h flag
 module.exports =
   size_table:
+    "K": 1
     "M": 1024
     "G": 1024 * 1024
 
