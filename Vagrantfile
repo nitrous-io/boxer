@@ -12,21 +12,53 @@ $script = <<SCRIPT
 
   apt-get update
   apt-get install -yy git-core lxc bridge-utils curl redis-server build-essential xfsprogs lvm2
+  apt-get install -yy quotatool thin-provisioning-tools
 
   cd $HOME
 
+  # setup lvm
   if [[ ! -f $HOME/lxc_disk.img ]]; then
     dd if=/dev/zero of=$HOME/lxc_disk.img bs=1024 count=5000000
   fi
-
-  if [[ ! `losetup /dev/loop0` ]]; then
+  if [[ ! `losetup -a | grep /dev/loop0` ]]; then
     losetup /dev/loop0 $HOME/lxc_disk.img
-    mkfs.ext4 -i 8192 /dev/loop0
   fi
-
   pvcreate /dev/loop0
   vgcreate aio_boxhost /dev/loop0
   lvcreate -L 4G --poolmetadatasize 200M --type thin-pool --thinpool boxes aio_boxhost
+
+  # setup xfs
+  if [[ ! -f $HOME/xfs_disk.img ]]; then
+    dd if=/dev/zero of=$HOME/xfs_disk.img bs=1024 count=5000000
+  fi
+  if [[ ! `losetup -a | grep /dev/loop1` ]]; then
+    losetup /dev/loop1 $HOME/xfs_disk.img
+  fi
+  if [[ ! `blkid /dev/loop1 | grep xfs` ]]; then
+    mkfs.xfs /dev/loop1
+  fi
+  mkdir -p /lxc/disk1
+  umount /lxc/disk1
+  mount -t xfs -o defaults,prjquota /dev/loop1 /lxc/disk1
+
+  # setup ext4
+  if [[ ! -f $HOME/ext4_disk.img ]]; then
+    dd if=/dev/zero of=$HOME/ext4_disk.img bs=1024 count=5000000
+  fi
+  if [[ ! `losetup -a | grep /dev/loop2` ]]; then
+    losetup /dev/loop2 $HOME/ext4_disk.img
+  fi
+  if [[ ! `blkid /dev/loop1 | grep ext4` ]]; then
+    mkfs.ext4 -i 8192 /dev/loop2
+  fi
+  mkdir -p /lxc/disk2
+  umount /lxc/disk2
+  mount -t ext4 -o defaults,usrquota /dev/loop2 /lxc/disk2
+  if [[ ! -f /lxc/disk2/aquota.user ]]; then
+    quotacheck -cu /lxc/disk2
+    quotacheck -avu
+    quotaon -av
+  fi
 
   if [[ ! -d /home/vagrant/.nvm ]]; then
     git clone https://github.com/creationix/nvm.git .nvm
@@ -54,8 +86,14 @@ $script = <<SCRIPT
   chroot /var/lib/lxc/base_container_template/rootfs rm -rf /dev/null
   chroot /var/lib/lxc/base_container_template/rootfs mknod -m 666 /dev/null c 1 3
 
-  mkdir -p /lxc/disk1
-  cp -rf /var/lib/lxc/* /lxc/disk1/
+  # install templates to all disks
+  mkdir -p /lxc/disk1/base_container_template
+  cp -af /var/lib/lxc/base_container_template /lxc/disk1/
+  cp -af /var/lib/lxc/test_container_template.tar.gz /lxc/disk1/
+
+  mkdir -p /lxc/disk2/base_container_template
+  cp -af /var/lib/lxc/base_container_template /lxc/disk2/
+  cp -af /var/lib/lxc/test_container_template.tar.gz /lxc/disk2/
 SCRIPT
 
 Vagrant.configure("2") do |config|
