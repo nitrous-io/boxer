@@ -106,7 +106,7 @@ describe Box, ->
 
       it 'return current used and the box limit in megabytes', (done) ->
 	box.quota (err, stats) ->
-	  expect(stats.used).to.match /\d+.*\d+/
+	  expect(stats.used).to.match /\d+.*\d*/
 	  if stratName == "lvm"
 	    # somehow lvm reported about 105mb off
 	    expect(stats.limit).to.be.closeTo 2 * 1024 * 1024, 110000
