@@ -8,5 +8,5 @@ shopt -s nullglob
 box_name=${1}
 
 # FIXME: This is an Ubuntu-specific command
-lxc-shutdown -n ${box_name} -t 30
+( lxc-shutdown -n ${box_name} -t 30 || true)
 lxc-wait -n ${box_name} -s STOPPED
