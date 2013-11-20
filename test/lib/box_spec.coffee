@@ -97,13 +97,13 @@ describe Box, ->
       box.memory = '1024'
       expect(box.totalMemory()).to.equal('2048')
 
-    it 'returns the total memory in kb including the virtual memory specified', ->
+    it 'returns the total memory in MB including the virtual memory specified', ->
       box.memory = '256M'
       box.virtualMemory = '512M'
-      expect(box.totalMemory()).to.equal('786432')
+      expect(box.totalMemory()).to.equal('768M')
       box.memory = '1024M'
-      box.virtualMemory = '131072'
-      expect(box.totalMemory()).to.equal('1179648')
+      box.virtualMemory = '131072' # 128M
+      expect(box.totalMemory()).to.equal('1152M')
 
   describe '#_execShellCommand', ->
     beforeEach ->
