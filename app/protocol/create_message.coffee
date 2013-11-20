@@ -9,6 +9,7 @@ module.exports = class CreateMessage extends BaseMessage
     @runtime = attributes.runtime
     @snapshotURL = attributes.snapshotURL
     @memory = attributes.memory
+    @virtualMemory = attributes.virtualMemory
     @diskSpace = attributes.diskSpace
     @publicKeys = attributes.publicKeys
     @name = attributes.name
