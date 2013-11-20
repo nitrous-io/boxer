@@ -8,6 +8,7 @@ describe 'Convert Size', ->
 
   it 'convert human-readable size to kb', ->
     expect(ConvertSize.convert("0")).to.eql 0
+    expect(ConvertSize.convert("512")).to.eql 512
     expect(ConvertSize.convert("155.9M")).to.eql 159641.6
     expect(ConvertSize.convert("1G")).to.eql 1048576
 

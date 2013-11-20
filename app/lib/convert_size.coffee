@@ -16,7 +16,8 @@ module.exports =
 
   convert: (size) ->
     return 0 if size == "0"
-    parseFloat(size) * @size_table[@unit(size)]
+    multiplier = @size_table[@unit(size)] || 1
+    parseFloat(size) * multiplier
 
   convertUnit: (size, unit) ->
     ratio = @unit_table[@unit(size)] / @unit_table[unit]
