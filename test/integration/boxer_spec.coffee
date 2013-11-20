@@ -46,6 +46,7 @@ describe 'Boxer', ->
     attributes.cpuShares ?= '2048'
     attributes.mount ?= "lvm"
     attributes.quotaMethod ?= "projquota"
+    attributes.premium ?= true
     attributes.selectedVG ?= settings.selectedVG
 
     attributes.publicKeys ?= []
@@ -146,6 +147,8 @@ describe 'Boxer', ->
           expect(etcActionBoxId).to.eql '1'
           etcActionBoxUser = fs.readFileSync("#{root}/etc/action/box_user").toString().trim()
           expect(etcActionBoxUser).to.eql 'action'
+          etcActionBoxPremium = fs.readFileSync("#{root}/etc/action/premium").toString().trim()
+          expect(etcActionBoxPremium).to.eql '1'
 
           # check uid and gid
           stats = fs.statSync("/#{root}/home/action")
@@ -172,6 +175,7 @@ describe 'Boxer', ->
               expect(msg.disk).to.eql stratValue.disk
               expect(msg.mount).to.eql stratValue.mount
               expect(msg.quotaMethod).to.eql stratValue.quotaMethod
+              expect(msg.premium).to.eql true
               expect(msg.selectedVG).to.eql settings.selectedVG
               done(err)
 
@@ -636,6 +640,80 @@ describe 'Boxer', ->
                 "auth_username": "admin",
                 "auth_password": "password"
               }
+
+      context 'changing premium flag', ->
+
+        doAction = (flag, assertMessage) ->
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:update_premium",
+              name: "mclovins-container-1"
+              data: {
+                "premium": flag
+              }
+
+        context 'to true', ->
+          before ->
+            sinon.stub http, 'get', (opts, cb) ->
+                cb()
+
+          after ->
+            http.get.restore()
+
+          it 'changes the values stored in redis', (done) ->
+            doAction true, (message) ->
+              publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                msg = JSON.parse(res)
+                expect(msg.id).to.eql 1
+                expect(msg.premium).to.eql true
+                done(err)
+
+          it 'writes /etc/action/premium file', (done) ->
+            doAction true, (message) ->
+              etcActionBoxPremium = fs.readFileSync("/var/lib/lxc/mclovins-container-1/rootfs/etc/action/premium").toString().trim()
+              expect(etcActionBoxPremium).to.eql '1'
+              done()
+
+          it 'pings Cartman to invalidate cache', (done) ->
+            doAction true, (message) ->
+              options =
+                hostname: settings.cartmanHost
+                port: settings.cartmanPort
+                path: "/invalidate_cache?id=mclovins-container-1"
+              expect(http.get).to.have.been.calledWith options, sinon.match.func
+              done()
+
+        context 'to false', ->
+          before ->
+            sinon.stub http, 'get', (opts, cb) ->
+              cb()
+
+          after ->
+            http.get.restore()
+
+          it 'changes the values stored in redis', (done) ->
+            doAction false, (message) ->
+              publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                msg = JSON.parse(res)
+                expect(msg.id).to.eql 1
+                expect(msg.premium).to.eql false
+                done(err)
+
+          it 'removes /etc/action/premium', (done) ->
+            doAction false, (message) ->
+              expect(fs.existsSync("/var/lib/lxc/mclovins-container-1/rootfs/etc/action/premium")).to.be.false
+              done()
+
+          it 'pings Cartman to invalidate cache', (done) ->
+            doAction false, (message) ->
+              options =
+                hostname: settings.cartmanHost
+                port: settings.cartmanPort
+                path: "/invalidate_cache?id=mclovins-container-1"
+              expect(http.get).to.have.been.calledWith options, sinon.match.func
+              done()
 
       context 'upgrading box specs', ->
         context 'unsuccessful upgrade (disk space used is more than the new limit)', ->

@@ -36,6 +36,7 @@ module.exports = class Box
     @mount = null
     @quotaMethod = null
     @selectedVG = null
+    @premium = null
 
   containerName: -> "#{@name}-#{@id}"
 
@@ -83,6 +84,7 @@ module.exports = class Box
         (cb) => this._setUpPortForwarding (err) -> cb(err)
         (cb) => this._setDefaultKeyPair (err) -> cb(err)
         (cb) => this._savePublicKeys (err) -> cb(err)
+        (cb) => this._setPremium (err) -> cb(err)
         (cb) =>
           try this.save cb
           catch e then cb(new Error("Failed to save #{this.containerName()}: #{e}"))
@@ -182,14 +184,12 @@ module.exports = class Box
 
     else if dataType == 'aio:configure:update_auth'
       this.updateAttributes { authUsername: data.auth_username, authPassword: data.auth_password }, =>
-        # ping to invalidate cache
-        options =
-          hostname: settings.cartmanHost
-          port: settings.cartmanPort
-          path: "/invalidate_cache?id=#{this.containerName()}"
+        this._invalidateCache done
 
-        http.get options, ->
-          done()
+    else if dataType == 'aio:configure:update_premium'
+      this.updateAttributes { premium: data.premium }, =>
+        this._setPremium =>
+          this._invalidateCache done
 
   stop: (cb) ->
     if this.valid()
@@ -304,6 +304,7 @@ module.exports = class Box
                     quotaMethod: this.getQuotaMethod()
                     authUsername: @authUsername
                     authPassword: @authPassword
+                    premium: @premium
                     selectedVG: @selectedVG
                   })
 
@@ -326,6 +327,7 @@ module.exports = class Box
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
         box.disk = parsedBox.disk
+        box.premium = parsedBox.premium
 
         # if the box is an old lvm box i.e. created before selectedVG feature,
         # we assume that the box lives in boxhost volume group
@@ -523,6 +525,12 @@ module.exports = class Box
       [this.containerName()].concat(@publicKeys),
       sudo: true, done
 
+  _setPremium: (done) ->
+    flag = if @premium then '1' else '0'
+    this._execShellCommand 'boxer-set-premium',
+      [this.containerName(), flag],
+      sudo: true, done
+
   _execShellCommand: (cmd, args, opts, done) ->
     if _.isFunction(args)
       done = args
@@ -580,3 +588,12 @@ module.exports = class Box
       else
         args = [@disk, this.containerName(), @diskSpace]
         this._execShellCommand "boxer-change-disk-limit", args, sudo: true, done
+
+  _invalidateCache: (done) ->
+    options =
+      hostname: settings.cartmanHost
+      port: settings.cartmanPort
+      path: "/invalidate_cache?id=#{this.containerName()}"
+
+    http.get options, ->
+      done()
