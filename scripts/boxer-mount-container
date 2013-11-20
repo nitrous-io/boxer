@@ -63,4 +63,7 @@ quoted_lxc_root='\/var\/lib\/lxc\/'
     xfs_quota -x -c "limit -p bhard=${disk_limit} ${container_name}" ${disk} 2>/dev/null || true
   fi
 
+  # FIXME: Put in here so that we don't have to mount LVM boxes in the "migrate_all" script
+  echo "action" > ${box_delta_path}/rootfs/etc/action}/box_user
+
 ) 200>/var/lock/boxer.${container_name}.mount_container
