@@ -73,6 +73,7 @@ module.exports = class Boxer
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
         box.cpuShares = message.cpuShares if message.cpuShares
+        box.premium = true if message.premium
         box.boxerId = @id
         box.disk = @selectedDisk
         box.aufs = true if @mountMethod == "aufs"

@@ -46,6 +46,7 @@ describe 'Boxer', ->
     attributes.cpuShares ?= '2048'
     attributes.mount ?= "lvm"
     attributes.quotaMethod ?= "projquota"
+    attributes.premium ?= true
     attributes.selectedVG ?= settings.selectedVG
 
     attributes.publicKeys ?= []
@@ -172,6 +173,7 @@ describe 'Boxer', ->
               expect(msg.disk).to.eql stratValue.disk
               expect(msg.mount).to.eql stratValue.mount
               expect(msg.quotaMethod).to.eql stratValue.quotaMethod
+              expect(msg.premium).to.eql true
               expect(msg.selectedVG).to.eql settings.selectedVG
               done(err)
 
@@ -635,6 +637,51 @@ describe 'Boxer', ->
               data: {
                 "auth_username": "admin",
                 "auth_password": "password"
+              }
+
+      context 'changing premium flag', ->
+        before ->
+          sinon.stub http, 'get', (opts, cb) ->
+              cb()
+
+        after ->
+          http.get.restore()
+
+        it 'changes the values stored in redis', (done) ->
+          assertMessage = (message) ->
+            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+              msg = JSON.parse(res)
+              expect(msg.id).to.eql 1
+              expect(msg.premium).to.eql null
+              done(err)
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:update_premium",
+              name: "mclovins-container-1"
+              data: {
+                "premium": null
+              }
+
+        it 'pings Cartman to invalidate cache', (done) ->
+          assertMessage = (message) ->
+            options =
+              hostname: settings.cartmanHost
+              port: settings.cartmanPort
+              path: "/invalidate_cache?id=mclovins-container-1"
+            expect(http.get).to.have.been.calledWith options, sinon.match.func
+            done()
+
+          subscribeAndDo ->
+            waitForMessage 'aio:configured', assertMessage
+            publishSettings
+              type: "aio:configure"
+              dataType: "aio:configure:update_premium",
+              name: "mclovins-container-1"
+              data: {
+                "premium": null
               }
 
       context 'upgrading box specs', ->
