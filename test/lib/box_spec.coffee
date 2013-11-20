@@ -89,13 +89,21 @@ describe Box, ->
       expect(box.memoryUnit()).to.equal('')
 
   describe '#totalMemory', ->
-    it 'includes swap size of the box', ->
+    it 'defaults to twice the memory', ->
       box.memory = '256M'
       expect(box.totalMemory()).to.equal('512M')
       box.memory = '1G'
       expect(box.totalMemory()).to.equal('2G')
       box.memory = '1024'
       expect(box.totalMemory()).to.equal('2048')
+
+    it 'returns the total memory in kb including the virtual memory specified', ->
+      box.memory = '256M'
+      box.virtualMemory = '512M'
+      expect(box.totalMemory()).to.equal('786432')
+      box.memory = '1024M'
+      box.virtualMemory = '131072'
+      expect(box.totalMemory()).to.equal('1179648')
 
   describe '#_execShellCommand', ->
     beforeEach ->

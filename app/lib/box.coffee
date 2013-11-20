@@ -22,7 +22,7 @@ module.exports = class Box
     @ip = @gateway = @interface = @port = @boxerCallback = null
     @containerState = 'stopped'
     @name = @containerTemplate = null
-    @memory = @diskSpace = @publicKeys = @snapshotURL = null
+    @memory = @diskSpace = @virtualMemory = @publicKeys = @snapshotURL = null
 
     @swappiness = Box.SWAPPINESS
     @cpuShares = Box.CPU_SHARES
@@ -105,18 +105,21 @@ module.exports = class Box
   memoryUnit: ->
     ConvertSize.unit @memory
 
+  # totalMemory is the sum of the memory and swap allocated to the box.
+  # This is used for the lxc.cgroup.memory.memsw.limit_in_bytes setting in LXC.
   totalMemory: ->
-    if @memory
-      memoryInteger = parseInt(@memory)
-      # totalMemory is the sum of the memory allocated to the box,
-      # plus the memory allocated for swap, so for 256M, the swap
-      # memory allocated will be 256M, making the total memory allocated to the box
-      # 512M
-      #
-      # This is used for the lxc.cgroup.memory.memsw.limit_in_bytes setting in LXC
-      "#{(memoryInteger * 2)}#{this.memoryUnit()}"
+    return null unless @memory
+    if @virtualMemory
+      memoryKb = ConvertSize.convert(@memory)
+      virtualMemoryKb = ConvertSize.convert(@virtualMemory)
+      totalMemoryKb = memoryKb + virtualMemoryKb
+      "#{totalMemoryKb}"
     else
-      null
+      memoryInteger = parseInt(@memory)
+      # If virtualMemory is not specified, the default is to have
+      # memory == swap, so for 256M of memory, we also allocate 256M of swap,
+      # making total memory allocated to the box 512M.
+      "#{(memoryInteger * 2)}#{this.memoryUnit()}"
 
   updateAttributes: (attrs, cb) ->
     self = this
@@ -163,6 +166,7 @@ module.exports = class Box
         @memory = data.memory if data.memory
         @diskSpace = ConvertSize.convertUnit(data.diskSpace, "M") if data.diskSpace
         @cpuShares = data.cpuShares if data.cpuShares
+        @virtualMemory = data.virtualMemory if data.virtualMemory
 
         this._stopContainer (err) =>
           return done(new Error('Cannot stop the current container')) if err
@@ -286,6 +290,7 @@ module.exports = class Box
                     interface: @interface
                     port: @port
                     memory: @memory
+                    virtualMemory: @virtualMemory
                     disk: @disk
                     diskSpace: @diskSpace
                     snapshotURL: @snapshotURL
@@ -316,6 +321,7 @@ module.exports = class Box
         box.interface = parsedBox.interface
         box.port = parsedBox.port
         box.memory = parsedBox.memory
+        box.virtualMemory = parsedBox.virtualMemory
         box.diskSpace = parsedBox.diskSpace
         box.containerTemplate = parsedBox.containerTemplate
         box.containerState = parsedBox.containerState
