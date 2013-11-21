@@ -227,11 +227,11 @@ module.exports = class Box
       args = [this.containerName()]
     else
       if this.getQuotaMethod() == "usrquota"
-	args = [@disk, this.containerName(), this._uid()]
-	script = "usrquota/boxer-info"
+        args = [@disk, this.containerName(), this._uid()]
+        script = "usrquota/boxer-info"
       else
-	args = [@disk, this.containerName()]
-	script = "boxer-info"
+        args = [@disk, this.containerName()]
+        script = "boxer-info"
     this._execShellCommand script, args, sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
       [lxcStatus, memoryUsageInBytes, storageUsageInKB] = stdout.split("-")
@@ -248,11 +248,11 @@ module.exports = class Box
       args = [this.containerName()]
     else
       if this.getQuotaMethod() == "usrquota"
-	args = [@disk, this._uid()]
-	script = "usrquota/boxer-report-current-limit"
+        args = [@disk, this._uid()]
+        script = "usrquota/boxer-report-current-limit"
       else
-	args = [@disk, this.containerName()]
-	script = "boxer-report-current-limit"
+        args = [@disk, this.containerName()]
+        script = "boxer-report-current-limit"
     this._execShellCommand script, args, sudo: true, (err, stdout, stderr) =>
       return cb(err) if err
 
@@ -296,7 +296,7 @@ module.exports = class Box
                     swappiness: @swappiness
                     cpuShares: @cpuShares
                     mount: this.mountMethod()
-		    quotaMethod: this.getQuotaMethod()
+                    quotaMethod: this.getQuotaMethod()
                     authUsername: @authUsername
                     authPassword: @authPassword
                     selectedVG: @selectedVG
@@ -333,10 +333,10 @@ module.exports = class Box
         else
           box.mount = box.mountMethod()
 
-	if parsedBox.quotaMethod != undefined
-	  box.quotaMethod = parsedBox.quotaMethod
-	else
-	  box.quotaMethod = box.getQuotaMethod()
+        if parsedBox.quotaMethod != undefined
+          box.quotaMethod = parsedBox.quotaMethod
+        else
+          box.quotaMethod = box.getQuotaMethod()
 
         if parsedBox.aufs != undefined
           box.aufs = parsedBox.aufs
@@ -414,11 +414,11 @@ module.exports = class Box
       this._execShellCommand 'lvm/boxer-mount-container', args, sudo: true, done
     else
       if this.getQuotaMethod() == "usrquota"
-	args.push @containerTemplate, this.getBlockLimit(), @disk, @aufs.toString(), this._uid()
-	this._execShellCommand 'usrquota/boxer-mount-container', args, sudo: true, done
+        args.push @containerTemplate, this.getBlockLimit(), @disk, @aufs.toString(), this._uid()
+        this._execShellCommand 'usrquota/boxer-mount-container', args, sudo: true, done
       else
-	args.push @containerTemplate, @diskSpace, @disk, @aufs.toString()
-	this._execShellCommand 'boxer-mount-container', args, sudo: true, done
+        args.push @containerTemplate, @diskSpace, @disk, @aufs.toString()
+        this._execShellCommand 'boxer-mount-container', args, sudo: true, done
 
   _unmountContainer: (done) ->
     console.log 'Unmounting Container'
@@ -569,8 +569,8 @@ module.exports = class Box
       this._execShellCommand "lvm/boxer-change-disk-limit", args, sudo: true, done
     else
       if this.getQuotaMethod() == "usrquota"
-	args = [@disk, this._uid(), this.getBlockLimit()]
-	this._execShellCommand "usrquota/boxer-change-disk-limit", args, sudo: true, done
+        args = [@disk, this._uid(), this.getBlockLimit()]
+        this._execShellCommand "usrquota/boxer-change-disk-limit", args, sudo: true, done
       else
-	args = [@disk, this.containerName(), @diskSpace]
-	this._execShellCommand "boxer-change-disk-limit", args, sudo: true, done
+        args = [@disk, this.containerName(), @diskSpace]
+        this._execShellCommand "boxer-change-disk-limit", args, sudo: true, done
