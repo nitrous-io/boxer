@@ -94,10 +94,5 @@ Vagrant.configure("2") do |config|
     v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
   end
 
-  # View the documentation for the provider you're using for more
-  # information on available options.
-  config.ssh.max_tries = 40
-  config.ssh.timeout   = 120
-
   config.vm.provision "shell", inline: $script
 end
