@@ -1,0 +1,16 @@
+#!/bin/bash
+
+[ -n "$DEBUG" ] && set -o xtrace
+set -o nounset
+set -o errexit
+shopt -s nullglob
+
+lxc_root='/var/lib/lxc'
+box_name=${1}
+premium=${2}
+
+etc_action=${lxc_root}/${box_name}/rootfs/etc/action
+
+# Add /etc/action/premium
+mkdir -p ${etc_action}
+echo ${premium} > ${etc_action}/premium

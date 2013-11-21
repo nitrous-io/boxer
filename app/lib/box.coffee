@@ -84,6 +84,7 @@ module.exports = class Box
         (cb) => this._setUpPortForwarding (err) -> cb(err)
         (cb) => this._setDefaultKeyPair (err) -> cb(err)
         (cb) => this._savePublicKeys (err) -> cb(err)
+        (cb) => this._setPremium (err) -> cb(err)
         (cb) =>
           try this.save cb
           catch e then cb(new Error("Failed to save #{this.containerName()}: #{e}"))
@@ -187,7 +188,8 @@ module.exports = class Box
 
     else if dataType == 'aio:configure:update_premium'
       this.updateAttributes { premium: data.premium }, =>
-        this._invalidateCache done
+        this._setPremium =>
+          this._invalidateCache done
 
   stop: (cb) ->
     if this.valid()
@@ -521,6 +523,13 @@ module.exports = class Box
     return done() unless @publicKeys?
     this._execShellCommand 'boxer-add-public-keys',
       [this.containerName()].concat(@publicKeys),
+      sudo: true, done
+
+  _setPremium: (done) ->
+    return done() unless @premium?
+    flag = if @premium then 'premium' else ''
+    this._execShellCommand 'boxer-set-premium',
+      [this.containerName(), flag],
       sudo: true, done
 
   _execShellCommand: (cmd, args, opts, done) ->
