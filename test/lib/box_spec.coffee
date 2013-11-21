@@ -37,6 +37,17 @@ describe Box, ->
     it 'returns overlayfs if box does not have aufs', ->
       expect(box.mountMethod()).to.eql "overlayfs"
 
+  describe '#getQuotaMethod', ->
+    it 'returns usrquota if box.quotaMethod is set to usrquota', ->
+      box.quotaMethod = "usrquota"
+      expect(box.getQuotaMethod()).to.eql "usrquota"
+
+    it 'returns prjquota otherwise', ->
+      box.quotaMethod = "projquota"
+      expect(box.getQuotaMethod()).to.eql "prjquota"
+      box.quotaMethod = null
+      expect(box.getQuotaMethod()).to.eql "prjquota"
+
   describe '#valid', ->
     box = null
 

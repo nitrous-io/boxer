@@ -18,6 +18,7 @@ global.chai.use(sinonChai)
 global.cleanDB = require './support/clean_db'
 global.cleanupContainer = require './support/cleanup_container'
 global.createContainer = require './support/create_container'
+global.reportContainerLimit = require './support/report_container_limit'
 
 #global.Factory = require './factories'
 

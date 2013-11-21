@@ -2,7 +2,6 @@
 
 [ -n "$DEBUG" ] && set -o xtrace
 set -o nounset
-set -o errexit
 shopt -s nullglob
 
 name=$1
@@ -11,10 +10,11 @@ box_path=${disk}/${name}
 box_delta_path=${disk}/${name}_delta
 
 if [ -d $box_path ]; then
-  if [[ `cat /proc/mounts | grep "${box_path}\s\+>"` ]]; then
-    echo 'Unmounting the container in cleanup tests'
-    umount $box_path
-  fi
+  lxc-stop -n $name
+  lxc-wait -n $name -s STOPPED
+
+  umount /var/lib/lxc/$name
+  umount $box_path
 
   if [ -f /etc/projects ]; then
     echo 'Removing line from /etc/projects'
@@ -23,7 +23,7 @@ if [ -d $box_path ]; then
 
   if [ -f /etc/projid ]; then
     echo 'Removing line from /etc/projid'
-    sed -i "/:${name}\b/d" /etc/projid
+    sed -i "\%${name}:%d" /etc/projid
   fi
 
   echo 'Deleting all remnants of the container'
