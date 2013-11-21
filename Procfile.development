@@ -1,0 +1,1 @@
+server: node_modules/.bin/nodemon -L --exec node boot.js --ext js,coffee
