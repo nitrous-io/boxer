@@ -703,7 +703,7 @@ describe 'Boxer', ->
 
           it 'removes /etc/action/premium', (done) ->
             doAction false, (message) ->
-              fs.existsSync("/var/lib/lxc/mclovins-container-1/rootfs/etc/action/premium").to.be.false
+              expect(fs.existsSync("/var/lib/lxc/mclovins-container-1/rootfs/etc/action/premium")).to.be.false
               done()
 
           it 'pings Cartman to invalidate cache', (done) ->
