@@ -64,6 +64,6 @@ quoted_lxc_root='\/var\/lib\/lxc\/'
   fi
 
   # FIXME: Put in here so that we don't have to mount LVM boxes in the "migrate_all" script
-  echo "action" > ${box_delta_path}/rootfs/etc/action}/box_user
+   echo "action" > ${box_delta_path}/rootfs/etc/action/box_user
 
 ) 200>/var/lock/boxer.${container_name}.mount_container
