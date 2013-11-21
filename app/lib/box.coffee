@@ -526,8 +526,7 @@ module.exports = class Box
       sudo: true, done
 
   _setPremium: (done) ->
-    return done() unless @premium?
-    flag = if @premium then 'premium' else ''
+    flag = if @premium then '1' else '0'
     this._execShellCommand 'boxer-set-premium',
       [this.containerName(), flag],
       sudo: true, done

@@ -148,7 +148,7 @@ describe 'Boxer', ->
           etcActionBoxUser = fs.readFileSync("#{root}/etc/action/box_user").toString().trim()
           expect(etcActionBoxUser).to.eql 'action'
           etcActionBoxPremium = fs.readFileSync("#{root}/etc/action/premium").toString().trim()
-          expect(etcActionBoxUser).to.eql 'premium'
+          expect(etcActionBoxPremium).to.eql '1'
 
           # check uid and gid
           stats = fs.statSync("/#{root}/home/action")
@@ -670,14 +670,14 @@ describe 'Boxer', ->
                 expect(msg.premium).to.eql true
                 done(err)
 
-          it 'changes /etc/action/premium file', (done) ->
-            doAction false, (message) ->
-              etcActionBoxPremium = fs.readFileSync("#{root}/etc/action/premium").toString().trim()
-              expect(etcActionBoxUser).to.eql 'premium'
+          it 'writes /etc/action/premium file', (done) ->
+            doAction true, (message) ->
+              etcActionBoxPremium = fs.readFileSync("/var/lib/lxc/mclovins-container-1/rootfs/etc/action/premium").toString().trim()
+              expect(etcActionBoxPremium).to.eql '1'
               done()
 
           it 'pings Cartman to invalidate cache', (done) ->
-            doAction false, (message) ->
+            doAction true, (message) ->
               options =
                 hostname: settings.cartmanHost
                 port: settings.cartmanPort
@@ -688,7 +688,7 @@ describe 'Boxer', ->
         context 'to false', ->
           before ->
             sinon.stub http, 'get', (opts, cb) ->
-                cb()
+              cb()
 
           after ->
             http.get.restore()
@@ -701,10 +701,9 @@ describe 'Boxer', ->
                 expect(msg.premium).to.eql false
                 done(err)
 
-          it 'changes /etc/action/premium file', (done) ->
+          it 'removes /etc/action/premium', (done) ->
             doAction false, (message) ->
-              etcActionBoxPremium = fs.readFileSync("#{root}/etc/action/premium").toString().trim()
-              expect(etcActionBoxUser).to.eql ''
+              fs.existsSync("/var/lib/lxc/mclovins-container-1/rootfs/etc/action/premium").to.be.false
               done()
 
           it 'pings Cartman to invalidate cache', (done) ->

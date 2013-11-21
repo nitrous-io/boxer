@@ -12,5 +12,9 @@ premium=${2}
 etc_action=${lxc_root}/${box_name}/rootfs/etc/action
 
 # Add /etc/action/premium
-mkdir -p ${etc_action}
-echo ${premium} > ${etc_action}/premium
+if [ ${premium} -eq "1" ]; then
+  mkdir -p ${etc_action}
+  echo ${premium} > ${etc_action}/premium
+elif [ -f ${etc_action}/premium ]; then
+  rm ${etc_action}/premium
+fi
