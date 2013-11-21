@@ -17,3 +17,4 @@ describe 'Convert Size', ->
     expect(ConvertSize.convertUnit("15M", "M")).to.eql "15M"
     expect(ConvertSize.convertUnit("2048M", "G")).to.eql "2G"
     expect(ConvertSize.convertUnit("0.2G", "M")).to.eql "204M"
+    expect(ConvertSize.convertUnit("1024K", "M")).to.eql "1M"

@@ -7,15 +7,15 @@ module.exports =
     "G": 1024 * 1024
 
   unit_table:
-    "M": 1
-    "G": 1024
+    "K": 1
+    "M": 1024
+    "G": 1024 * 1024
 
   unit: (size) ->
     memoryUnit = size?.match(/\d+([A-Z])/)?[1]
     if !memoryUnit then '' else memoryUnit
 
   convert: (size) ->
-    return 0 if size == "0"
     multiplier = @size_table[@unit(size)] || 1
     parseFloat(size) * multiplier
 

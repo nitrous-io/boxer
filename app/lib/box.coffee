@@ -113,7 +113,7 @@ module.exports = class Box
       memoryKb = ConvertSize.convert(@memory)
       virtualMemoryKb = ConvertSize.convert(@virtualMemory)
       totalMemoryKb = memoryKb + virtualMemoryKb
-      "#{totalMemoryKb/1024}M"
+      ConvertSize.convertUnit("#{totalMemoryKb}K", 'M')
     else
       memoryInteger = parseInt(@memory)
       # If virtualMemory is not specified, the default is to have
