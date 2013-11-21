@@ -39,4 +39,9 @@ lv=/dev/$vg/$container_name
     fi
   fi
 
+  # FIXME: Put in here so that we don't have to mount LVM boxes in the "migrate_all" script
+  etc_action=${box_delta_path}/rootfs/etc/action
+  mkdir -p ${etc_action}
+  echo "action" > ${etc_action}/box_user
+
 ) 200>/var/lock/boxer.${container_name}.mount_container
