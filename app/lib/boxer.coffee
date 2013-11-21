@@ -68,6 +68,7 @@ module.exports = class Boxer
         box.name = message.name
         box.containerTemplate = containerTemplate
         box.memory = message.memory
+        box.virtualMemory = message.virtualMemory
         box.diskSpace = message.diskSpace
         box.publicKeys = message.publicKeys
         box.snapshotURL = message.snapshotURL
