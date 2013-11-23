@@ -42,8 +42,10 @@ describe 'Boxer', ->
     attributes.boxId ?= 1
     attributes.runtime ?= "test"
     attributes.memory ?= "256M"
+    attributes.virtualMemory ?= "256M"
     attributes.diskSpace ?= '2000M'
     attributes.cpuShares ?= '2048'
+    attributes.pendingReconfiguration ?= false
     attributes.mount ?= "lvm"
     attributes.quotaMethod ?= "projquota"
     attributes.premium ?= true
@@ -479,6 +481,7 @@ describe 'Boxer', ->
               port: 10000
               diskSpace: "2000M"
               memory: "256M"
+              virtualMemory: "256M"
               containerTemplate: "test_container_template"
               containerState: "running"
             }
@@ -768,7 +771,6 @@ describe 'Boxer', ->
         context 'successful upgrade', ->
           it "upgrades the box's memory and disk space limit", (done) ->
             assertMessage = (message) ->
-              # message set to true
               expect(message.success).to.be.true
 
               # check lxc config
@@ -811,7 +813,6 @@ describe 'Boxer', ->
 
           it "accepts float gigabyte unit for disk space", (done) ->
             assertMessage = (message) ->
-              # message set to true
               expect(message.success).to.be.true
 
               # check current quota limit
@@ -841,7 +842,6 @@ describe 'Boxer', ->
 
           it "accepts megabyte unit for disk space", (done) ->
             assertMessage = (message) ->
-              # message set to true
               expect(message.success).to.be.true
 
               # check current quota limit
@@ -867,6 +867,70 @@ describe 'Boxer', ->
                 data:
                   diskSpace: "2048M"
                 name: "mclovins-container-1"
+
+      context 'soft reconfiguring box specs', ->
+        if stratName == 'lvm'
+
+          it 'returns an aio:configured message with success set to false and does not change box config', (done) ->
+            assertMessage = (message) ->
+              expect(message.success).to.be.false
+
+              # Don't test for lxc config because it's not mounted.
+
+              # Redis entry for the box should also be unchanged.
+              publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                box = JSON.parse(res)
+                expect(box.memory).to.eql '256M'
+                expect(box.virtualMemory).to.eql '256M'
+                expect(box.diskSpace).to.eql '2000M'
+                done()
+
+            subscribeAndDo ->
+              waitForMessage 'aio:configured', assertMessage
+              publishSettings
+                type: 'aio:configure'
+                dataType: 'aio:configure:soft_reconfigure'
+                data:
+                  memory: '1024M'
+                  virtualMemory: '2048M'
+                  cpuShares: '2048'
+                name: 'mclovins-container-1'
+
+        else
+
+          it "updates the box's memory and cpu shares in the lxc config file", (done) ->
+            assertMessage = (message) ->
+              expect(message.success).to.be.true
+              expect(message.dataType).to.eql 'aio:configured:soft_reconfigure'
+              expect(message.data.memory).to.eql 1024
+              expect(message.data.virtualMemory).to.eql 2048
+              expect(message.data.cpuShares).to.eql 2048
+
+              # lxc config should be updated.
+              lxcConfigFile = "/var/lib/lxc/mclovins-container-1/config"
+              expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.limit_in_bytes = 1024M/
+              expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 3072M/
+              expect(fs.readFileSync(lxcConfigFile).toString()).to.match /lxc.cgroup.cpu.shares = 2048/
+
+              # Redis entry for the box should have changed but marked as pendingReconfiguration.
+              publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+                box = JSON.parse(res)
+                expect(box.pendingReconfiguration).to.eql true
+                expect(box.memory).to.eql '1024M'
+                expect(box.virtualMemory).to.eql '2048M'
+                expect(box.cpuShares).to.eql '2048'
+                done()
+
+            subscribeAndDo ->
+              waitForMessage 'aio:configured', assertMessage
+              publishSettings
+                type: 'aio:configure'
+                dataType: 'aio:configure:soft_reconfigure'
+                data:
+                  memory: '1024M'
+                  virtualMemory: '2048M'
+                  cpuShares: '2048'
+                name: 'mclovins-container-1'
 
     describe 'aio:destroy', ->
       beforeEach (done) ->

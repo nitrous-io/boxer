@@ -133,10 +133,17 @@ module.exports = class Boxer
         box.configure message.dataType, message.data, (err) ->
           dataType = protocol.ConfigureMessage.dataTypes[message.dataType]
           configuredMessage = new protocol.ConfiguredMessage({id: boxer.id, boxId: box.id, dataType: dataType, data: message.data, success: true, returnVars: returnVars})
-          if message.dataType == "aio:configure:change_specs"
+          if message.dataType == 'aio:configure:change_specs'
             data = configuredMessage.data
             data.memory = parseInt box.memory, 10
             data.diskSpace = parseInt box.diskSpace, 10
+            data.virtualMemory = parseInt box.virtualMemory, 10
+            data.cpuShares = parseInt box.cpuShares, 10
+          if message.dataType == 'aio:configure:soft_reconfigure'
+            data = configuredMessage.data
+            data.memory = parseInt box.memory, 10
+            data.virtualMemory = parseInt box.virtualMemory, 10
+            data.cpuShares = parseInt box.cpuShares, 10
 
           if err
             configuredMessage.success = false

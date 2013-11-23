@@ -22,6 +22,7 @@ module.exports = class Box
     @ip = @gateway = @interface = @port = @boxerCallback = null
     @containerState = 'stopped'
     @name = @containerTemplate = null
+    @pendingReconfiguration = false
     @memory = @diskSpace = @virtualMemory = @publicKeys = @snapshotURL = null
 
     @swappiness = Box.SWAPPINESS
@@ -100,7 +101,7 @@ module.exports = class Box
       self = this
       self._mountContainer ->
         self._startContainer ->
-          self.updateAttributes containerState: 'running', cb
+          self.updateAttributes containerState: 'running', pendingReconfiguration: false, cb
     else
       cb(new Error('Invalid Params'))
 
@@ -180,7 +181,24 @@ module.exports = class Box
                 return done(new Error('Cannot change the disk limit')) if err
                 this._startContainer (err) =>
                   return done(new Error('Cannot start the container')) if err
-                  this.updateAttributes containerState: 'running', done
+                  this.updateAttributes containerState: 'running', pendingReconfiguration: false, done
+
+    else if dataType == 'aio:configure:soft_reconfigure'
+      if this.mountMethod() == 'lvm'
+        # Don't allow soft reconfiguring of lvm boxes because that requires
+        # mounting of the various fs just to change the lxc config file. Plus
+        # we're gonna kill lvm-based boxes so let's not support it now.
+        return done(new Error('Cannot soft reconfigure lvm boxes'))
+
+      @memory = data.memory if data.memory
+      @cpuShares = data.cpuShares if data.cpuShares
+      @virtualMemory = data.virtualMemory if data.virtualMemory
+
+      this._changeCPUShares (err) =>
+        return done(new Error('Cannot change CPU shares')) if err
+        this._changeMemoryLimit (err) =>
+          return done(new Error('Cannot change the memory limit')) if err
+          this.updateAttributes pendingReconfiguration: true, done
 
     else if dataType == 'aio:configure:update_auth'
       this.updateAttributes { authUsername: data.auth_username, authPassword: data.auth_password }, =>
@@ -289,6 +307,7 @@ module.exports = class Box
                     gateway: @gateway
                     interface: @interface
                     port: @port
+                    pendingReconfiguration: @pendingReconfiguration
                     memory: @memory
                     virtualMemory: @virtualMemory
                     disk: @disk
@@ -360,6 +379,11 @@ module.exports = class Box
           box.cpuShares = parsedBox.cpuShares
         else
           box.cpuShares = Box.CPU_SHARES
+
+        if parsedBox.pendingReconfiguration != undefined
+          box.pendingReconfiguration = parsedBox.pendingReconfiguration
+        else
+          box.pendingReconfiguration = false
 
         cb(err, box)
       else
@@ -462,7 +486,7 @@ module.exports = class Box
   _removeBoxConfig: (done) ->
     done()
 
-  # TODO: So in development mode (if you're runnign in Vagrant)
+  # TODO: So in development mode (if you're running in Vagrant)
   # you need two iptables rules for port forwarding to work correctly,
   # both of which are set in the boxer-setup-portforwarding-dev
   # I didn't know of a clean way to make it work for existing iptables rules,
@@ -475,7 +499,7 @@ module.exports = class Box
     console.log "Port Forwarding Set Up: #{script}"
     this._execShellCommand script, [@ip, @port], sudo: true, done
 
-  # TODO: So in development mode (if you're runnign in Vagrant)
+  # TODO: So in development mode (if you're running in Vagrant)
   # you need two iptables rules for port forwarding to work correctly,
   # both of which are set in the boxer-setup-portforwarding-dev
   # I didn't know of a clean way to make it work for existing iptables rules,
