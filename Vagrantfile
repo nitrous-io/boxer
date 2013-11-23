@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 #
-IP = ENV['VAGRANT_INTERFACE'] || "33.33.33.10"
+IP = ENV["BOXER_INTERFACE"] || ENV['VAGRANT_INTERFACE'] || "33.33.33.10"
 
 $script = <<SCRIPT
   apt-get update
@@ -127,8 +127,8 @@ Vagrant.configure("2") do |config|
   # Example for VirtualBox:
   #
   config.vm.provider :virtualbox do |v|
-    v.customize ["modifyvm", :id, "--cpus", "2"]
-    v.customize ["modifyvm", :id, "--memory", "2048"]
+    v.customize ["modifyvm", :id, "--cpus", ENV["BOXER_VM_CPU"] || "2"]
+    v.customize ["modifyvm", :id, "--memory", ENV['BOXER_VM_MEM'] || "2048"]
     v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
   end
 
