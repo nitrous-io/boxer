@@ -726,8 +726,9 @@ describe 'Boxer', ->
 
           it 'returns a aio:configured message with success set to false', (done) ->
             assertMessage = (message) ->
-              # message set to false
               expect(message.success).to.be.false
+              expect(message.data.memory).to.eql 256
+              expect(message.data.diskSpace).to.eql 2000
 
               # check lxc config
               lxcConfigFile = "/var/lib/lxc/mclovins-container-1/config"

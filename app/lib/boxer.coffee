@@ -137,6 +137,8 @@ module.exports = class Boxer
             data = configuredMessage.data
             data.memory = parseInt box.memory, 10
             data.diskSpace = parseInt box.diskSpace, 10
+            data.virtualMemory = parseInt box.virtualMemory, 10
+            data.cpuShares = parseInt box.cpuShares, 10
 
           if err
             configuredMessage.success = false
