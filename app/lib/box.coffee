@@ -166,9 +166,9 @@ module.exports = class Box
         return done(new Error('Current Disk Usage Exceeds New Disk Quota')) if quota.used > ConvertSize.convert(data.diskSpace)
 
         @memory = data.memory if data.memory
-        @diskSpace = ConvertSize.convertUnit(data.diskSpace, "M") if data.diskSpace
+        @diskSpace = ConvertSize.convertUnit(data.diskSpace, 'M') if data.diskSpace
         @cpuShares = data.cpuShares if data.cpuShares
-        @virtualMemory = data.virtualMemory if data.virtualMemory
+        @virtualMemory = data.virtualMemory || @memory
 
         this._stopContainer (err) =>
           return done(new Error('Cannot stop the current container')) if err
