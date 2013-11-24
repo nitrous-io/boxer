@@ -19,7 +19,6 @@
   , "sinon"        : "1.7.x"
   , "chai"         : "1.6.x"
   , "sinon-chai"   : "2.4.x"
-  , "nodemon"      : "0.7.x"
   }
 , "engines": {
     "node"         : "0.8.x"
