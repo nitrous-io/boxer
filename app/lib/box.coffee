@@ -95,12 +95,33 @@ module.exports = class Box
     else
       @failCallback(new Error('Invalid Params'))
 
-  start: (cb) ->
+  start: (data, cb) ->
+    dirty = false
+    if data
+      if data.memory && data.memory != @memory
+        @memory = data.memory
+        dirty = true
+      if data.cpuShares && data.cpuShares != @cpuShares
+        @cpuShares = data.cpuShares
+        dirty = true
+      if data.virtualMemory && data.virtualMemory != @virtualMemory
+        @virtualMemory = data.virtualMemory
+        dirty = true
+
     if this.valid()
       self = this
-      self._mountContainer ->
-        self._startContainer ->
-          self.updateAttributes containerState: 'running', cb
+      if dirty
+        self._mountContainer ->
+          self._changeCPUShares (err) ->
+            return cb(new Error('Cannot change CPU shares')) if err
+            self._changeMemoryLimit (err) ->
+              return cb(new Error('Cannot change the memory limit')) if err
+              self._startContainer ->
+                self.updateAttributes containerState: 'running', cb
+      else
+        self._mountContainer ->
+          self._startContainer ->
+            self.updateAttributes containerState: 'running', cb
     else
       cb(new Error('Invalid Params'))
 
@@ -200,11 +221,11 @@ module.exports = class Box
     else
       cb(new Error('Invalid Params'))
 
-  restart: (cb) ->
+  restart: (data, cb) ->
     if this.valid()
       self = this
       this.stop ->
-        self.start cb
+        self.start data, cb
     else
       cb(new Error('Invalid Params'))
 
@@ -370,7 +391,7 @@ module.exports = class Box
       done(err) if err
 
       async.map ids, Box.find, (err, boxes) ->
-        startAll = (box, cb) -> if box.containerState == 'running' then box.start(cb) else cb()
+        startAll = (box, cb) -> if box.containerState == 'running' then box.start(null, cb) else cb()
         async.forEachSeries boxes, startAll, (err) -> done() if !err
 
   @configureAll: (done) ->

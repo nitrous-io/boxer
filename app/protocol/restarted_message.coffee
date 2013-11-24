@@ -7,4 +7,5 @@ module.exports = class RestartedMessage extends BaseMessage
     @id = attributes.id
     @boxId = attributes.boxId
     @name = attributes.name
+    @data = attributes.data
     super
