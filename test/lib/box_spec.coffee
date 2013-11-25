@@ -17,6 +17,17 @@ describe Box, ->
     box.disk = '/lxc/disk1'
     cbSpy = sinon.spy()
 
+  it 'makes sure that its numeric attributes are numeric', ->
+    box.id = "1"
+    box.port = "1234"
+    box.swappines = "60"
+    box.cpuShares = "512"
+    res = JSON.parse(box.encode())
+    expect(res["id"]).to.eql 1
+    expect(res["port"]).to.eql 1234
+    expect(res["swappiness"]).to.eql 60
+    expect(res["cpuShares"]).to.eql 512
+
   describe '#mountMethod', ->
     it 'returns lvm if box.mount is set to lvm', ->
       box.mount = "lvm"

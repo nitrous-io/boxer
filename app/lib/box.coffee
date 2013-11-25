@@ -283,12 +283,12 @@ module.exports = class Box
 
   encode: ->
     JSON.stringify({
-                    id: @id
+                    id: +@id
                     name: @name
                     ip: @ip
                     gateway: @gateway
                     interface: @interface
-                    port: @port
+                    port: +@port
                     memory: @memory
                     virtualMemory: @virtualMemory
                     disk: @disk
@@ -298,8 +298,8 @@ module.exports = class Box
                     boxerId: @boxerId
                     containerState: @containerState
                     aufs: @aufs
-                    swappiness: @swappiness
-                    cpuShares: @cpuShares
+                    swappiness: +@swappiness
+                    cpuShares: +@cpuShares
                     mount: this.mountMethod()
                     quotaMethod: this.getQuotaMethod()
                     authUsername: @authUsername
