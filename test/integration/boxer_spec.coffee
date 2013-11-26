@@ -387,6 +387,7 @@ describe 'Boxer', ->
               expect(msg.memory).to.eql '512M'
               expect(msg.cpuShares).to.eql '1024'
               expect(msg.virtualMemory).to.eql '1024M'
+              done(err)
 
         subscribeAndDo ->
           waitForMessage 'aio:restarted', assertMessage

@@ -95,33 +95,16 @@ module.exports = class Box
     else
       @failCallback(new Error('Invalid Params'))
 
-  start: (data, cb) ->
-    dirty = false
-    if data
-      if data.memory && data.memory != @memory
-        @memory = data.memory
-        dirty = true
-      if data.cpuShares && data.cpuShares != @cpuShares
-        @cpuShares = data.cpuShares
-        dirty = true
-      if data.virtualMemory && data.virtualMemory != @virtualMemory
-        @virtualMemory = data.virtualMemory
-        dirty = true
-
+  start: (specs, cb) ->
     if this.valid()
       self = this
-      if dirty
-        self._mountContainer ->
-          self._changeCPUShares (err) ->
-            return cb(new Error('Cannot change CPU shares')) if err
-            self._changeMemoryLimit (err) ->
-              return cb(new Error('Cannot change the memory limit')) if err
-              self._startContainer ->
-                self.updateAttributes containerState: 'running', cb
-      else
-        self._mountContainer ->
-          self._startContainer ->
-            self.updateAttributes containerState: 'running', cb
+      self._mountContainer ->
+        self._changeCPUShares specs, (err) ->
+          return cb(new Error('Cannot change CPU shares')) if err
+          self._changeMemoryLimit specs, (err) ->
+            return cb(new Error('Cannot change the memory limit')) if err
+            self._startContainer ->
+              self.updateAttributes containerState: 'running', cb
     else
       cb(new Error('Invalid Params'))
 
@@ -186,16 +169,13 @@ module.exports = class Box
         return done(new Error('Cannot retrieve box quota')) if err
         return done(new Error('Current Disk Usage Exceeds New Disk Quota')) if quota.used > ConvertSize.convert(data.diskSpace)
 
-        @memory = data.memory if data.memory
         @diskSpace = ConvertSize.convertUnit(data.diskSpace, 'M') if data.diskSpace
-        @cpuShares = data.cpuShares if data.cpuShares
-        @virtualMemory = data.virtualMemory || @memory
 
         this._stopContainer (err) =>
           return done(new Error('Cannot stop the current container')) if err
-          this._changeCPUShares (err) =>
+          this._changeCPUShares data, (err) =>
             return done(new Error('Cannot change CPU shares')) if err
-            this._changeMemoryLimit (err) =>
+            this._changeMemoryLimit data, (err) =>
               return done(new Error('Cannot change the memory limit')) if err
               this._changeDiskQuota (err) =>
                 return done(new Error('Cannot change the disk limit')) if err
@@ -586,13 +566,20 @@ module.exports = class Box
   _gid: ->
     Box.UID_BASE + parseInt(@id)
 
-  _changeCPUShares: (done) ->
+  _changeCPUShares: (specs, done) ->
+    return done() unless specs && specs.cpuShares
+
+    @cpuShares = specs.cpuShares
     this._execShellCommand "boxer-change-cpu-shares",
       [this.containerName(), @cpuShares],
       sudo: true,
       done
 
-  _changeMemoryLimit: (done) ->
+  _changeMemoryLimit: (specs, done) ->
+    return done() unless specs && (specs.memory || specs.virtualMemory)
+
+    @memory = specs.memory
+    @virtualMemory = specs.virtualMemory || @memory
     this._execShellCommand "boxer-change-memory-limit",
       [this.containerName(), @memory, this.totalMemory()],
       sudo: true,
