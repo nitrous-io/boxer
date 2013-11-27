@@ -346,6 +346,7 @@ describe 'Boxer', ->
         assertMessage = (message) ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
+          expect(message.data.memory).to.eql 256
 
           childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
@@ -360,6 +361,43 @@ describe 'Boxer', ->
         subscribeAndDo ->
           waitForMessage 'aio:restarted', assertMessage
           publishSettings type: "aio:restart", name: "mclovins-container-1"
+
+      it 'should restart the container with new memory/cpu shares/virtual memory when those are given', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql 1
+          expect(message.data.memory).to.eql 512
+          expect(message.data.virtualMemory).to.eql 1024
+          expect(message.data.cpuShares).to.eql 1024
+
+          childProcess.exec 'sudo lxc-info -n mclovins-container-1', (err, stdout, stderr) ->
+            expect(stdout).to.match /RUNNING/
+
+            lxcConfigFile = "/var/lib/lxc/mclovins-container-1/config"
+            lxcConfigFileContents = fs.readFileSync(lxcConfigFile).toString()
+            expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.limit_in_bytes = 512M/
+            expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 1536M/
+            expect(lxcConfigFileContents).to.match /lxc.cgroup.cpu.shares = 1024/
+
+            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+              msg = JSON.parse(res)
+              expect(msg.id).to.eql 1
+              expect(msg.name).to.eql 'mclovins-container'
+              expect(msg.containerState).to.eql 'running'
+              expect(msg.memory).to.eql '512M'
+              expect(msg.cpuShares).to.eql '1024'
+              expect(msg.virtualMemory).to.eql '1024M'
+              done(err)
+
+        subscribeAndDo ->
+          waitForMessage 'aio:restarted', assertMessage
+          publishSettings
+            type: 'aio:restart'
+            data:
+              memory: '512M'
+              cpuShares: '1024'
+              virtualMemory: '1024M'
+            name: 'mclovins-container-1'
 
     describe 'aio:stop', ->
       beforeEach (done) ->
@@ -420,6 +458,7 @@ describe 'Boxer', ->
         assertMessage = (message) ->
           expect(message.id).to.eql 'test.action.io'
           expect(message.boxId).to.eql 1
+          expect(message.data.memory).to.eql 256
 
           childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
             expect(stdout).to.match /RUNNING/
@@ -433,6 +472,44 @@ describe 'Boxer', ->
         subscribeAndDo ->
           waitForMessage 'aio:started', assertMessage
           publishSettings type: "aio:start", name: "mclovins-container-1"
+
+      it 'should start the container with new memory/cpu shares/virtual memory when those are given', (done) ->
+        assertMessage = (message) ->
+          expect(message.id).to.eql 'test.action.io'
+          expect(message.boxId).to.eql 1
+          expect(message.data.memory).to.eql 640
+          expect(message.data.virtualMemory).to.eql 1280
+          expect(message.data.cpuShares).to.eql 1536
+
+          childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
+            expect(stdout).to.match /RUNNING/
+
+            lxcConfigFile = "/var/lib/lxc/mclovins-container-1/config"
+            lxcConfigFileContents = fs.readFileSync(lxcConfigFile).toString()
+            expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.limit_in_bytes = 640M/
+            expect(lxcConfigFileContents).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 1920M/
+            expect(lxcConfigFileContents).to.match /lxc.cgroup.cpu.shares = 1536/
+
+            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+              msg = JSON.parse(res)
+              expect(msg.id).to.eql 1
+              expect(msg.name).to.eql 'mclovins-container'
+              expect(msg.containerState).to.eql 'running'
+              expect(msg.memory).to.eql '640M'
+              expect(msg.cpuShares).to.eql '1536'
+              expect(msg.virtualMemory).to.eql '1280M'
+              done(err)
+
+        subscribeAndDo ->
+          waitForMessage 'aio:started', assertMessage
+          publishSettings
+            type: 'aio:start'
+            data:
+              memory: '640M'
+              cpuShares: '1536'
+              virtualMemory: '1280M'
+            name: 'mclovins-container-1'
+
 
     describe 'aio:info_request', ->
       beforeEach (done) ->
@@ -726,8 +803,9 @@ describe 'Boxer', ->
 
           it 'returns a aio:configured message with success set to false', (done) ->
             assertMessage = (message) ->
-              # message set to false
               expect(message.success).to.be.false
+              expect(message.data.memory).to.eql 256
+              expect(message.data.diskSpace).to.eql 2000
 
               # check lxc config
               lxcConfigFile = "/var/lib/lxc/mclovins-container-1/config"

@@ -94,9 +94,12 @@ module.exports = class Boxer
         box.create successCallback, errCallback
     else if message.type == protocol.StartMessage.type && @id == message.id
       Box.find message.name, (err, box) ->
-        box.start (err) ->
+        box.start message.data, (err) ->
           if !err
-            startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
+            startedMessage = new protocol.StartedMessage({id: boxer.id, boxId: box.id, data: {}, returnVars: returnVars})
+            startedMessage.data.memory = parseInt box.memory, 10
+            startedMessage.data.virtualMemory = parseInt box.virtualMemory, 10
+            startedMessage.data.cpuShares = parseInt box.cpuShares, 10
             boxer.publisher.publish boxer.coachChannel, startedMessage.encode()
           else
             boxer.publisher.publish boxer.coachChannel,
@@ -112,9 +115,12 @@ module.exports = class Boxer
                              new protocol.InvalidParamsMessage(id: boxer.id).encode()
     else if message.type == protocol.RestartMessage.type && @id == message.id
       Box.find message.name, (err, box) ->
-        box.restart (err) ->
+        box.restart message.data, (err) ->
           if !err
-            restartedMessage = new protocol.RestartedMessage({id: boxer.id, boxId: box.id, returnVars: returnVars})
+            restartedMessage = new protocol.RestartedMessage({id: boxer.id, boxId: box.id, data: {}, returnVars: returnVars})
+            restartedMessage.data.memory = parseInt box.memory, 10
+            restartedMessage.data.virtualMemory = parseInt box.virtualMemory, 10
+            restartedMessage.data.cpuShares = parseInt box.cpuShares, 10
             boxer.publisher.publish boxer.coachChannel, restartedMessage.encode()
           else
             boxer.publisher.publish boxer.coachChannel,
@@ -137,6 +143,8 @@ module.exports = class Boxer
             data = configuredMessage.data
             data.memory = parseInt box.memory, 10
             data.diskSpace = parseInt box.diskSpace, 10
+            data.virtualMemory = parseInt box.virtualMemory, 10
+            data.cpuShares = parseInt box.cpuShares, 10
 
           if err
             configuredMessage.success = false

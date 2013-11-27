@@ -95,12 +95,16 @@ module.exports = class Box
     else
       @failCallback(new Error('Invalid Params'))
 
-  start: (cb) ->
+  start: (specs, cb) ->
     if this.valid()
       self = this
       self._mountContainer ->
-        self._startContainer ->
-          self.updateAttributes containerState: 'running', cb
+        self._changeCPUShares specs, (err) ->
+          return cb(new Error('Cannot change CPU shares')) if err
+          self._changeMemoryLimit specs, (err) ->
+            return cb(new Error('Cannot change the memory limit')) if err
+            self._startContainer ->
+              self.updateAttributes containerState: 'running', cb
     else
       cb(new Error('Invalid Params'))
 
@@ -165,16 +169,13 @@ module.exports = class Box
         return done(new Error('Cannot retrieve box quota')) if err
         return done(new Error('Current Disk Usage Exceeds New Disk Quota')) if quota.used > ConvertSize.convert(data.diskSpace)
 
-        @memory = data.memory if data.memory
-        @diskSpace = ConvertSize.convertUnit(data.diskSpace, "M") if data.diskSpace
-        @cpuShares = data.cpuShares if data.cpuShares
-        @virtualMemory = data.virtualMemory if data.virtualMemory
+        @diskSpace = ConvertSize.convertUnit(data.diskSpace, 'M') if data.diskSpace
 
         this._stopContainer (err) =>
           return done(new Error('Cannot stop the current container')) if err
-          this._changeCPUShares (err) =>
+          this._changeCPUShares data, (err) =>
             return done(new Error('Cannot change CPU shares')) if err
-            this._changeMemoryLimit (err) =>
+            this._changeMemoryLimit data, (err) =>
               return done(new Error('Cannot change the memory limit')) if err
               this._changeDiskQuota (err) =>
                 return done(new Error('Cannot change the disk limit')) if err
@@ -200,11 +201,11 @@ module.exports = class Box
     else
       cb(new Error('Invalid Params'))
 
-  restart: (cb) ->
+  restart: (data, cb) ->
     if this.valid()
       self = this
       this.stop ->
-        self.start cb
+        self.start data, cb
     else
       cb(new Error('Invalid Params'))
 
@@ -370,7 +371,7 @@ module.exports = class Box
       done(err) if err
 
       async.map ids, Box.find, (err, boxes) ->
-        startAll = (box, cb) -> if box.containerState == 'running' then box.start(cb) else cb()
+        startAll = (box, cb) -> if box.containerState == 'running' then box.start(null, cb) else cb()
         async.forEachSeries boxes, startAll, (err) -> done() if !err
 
   @configureAll: (done) ->
@@ -565,13 +566,20 @@ module.exports = class Box
   _gid: ->
     Box.UID_BASE + parseInt(@id)
 
-  _changeCPUShares: (done) ->
+  _changeCPUShares: (specs, done) ->
+    return done() unless specs && specs.cpuShares
+
+    @cpuShares = specs.cpuShares
     this._execShellCommand "boxer-change-cpu-shares",
       [this.containerName(), @cpuShares],
       sudo: true,
       done
 
-  _changeMemoryLimit: (done) ->
+  _changeMemoryLimit: (specs, done) ->
+    return done() unless specs && (specs.memory || specs.virtualMemory)
+
+    @memory = specs.memory
+    @virtualMemory = specs.virtualMemory || @memory
     this._execShellCommand "boxer-change-memory-limit",
       [this.containerName(), @memory, this.totalMemory()],
       sudo: true,
