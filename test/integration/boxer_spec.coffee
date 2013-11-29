@@ -872,7 +872,7 @@ describe 'Boxer', ->
                   msg = JSON.parse(res)
                   expect(msg.memory).to.eql '512M'
                   expect(msg.diskSpace).to.eql '3072M'
-                  expect(msg.cpuShares).to.eql '2048'
+                  expect(msg.cpuShares).to.eql 2048
                   expect(msg.containerState).to.eql 'running'
                   done()
 
