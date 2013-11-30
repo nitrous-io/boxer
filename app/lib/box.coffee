@@ -6,7 +6,6 @@ redisStoreSettings = require('../../config/settings').redisStore
 redisClient = require('./utils').initRedisClientWith(redisStoreSettings, "localStore")
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
-initAirbrakeClient = require('./utils').initAirbrakeClient
 
 async = require 'async'
 _ = require 'underscore'
@@ -31,7 +30,6 @@ module.exports = class Box
     @boxerId = null
     # basic authentication for box
     @authUsername = @authPassword = null
-    @airbreakClient = initAirbrakeClient(settings.airbrakeAPIKey)
     @aufs = false
     @mount = null
     @quotaMethod = null
