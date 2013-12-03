@@ -5,7 +5,7 @@ module.exports = class CreateMessage extends BaseMessage
 
   constructor: (attributes) ->
     @id = attributes.id
-    @boxId = attributes.boxId
+    @boxId = +attributes.boxId
     @runtime = attributes.runtime
     @snapshotURL = attributes.snapshotURL
     @memory = attributes.memory
@@ -14,7 +14,7 @@ module.exports = class CreateMessage extends BaseMessage
     @publicKeys = attributes.publicKeys
     @name = attributes.name
     @sshKeyPair = attributes.sshKeyPair
-    @cpuShares = attributes.cpuShares
+    @cpuShares = +attributes.cpuShares
     @premium = attributes.premium
 
     super
