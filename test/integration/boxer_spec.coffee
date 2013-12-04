@@ -88,11 +88,12 @@ describe 'Boxer', ->
     afterEach (done) ->
       boxer.cleanup() if boxer
       coach.unsubscribe() if coach
-      publisher.unsubscribe() if publisher
       boxer = coach = publisher = null
       cleanupContainer stratName, 'mclovins-container-1', stratValue.disk, '15001', stratValue.selectedVG, ->
         done()
-        finished()
+
+    after ->
+      finished()
 
     describe 'aio:create', ->
       beforeEach (done) ->
@@ -509,7 +510,6 @@ describe 'Boxer', ->
               cpuShares: '1536'
               virtualMemory: '1280M'
             name: 'mclovins-container-1'
-
 
     describe 'aio:info_request', ->
       beforeEach (done) ->
@@ -950,47 +950,50 @@ describe 'Boxer', ->
       beforeEach (done) ->
         createContainer stratName, "1", "mclovins-container", "192.168.254.2", "10000", stratValue.disk, "15001", (err) ->
           return done(err) if err
+          cleanDB ->
+            boxJSON = _.extend stratValue, {
+              id: 1
+              name: "mclovins-container"
+              ip: "192.168.254.2"
+              port: 10000
+              diskSpace: "1G"
+              memory: "256M"
+              containerTemplate: "test_container_template"
+            }
+            publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify(boxJSON)
+            runBox done
+
+      assertDestroyed = (message, done) ->
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
+        expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
+        switch stratName
+          when "lvm"
+            expect(fs.existsSync("/dev/#{settings.selectedVG}/mclovins-container-1")).to.be.false
+          when "ext4", "xfs"
+            expect(fs.existsSync("/#{stratValue.disk}/mclovins-container-1")).to.be.false
+        childProcess.exec "sudo iptables -L -t nat", (err, stdout, stderr) ->
+          expect(stdout).to.not.match /192\.168\.254\.254:22/
+          childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
+            expect(stdout).to.match /STOPPED/
+            publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
+              expect(res).to.be.null
+              done()
+
+      context "when the box is still running for some reason", ->
+        it "destroys the box", (done) ->
+          subscribeAndDo ->
+            waitForMessage 'aio:destroyed', assertDestroyed, done
+            publishSettings type: "aio:destroy", name: "mclovins-container-1"
+
+      context "when the box is properly stopped", ->
+        beforeEach (done) ->
           childProcess.exec "sudo #{scriptPath}/boxer-stop-container mclovins-container-1", (err, stdout, stderr) ->
-            cleanDB ->
-              boxJSON = _.extend stratValue, {
-                id: 1
-                name: "mclovins-container"
-                ip: "192.168.254.2"
-                port: 10000
-                diskSpace: "1G"
-                memory: "256M"
-                containerTemplate: "test_container_template"
-                containerState: "stopped"
-              }
-              publisher.hset 'aio:boxes', "mclovins-container-1", JSON.stringify(boxJSON)
-              runBox done
+            done(err)
 
-      it 'should destroy the container and remove all remnants', (done) ->
-        assertMessage = (message) ->
-          expect(message.id).to.eql 'test.action.io'
-          expect(message.boxId).to.eql 1
-
-          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1")).to.be.false
-          expect(fs.existsSync("/var/lib/lxc/mclovins-container-1_delta")).to.be.false
-          switch stratName
-            when "lvm"
-              expect(fs.existsSync("/dev/#{settings.selectedVG}/mclovins-container-1")).to.be.false
-            when "ext4", "xfs"
-              expect(fs.existsSync("/#{stratValue.disk}/mclovins-container-1")).to.be.false
-
-          childProcess.exec "sudo iptables -L -t nat", (err, stdout, stderr) ->
-            expect(stdout).to.not.match /192\.168\.254\.254:22/
-
-            childProcess.exec "sudo lxc-info -n mclovins-container-1", (err, stdout, stderr) ->
-              expect(stdout).to.match /STOPPED/
-
-              publisher.hget 'aio:boxes', 'mclovins-container-1', (err, res) ->
-                expect(res).to.be.null
-                done()
-
-        subscribeAndDo ->
-          waitForMessage 'aio:destroyed', assertMessage
-          publishSettings type: "aio:destroy", name: "mclovins-container-1"
+        it 'should destroy the container and remove all remnants', (done) ->
+          subscribeAndDo ->
+            waitForMessage 'aio:destroyed', assertDestroyed, done
+            publishSettings type: "aio:destroy", name: "mclovins-container-1"
 
   # start running tests sequentially here
   tests = _.map strategies, (stratValue, stratName) -> (cb) -> testSuite(stratValue, stratName, cb)

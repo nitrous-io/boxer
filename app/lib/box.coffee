@@ -210,6 +210,9 @@ module.exports = class Box
   destroy: (@done) ->
     if this.valid()
       async.waterfall [
+        # stop instead of just unmount here to make sure that we can unmount
+        # successfully
+        (cb) => this._stopContainer (err) -> cb(err)
         (cb) => this._removeDefaultKeyPair (err) -> cb(err)
         (cb) => this._releasePortForwarding (err) -> cb(err)
         (cb) => this._unmountContainer (err) -> cb(err)
