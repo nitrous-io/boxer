@@ -385,7 +385,7 @@ describe 'Boxer', ->
               expect(msg.name).to.eql 'mclovins-container'
               expect(msg.containerState).to.eql 'running'
               expect(msg.memory).to.eql '512M'
-              expect(msg.cpuShares).to.eql '1024'
+              expect(msg.cpuShares).to.eql 1024
               expect(msg.virtualMemory).to.eql '1024M'
               done(err)
 
@@ -496,7 +496,7 @@ describe 'Boxer', ->
               expect(msg.name).to.eql 'mclovins-container'
               expect(msg.containerState).to.eql 'running'
               expect(msg.memory).to.eql '640M'
-              expect(msg.cpuShares).to.eql '1536'
+              expect(msg.cpuShares).to.eql 1536
               expect(msg.virtualMemory).to.eql '1280M'
               done(err)
 
