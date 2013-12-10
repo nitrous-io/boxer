@@ -22,11 +22,13 @@ describe Box, ->
     box.port = "1234"
     box.swappines = "60"
     box.cpuShares = "512"
+    box.premium = "true"
     res = JSON.parse(box.encode())
     expect(res["id"]).to.eql 1
     expect(res["port"]).to.eql 1234
     expect(res["swappiness"]).to.eql 60
     expect(res["cpuShares"]).to.eql 512
+    expect(res["premium"]).to.eql true
 
   describe '#mountMethod', ->
     it 'returns lvm if box.mount is set to lvm', ->

@@ -306,7 +306,7 @@ module.exports = class Box
                     quotaMethod: this.getQuotaMethod()
                     authUsername: @authUsername
                     authPassword: @authPassword
-                    premium: @premium
+                    premium: @premium == "true" || @premium == true
                     selectedVG: @selectedVG
                   })
 
