@@ -15,6 +15,6 @@ module.exports = class CreateMessage extends BaseMessage
     @name = attributes.name
     @sshKeyPair = attributes.sshKeyPair
     @cpuShares = +attributes.cpuShares
-    @premium = attributes.premium
+    @premium = attributes.premium == "true" || attributes.premium == true
 
     super
