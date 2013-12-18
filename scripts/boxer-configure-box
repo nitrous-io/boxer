@@ -19,6 +19,21 @@ interface=${10}
 uid=${11}
 gid=${12}
 disk=${13}
+
+cpu_count=$(nproc)
+case $cpu_count in
+  1)
+    cpu_range="0"
+    ;;
+  2)
+    cpu_range="1"
+    ;;
+  *)
+    last_core=$(echo "${cpu_count} - 1" | bc)
+    cpu_range="1-${last_core}"
+    ;;
+esac
+
 network_config=$(cat <<EOF
 auto lo
 iface lo inet loopback
@@ -48,6 +63,7 @@ sed -i "/lxc.cgroup.memory.limit_in_bytes/d" ${lxc_root}/${container_name}/confi
 sed -i "/lxc.cgroup.memory.memsw.limit_in_bytes/d" ${lxc_root}/${container_name}/config
 sed -i "/lxc.cgroup.memory.swappiness/d" ${lxc_root}/${container_name}/config
 sed -i "/lxc.cgroup.cpu.shares/d" ${lxc_root}/${container_name}/config
+sed -i "/lxc.cgroup.cpuset.cpus/d" ${lxc_root}/${container_name}/config
 
 echo "lxc.network.link = ${interface}" >> ${lxc_root}/${container_name}/config
 echo "lxc.network.hwaddr = ${mac_address}" >> ${lxc_root}/${container_name}/config
@@ -55,6 +71,7 @@ echo "lxc.cgroup.memory.limit_in_bytes = ${memory}" >> ${lxc_root}/${container_n
 echo "lxc.cgroup.memory.memsw.limit_in_bytes = ${total_memory}" >> ${lxc_root}/${container_name}/config
 echo "lxc.cgroup.memory.swappiness = ${swappiness}" >> ${lxc_root}/${container_name}/config
 echo "lxc.cgroup.cpu.shares = ${cpu_shares}" >> ${lxc_root}/${container_name}/config
+echo "lxc.cgroup.cpuset.cpus = ${cpu_range}" >> ${lxc_root}/${container_name}/config
 
 sed -i "s/base_container_template/${container_name}/g" ${lxc_root}/${container_name}/config
 sed -i "s/base_container_template/${container_name}/g" ${lxc_root}/${container_name}/rootfs/etc/hosts
