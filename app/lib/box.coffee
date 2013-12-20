@@ -6,6 +6,7 @@ redisStoreSettings = require('../../config/settings').redisStore
 redisClient = require('./utils').initRedisClientWith(redisStoreSettings, "localStore")
 scriptPath = __dirname.replace('app/lib', 'scripts/')
 childProcess = require 'child_process'
+os = require 'os'
 
 async = require 'async'
 _ = require 'underscore'
@@ -459,6 +460,7 @@ module.exports = class Box
       this._execShellCommand 'lvm/boxer-configure-box', args, sudo: true, done
     else
       args.push @disk
+      args.push this._cpuSet()
       this._execShellCommand 'boxer-configure-box', args, sudo: true, done
 
   _removeBoxConfig: (done) ->
@@ -566,6 +568,13 @@ module.exports = class Box
 
   _gid: ->
     Box.UID_BASE + parseInt(@id)
+
+  _cpuSet: ->
+    cores = os.cpus().length
+    switch cores
+      when 1 then '0'
+      when 2 then '1'
+      else "1-#{cores - 1}"
 
   _changeCPUShares: (specs, done) ->
     return done() unless specs && specs.cpuShares

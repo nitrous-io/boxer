@@ -4,6 +4,7 @@ MessageParser       = require '../../app/lib/message_parser'
 initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
 childProcess        = require 'child_process'
 fs                  = require 'fs'
+os                  = require 'os'
 _                   = require 'underscore'
 async               = require 'async'
 scriptPath          = __dirname.replace('test/integration', 'scripts')
@@ -97,6 +98,7 @@ describe 'Boxer', ->
 
     describe 'aio:create', ->
       beforeEach (done) ->
+        sinon.stub(os, 'cpus').returns(['core 0', 'core 1', 'core 2', 'core 3']) # 4 cores
         cleanDB ->
           multi = publisher.multi()
           multi.rpush 'aio:available_resources', ip
@@ -104,6 +106,9 @@ describe 'Boxer', ->
           multi.exec (err, replies) ->
             return done(err) if err
             runBox done
+
+      afterEach ->
+        os.cpus.restore()
 
       it 'returns aio:created with the requisite properties when successfully provisioned', (done) ->
         assertMessage = (message) ->
@@ -142,6 +147,7 @@ describe 'Boxer', ->
           expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
           expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.swappiness = 60/
           expect(lxcConfigFileContent).to.match /lxc.cgroup.cpu.shares = 2048/
+          expect(lxcConfigFileContent).to.match /lxc.cgroup.cpuset.cpus = 1-3/
 
           # check /etc settings
           etcActionBoxId = fs.readFileSync("#{root}/etc/action/box_id").toString().trim()
