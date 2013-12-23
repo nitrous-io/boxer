@@ -457,6 +457,7 @@ module.exports = class Box
       "#{@swappiness}", @ip, @gateway, @interface, this._uid(), this._gid()]
 
     if this.mountMethod() == "lvm"
+      args.push this._cpuSet()
       this._execShellCommand 'lvm/boxer-configure-box', args, sudo: true, done
     else
       args.push @disk
