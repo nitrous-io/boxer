@@ -574,7 +574,6 @@ module.exports = class Box
     cores = os.cpus().length
     switch cores
       when 1 then '0'
-      when 2 then '1'
       else [1..cores-1].join(",")
 
   _changeCPUShares: (specs, done) ->
