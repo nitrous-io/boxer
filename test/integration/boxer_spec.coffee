@@ -147,7 +147,7 @@ describe 'Boxer', ->
           expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.memsw.limit_in_bytes = 512M/
           expect(lxcConfigFileContent).to.match /lxc.cgroup.memory.swappiness = 60/
           expect(lxcConfigFileContent).to.match /lxc.cgroup.cpu.shares = 2048/
-          expect(lxcConfigFileContent).to.match /lxc.cgroup.cpuset.cpus = 1-3/
+          expect(lxcConfigFileContent).to.match /lxc.cgroup.cpuset.cpus = 1,2,3/
 
           # check /etc settings
           etcActionBoxId = fs.readFileSync("#{root}/etc/action/box_id").toString().trim()

@@ -575,7 +575,7 @@ module.exports = class Box
     switch cores
       when 1 then '0'
       when 2 then '1'
-      else "1-#{cores - 1}"
+      else [1..cores-1].join(",")
 
   _changeCPUShares: (specs, done) ->
     return done() unless specs && specs.cpuShares

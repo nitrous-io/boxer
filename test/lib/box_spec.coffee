@@ -148,7 +148,7 @@ describe Box, ->
         os.cpus.restore()
 
       it 'returns a range of CPUs from 1 up to the (total number of CPU - 1) on the host', ->
-        expect(box._cpuSet()).to.equal('1-3')
+        expect(box._cpuSet()).to.equal('1,2,3')
 
   describe '#_execShellCommand', ->
     beforeEach ->
