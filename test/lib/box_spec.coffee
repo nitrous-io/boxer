@@ -1,6 +1,7 @@
 Box                 = require '../../app/lib/box'
 ResourcePool        = require '../../app/lib/resource_pool'
 childProcess        = require 'child_process'
+os                  = require 'os'
 scriptPath          = __dirname.replace('test/lib', 'scripts/')
 settings            = require '../../config/settings'
 initRedisClientWith = require('../../app/lib/utils').initRedisClientWith
@@ -117,6 +118,37 @@ describe Box, ->
       box.memory = '1024M'
       box.virtualMemory = '131072' # 128M
       expect(box.totalMemory()).to.equal('1152M')
+
+  describe '#_cpuSet', ->
+    context 'when there is only 1 CPU on the host', ->
+      beforeEach ->
+        sinon.stub(os, 'cpus').returns(['core 0'])
+
+      afterEach ->
+        os.cpus.restore()
+
+      it 'returns 0', ->
+        expect(box._cpuSet()).to.equal('0')
+
+    context 'when there are 2 CPUs on the host', ->
+      beforeEach ->
+        sinon.stub(os, 'cpus').returns(['core 0', 'core 1'])
+
+      afterEach ->
+        os.cpus.restore()
+
+      it 'returns 1', ->
+        expect(box._cpuSet()).to.equal('1')
+
+    context 'when there are more than 2 CPUs on the host', ->
+      beforeEach ->
+        sinon.stub(os, 'cpus').returns(['core 0', 'core 1', 'core 2', 'core 3'])
+
+      afterEach ->
+        os.cpus.restore()
+
+      it 'returns a range of CPUs from 1 up to the (total number of CPU - 1) on the host', ->
+        expect(box._cpuSet()).to.equal('1,2,3')
 
   describe '#_execShellCommand', ->
     beforeEach ->
