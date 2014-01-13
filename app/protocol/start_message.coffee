@@ -7,5 +7,6 @@ module.exports = class StartMessage extends BaseMessage
     @id = attributes.id
     @boxId = attributes.boxId
     @name = attributes.name
+    @publicKeys = attributes.publicKeys
     @data = attributes.data
     super
