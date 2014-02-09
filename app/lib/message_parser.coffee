@@ -16,6 +16,8 @@ module.exports = class MessageParser
     'aio:destroyed'       : m.DestroyedMessage
     'aio:snapshot'        : m.SnapshotMessage
     'aio:snapshotted'     : m.SnapshottedMessage
+    'aio:delete_snapshot' : m.DeleteSnapshotMessage
+    'aio:deleted_snapshot': m.DeletedSnapshotMessage
     'aio:configure'       : m.ConfigureMessage
     'aio:configured'      : m.ConfiguredMessage
     'aio:invalid:params'  : m.InvalidParamsMessage
